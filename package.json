@@ -7,8 +7,8 @@
   "repository": "https://github.com/ocombe/probot-triage.git",
   "scripts": {
     "prestart": "./node_modules/.bin/tsc",
-    "start": "probot run ./dist/index.js",
-    "start:watch": "nodemon --watch dist --watch .env ./node_modules/probot/bin/probot.js run ./dist/index.js",
+    "start": "probot run ./dist/src/index.js",
+    "start:watch": "nodemon --watch dist --watch .env ./node_modules/probot/bin/probot.js run ./dist/src/index.js",
     "start:dev": "concurrently \"tsc -w\" \"npm run start:watch\"",
     "test": "jest",
     "test:dev": "jest --watch"
@@ -23,7 +23,6 @@
   "devDependencies": {
     "@types/core-js": "^0.9.43",
     "@types/jasmine": "^2.6.2",
-    "@types/jest": "^21.1.5",
     "concurrently": "^3.5.0",
     "jasmine": "^2.8.0",
     "jest": "^21.2.1",
@@ -39,7 +38,10 @@
     "yarn": ">= 1.0.0"
   },
   "jest": {
-    "moduleFileExtensions": ["ts","js"],
+    "moduleFileExtensions": [
+      "ts",
+      "js"
+    ],
     "transform": {
       "^.+\\.tsx?$": "<rootDir>/node_modules/ts-jest/preprocessor.js"
     },

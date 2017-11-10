@@ -23,7 +23,7 @@ declare namespace probot {
     logger: any,
     load: (plugin: any) => Robot,
     setup: (apps: any) => void
-  }
+  };
 
   /**
    * Helpers for extracting information from the webhook event, which can be
@@ -103,7 +103,7 @@ declare namespace probot {
      * @param {object} [defaultConfig] - An object of default config options
      * @return {Promise<Object>} - Configuration object read from the file
      */
-    config<T>(fileName: string, defaultConfig: object): Promise<T>
+    config<T>(fileName: string, defaultConfig: object): Promise<T>;
   }
 
   /**
@@ -196,7 +196,7 @@ declare namespace probot {
      */
     on(event: string, callback: (context: Context)=> any): any;
 
-    log: (...args: any[]) => void;
+    log(...args: any[]): void;
   }
 
   function probotEnhancedClient(github: Github): Github;
@@ -214,8 +214,8 @@ declare namespace probot {
   function wrapLogger(logger: any): (any) => any;
 
   export interface ContextProperties {
-    event: string,
-    github: Github
+    event: string;
+    github: Github;
   }
 
   export type IssueParams =
@@ -240,12 +240,12 @@ declare namespace probot {
   };
 
   export interface RobotProperties {
-    events: any, // EventEmitter from promise-events. No declaration file
-    app: any,
-    cache: any,
-    logger: any,
-    router: express.Router,
-    catchErrors: any
+    events: any; // EventEmitter from promise-events. No declaration file
+    app: any;
+    cache: any;
+    logger: any;
+    router: express.Router;
+    catchErrors: any;
   }
 
   export function probotEnhancedClient(github: Github): Github;
