@@ -6,7 +6,7 @@
 dist
 
 # dependencies
-/node_modules
+node_modules
 
 # IDEs and editors
 /.idea
@@ -43,4 +43,4 @@ Thumbs.db
 
 # private files
 *.pem
-.env
+functions/private

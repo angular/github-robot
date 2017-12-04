@@ -14,9 +14,9 @@ declare namespace probot {
 
   export function server(webhook: any): express.Application;
 
-  export function resolver(app: express.Application, opts: Object |{}): any;
+  export function resolver(app: express.Application, opts: Object | {}): any;
 
-  export function initiate(options:{}): {
+  export function initiate(options: {}): {
     server: (webhook: any) => express.Application,
     webhook: any,
     receive: (event: any) => Promise<any>,
@@ -31,6 +31,7 @@ declare namespace probot {
    *
    * @property {github} github - An authenticated GitHub API client
    * @property {payload} payload - The webhook event payload
+   * @property {string} event - The webhook event name
    */
   export class Context {
     constructor(properties: probot.ContextProperties);
@@ -194,7 +195,7 @@ declare namespace probot {
          *   // An issue was just opened.
          * });
      */
-    on(event: string, callback: (context: Context)=> any): any;
+    on(event: string, callback: (context: Context) => any): any;
 
     log(...args: any[]): void;
   }
@@ -225,7 +226,7 @@ declare namespace probot {
       title?: string;
       body?: string;
       assignee?: string;
-      state?: "open"|"closed";
+      state?: "open" | "closed";
       milestone?: number;
       labels?: string[];
     };
@@ -249,7 +250,9 @@ declare namespace probot {
   }
 
   export function probotEnhancedClient(github: Github): Github;
+
   export function rateLimitedClient(github: Github): Github;
+
   export function wrapLogger(logger: any): any;
 }
 
@@ -270,5 +273,13 @@ declare module "github" {
       'x-github-media-type': string,
       status: string
     };
+  }
+
+  export interface Label {
+    id: number;
+    url: string;
+    name: string;
+    color: string;
+    default: boolean; // if this is a default label from Github
   }
 }
