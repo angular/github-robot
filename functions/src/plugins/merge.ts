@@ -2,8 +2,9 @@ import * as Github from "github";
 import * as probot from "probot";
 import {firestore} from "firebase-admin";
 import {getAllResults} from "../util";
+import {appConfig, MergeConfig} from "../default";
 
-const CONFIG_FILE = "merge.yml";
+const CONFIG_FILE = "angular-robot.yml";
 
 // TODO(ocombe): create Typescript interfaces for each payload & DB data
 export class MergeTask {
@@ -40,6 +41,7 @@ export class MergeTask {
    * Updates the database with existing PRs when the bot is installed on a new server
    * @returns {Promise<void>}
    */
+  // TODO(ocombe): run a light 'init' on a repository on installed event instead of the manual init
   async init(): Promise<void> {
     this.robot.log('Starting init...');
     const github = await this.robot.auth();
@@ -94,7 +96,7 @@ export class MergeTask {
   async onLabeled(context: probot.Context): Promise<void> {
     const newLabel = context.payload.label.name;
     const pr = context.payload.pull_request;
-    const config: MergeConfig = await context.config(CONFIG_FILE);
+    const config = await this.getConfig(context);
     const doc = this.pullRequests.doc(pr.id.toString());
     let labels: string[] = [];
 
@@ -120,24 +122,28 @@ export class MergeTask {
         try {
           await this.removeLabel(context.github, owner, repo, pr.number, config.mergeLabel);
         } catch(e) {
-          // error if the label has already been removed
+          // the label has already been removed
           this.robot.log.error(e);
           return;
         }
 
         let body = config.mergeRemovedComment;
-        body = body.replace("{{MERGE_LABEL}}", config.mergeLabel).replace("{{PLACEHOLDER}}", reasons);
-        if(config.overrideLabel) {
-          body = body.replace("{{OVERRIDE_LABEL}}", config.overrideLabel);
+        if(body) {
+          body = body.replace("{{MERGE_LABEL}}", config.mergeLabel).replace("{{PLACEHOLDER}}", reasons);
+          if(config.overrideLabel) {
+            body = body.replace("{{OVERRIDE_LABEL}}", config.overrideLabel);
+          }
+          this.addComment(context.github, owner, repo, pr.number, body);
         }
-        return this.addComment(context.github, owner, repo, pr.number, body);
+        // return now, we don't want to add the new label to Firebase
+        return;
       }
     } else {
       labels = await this.getLabels(context);
       if(!labels.includes(newLabel)) {
         labels.push(newLabel);
       }
-      if(this.matchLabel(newLabel, config.requiredLabels) || this.matchLabel(newLabel, config.forbiddenLabels)) {
+      if(this.matchLabel(newLabel, config.checks.requiredLabels) || this.matchLabel(newLabel, config.checks.forbiddenLabels)) {
         this.updateStatus(context);
       }
     }
@@ -150,10 +156,10 @@ export class MergeTask {
   }
 
   async onUnlabeled(context: probot.Context): Promise<void> {
-    const config: MergeConfig = await context.config(CONFIG_FILE);
+    const config = await this.getConfig(context);
     const removedLabel = context.payload.label.name;
 
-    if(this.matchLabel(removedLabel, config.requiredLabels) || this.matchLabel(removedLabel, config.forbiddenLabels)) {
+    if(this.matchLabel(removedLabel, config.checks.requiredLabels) || this.matchLabel(removedLabel, config.checks.forbiddenLabels)) {
       this.updateStatus(context);
     }
 
@@ -205,20 +211,22 @@ export class MergeTask {
   async getFailedChecks(context: probot.Context, pr: any, config: MergeConfig, labels: string[] = []): Promise<string[]> {
     const failedChecks = [];
 
-    // if mergeable is null, we need to get the updated status
-    if(pr.mergeable === null) {
-      const {owner, repo} = context.repo();
-      pr = await this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id);
-    }
-    // Check if there is a conflict with the base branch
-    if(!pr.mergeable) {
-      failedChecks.push(`conflicts with base branch "${pr.base.ref}"`);
+    if(config.checks.noConflict) {
+      // if mergeable is null, we need to get the updated status
+      if(pr.mergeable === null) {
+        const {owner, repo} = context.repo();
+        pr = await this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id);
+      }
+      // Check if there is a conflict with the base branch
+      if(!pr.mergeable) {
+        failedChecks.push(`conflicts with base branch "${pr.base.ref}"`);
+      }
     }
 
     // Check if all required labels are present
-    if(config.requiredLabels) {
+    if(config.checks.requiredLabels) {
       const missingLabels = [];
-      config.requiredLabels.forEach(reqLabel => {
+      config.checks.requiredLabels.forEach(reqLabel => {
         if(!labels.some(label => !!label.match(new RegExp(reqLabel)))) {
           missingLabels.push(reqLabel);
         }
@@ -230,9 +238,9 @@ export class MergeTask {
     }
 
     // Check if any forbidden label is present
-    if(config.forbiddenLabels) {
+    if(config.checks.forbiddenLabels) {
       const fbdLabels = [];
-      config.forbiddenLabels.forEach(fbdLabel => {
+      config.checks.forbiddenLabels.forEach(fbdLabel => {
         if(labels.some(label => !!label.match(new RegExp(fbdLabel)))) {
           fbdLabels.push(fbdLabel);
         }
@@ -251,16 +259,16 @@ export class MergeTask {
     }
 
     // Check if all required status are present
-    if(config.requiredStatuses) {
-      const missingChecks = [];
-      config.requiredStatuses.forEach(reqCheck => {
+    if(config.checks.requiredStatuses) {
+      const missingStatuses = [];
+      config.checks.requiredStatuses.forEach(reqCheck => {
         if(!statuses.some(status => !!status.context.match(new RegExp(reqCheck)))) {
-          missingChecks.push(reqCheck);
+          missingStatuses.push(reqCheck);
         }
       });
 
-      if(missingChecks.length > 0) {
-        failedChecks.push(`missing required status${missingChecks.length > 1 ? 'es' : ''}: "${missingChecks.join('", "')}"`);
+      if(missingStatuses.length > 0) {
+        failedChecks.push(`missing required status${missingStatuses.length > 1 ? 'es' : ''}: "${missingStatuses.join('", "')}"`);
       }
     }
 
@@ -337,8 +345,11 @@ export class MergeTask {
    * @returns {Promise<void>}
    */
   async onPush(context: probot.Context): Promise<void> {
+    const config = await this.getConfig(context);
+    if(!config.checks.noConflict) {
+      return;
+    }
     const {owner, repo} = context.repo();
-    const config: MergeConfig = await context.config(CONFIG_FILE);
     let ref = context.payload.ref.split('/');
     ref = ref[ref.length - 1];
 
@@ -350,21 +361,24 @@ export class MergeTask {
       // We need to get the updated mergeable status
       // TODO(ocombe): we might need to setTimeout this until we get a mergeable value !== null (or use probot scheduler)
       pr = await this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id);
+      console.log('on push:', pr);
       if(pr.mergeable === false) {
         // get the comments since the last time the PR was synchronized
         if(pr.conflict_comment_at && pr.synchronized_at && pr.conflict_comment_at >= pr.synchronized_at) {
-          this.robot.log(`The PR ${pr.html_url} already contains a merge conflict comment since synchronized date, skipping it`);
+          this.robot.log(`The PR ${pr.html_url} already contains a merge conflict comment since the last synchronized date, skipping it`);
           return;
         }
 
-        await context.github.issues.createComment({
-          owner,
-          repo,
-          number: pr.number,
-          body: config.mergeConflictComment
-        });
-        this.pullRequests.doc(pr.id.toString()).set({conflict_comment_at: new Date()}, {merge: true});
-        this.robot.log(`Added comment to the PR ${pr.html_url}: conflict with the base branch "${pr.base.ref}"`);
+        if(config.mergeConflictComment) {
+          await context.github.issues.createComment({
+            owner,
+            repo,
+            number: pr.number,
+            body: config.mergeConflictComment
+          });
+          this.pullRequests.doc(pr.id.toString()).set({conflict_comment_at: new Date()}, {merge: true});
+          this.robot.log(`Added comment to the PR ${pr.html_url}: conflict with the base branch "${pr.base.ref}"`);
+        }
       }
     });
   }
@@ -376,7 +390,10 @@ export class MergeTask {
    */
   async updateStatus(context: probot.Context): Promise<void> {
     let sha, url;
-    const config: MergeConfig = await context.config(CONFIG_FILE);
+    const config = await this.getConfig(context);
+    if(config.status.disabled) {
+      return;
+    }
     const {owner, repo} = context.repo();
     let pr;
     let labels = [];
@@ -390,8 +407,8 @@ export class MergeTask {
         labels = await this.getLabels(context);
         break;
       case 'status':
-        // ignore events generated by this bot
-        if(context.payload.context === config.status.name) {
+        // ignore status events for commits directly to the default branch (most likely using github edit)
+        if(context.payload.branches.name === context.payload.repository.default_branch) {
           return;
         }
         sha = context.payload.sha;
@@ -402,12 +419,12 @@ export class MergeTask {
           pr = d.data();
           labels = pr.labels || await this.getGhLabels(context.github, owner, repo, pr.number);
         });
-        url = pr.html_url;
+        // either init has not run yet and we don't have this PR in the DB, or it's a status update for a commit
+        // made directly on a branch without a PR
         if(!pr) {
-          // TODO(ocombe): run a light 'init' on a repository on installed event instead of the manual init
-          this.robot.log.warn(`Getting a status update on a PR that is not in the database yet, ignoring it. Please run init()`);
           return;
         }
+        url = pr.html_url;
         break;
       default:
         throw new Error(`Unhandled event ${context.event} in updateStatus`);
@@ -417,7 +434,7 @@ export class MergeTask {
       owner,
       repo,
       sha: sha,
-      context: config.status.name,
+      context: config.status.context,
       state: 'success'
     };
 
@@ -449,7 +466,7 @@ export class MergeTask {
   // TODO(ocombe): use Firebase instead
   async getStatuses(context: probot.Context, ref: string): Promise<GithubStatus[]> {
     const {owner, repo} = context.repo();
-    const config: MergeConfig = await context.config(CONFIG_FILE);
+    const config = await this.getConfig(context);
 
     const res = await context.github.repos.getCombinedStatusForRef({
       owner,
@@ -457,11 +474,11 @@ export class MergeTask {
       ref
     });
 
-    return res.data.statuses.filter((status: GithubStatus) => status.context !== config.status.name);
+    return res.data.statuses.filter((status: GithubStatus) => status.context !== config.status.context);
   }
 
   /**
-   * Adds a PR to Firebase
+   * Gets the PR data from Github (or parameter) and adds/updates it in Firebase
    * @param {probot.Context.github} github
    * @param {string} owner
    * @param {string} repo
@@ -493,21 +510,10 @@ export class MergeTask {
 
     return Promise.all(res);
   }
-}
 
-interface MergeConfig {
-  status: {
-    name: string;
-    successText: string;
-    failureText: string;
-  };
-  mergeConflictComment: string;
-  mergeLabel: string;
-  overrideLabel?: string;
-  requiredLabels?: string[];
-  forbiddenLabels?: string[];
-  requiredStatuses?: string[];
-  mergeRemovedComment: string;
+  async getConfig(context): Promise<MergeConfig> {
+    return {...appConfig.merge,  ...(await context.config(CONFIG_FILE)).merge};
+  }
 }
 
 interface GithubStatus {

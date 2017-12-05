@@ -1,4 +1,0 @@
-# Configuration for probot-triage
-
-initLabels:
-- needs:triage
