@@ -9,31 +9,30 @@ export async function getAllResults(github: probot.Context.github, request): Pro
   return results;
 }
 
-function Stream() {
-}
-
-Stream.prototype.write = function(data: any) {
-  let log = console.log;
-  try {
-    data = JSON.parse(data);
-    switch(data.level) {
-      case 60: // fatal
-      case 50: // error
-        log = console.error;
-        break;
-      case 40: // warn
-        log = console.warn;
-        break;
-      case 30: // info
-      case 20: // debug
-      case 10: // trace
-        log = console.info;
-        break;
+class Stream {
+  write(data: any) {
+    let log = console.log;
+    try {
+      data = JSON.parse(data);
+      switch(data.level) {
+        case 60: // fatal
+        case 50: // error
+          log = console.error;
+          break;
+        case 40: // warn
+          log = console.warn;
+          break;
+        case 30: // info
+        case 20: // debug
+        case 10: // trace
+          log = console.info;
+          break;
+      }
+    } catch(e) {
     }
-  } catch(e) {
+    log(typeof data === 'object' ? `${data.name}: ${data.msg}` : data);
   }
-  log(typeof data === 'object' ? `${data.name}: ${data.msg}` : data);
-};
+}
 
 export const consoleStream = {
   level: "debug",

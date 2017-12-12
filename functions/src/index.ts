@@ -1,8 +1,8 @@
 import {https, config} from 'firebase-functions';
 import {Request, Response} from "express";
-import * as probot from "./libs/probot";
-import {consoleStream} from "./src/util";
-import {MergeTask} from "./src/plugins/merge";
+import * as probot from "../libs/probot";
+import {consoleStream} from "./util";
+import {MergeTask} from "./plugins/merge";
 import {initializeApp} from "firebase-admin";
 
 let bot;
@@ -22,7 +22,7 @@ if(probotConfig) {
   });
 } else {
   // in dev mode you'll get an error EADDRINUSE because we start the bot for each function, just ignore it
-  const dev = require('./src/dev');
+  const dev = require('./dev');
   bot = dev.bot;
   mergeTask = dev.mergeTask;
 }

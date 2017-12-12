@@ -6,10 +6,12 @@
   "license": "MIT",
   "repository": "https://github.com/angular/github-robot.git",
   "scripts": {
-    "build": "rimraf functions/dist && npm run build:probot && npm run build:functions",
+    "prebuild": "npm run lint && rimraf functions/dist",
+    "build": "npm run build:probot && npm run build:functions",
     "build:functions": "tsc -p functions",
     "build:probot": "rimraf functions/libs && webpack",
     "dev": "webpack --watch",
+    "lint": "tslint -p tslint.json",
     "watch": "tsc -p functions -w",
     "start:watch": "nodemon --watch ./functions/dist --watch ./functions/private functions/dist/src/dev.js ",
     "start:dev": "concurrently \"npm run build:functions -- -w\" \"npm run start:watch\"",
@@ -17,12 +19,10 @@
     "test:dev": "jest --watch",
     "serve:functions": "firebase serve --only functions",
     "start:functions": "firebase experimental:functions:shell",
-    "predeploy:functions": "npm run build",
     "deploy:functions": "firebase deploy --only functions",
     "logs:functions": "firebase functions:log"
   },
   "dependencies": {
-    "@google-cloud/logging-bunyan": "^0.7.0",
     "probot": "3.0.3"
   },
   "devDependencies": {
@@ -32,24 +32,24 @@
     "@types/github": "7.1.0",
     "@types/jasmine": "2.8.2",
     "@types/jest": "21.1.8",
-    "@types/node": "8.0.53",
+    "@types/node": "8.0.58",
     "babel-core": "6.26.0",
     "babel-loader": "7.1.2",
     "babel-preset-env": "1.6.1",
     "concurrently": "3.5.1",
-    "firebase": "4.6.2",
+    "firebase": "4.8.0",
     "firebase-admin": "5.5.1",
     "firebase-functions": "0.7.3",
-    "firebase-tools": "3.15.4",
+    "firebase-tools": "3.16.0",
     "jasmine": "2.8.0",
     "jest": "21.2.1",
-    "nodemon": "1.12.1",
+    "nodemon": "1.12.5",
     "rimraf": "2.6.2",
-    "ts-jest": "21.2.3",
-    "ts-loader": "3.1.1",
+    "ts-jest": "21.2.4",
+    "ts-loader": "3.2.0",
     "tslint": "5.8.0",
     "typescript": "2.6.2",
-    "webpack": "3.8.1"
+    "webpack": "3.10.0"
   },
   "jest": {
     "moduleFileExtensions": [

@@ -50,7 +50,9 @@ export class MergeTask {
       const authGithub = await this.robot.auth(installation.id);
       const repositories = await authGithub.apps.getInstallationRepositories({});
       repositories.data.repositories.forEach(async repository => {
-        this.repositories.doc(repository.id.toString()).set(repository);
+        this.repositories.doc(repository.id.toString()).set(repository).catch(err => {
+          throw err;
+        });
 
         const [repoPRs, dbPRSnapshots] = await Promise.all([
           this.getPRs(authGithub, {owner: repository.owner.login, repo: repository.name, state: 'open'}),
@@ -68,7 +70,9 @@ export class MergeTask {
 
         // add or update all existing opened PRs
         repoPRs.forEach(pr => {
-          this.updateDbPR(authGithub, repository.owner.login, repository.name, pr.number, repository.id, pr);
+          this.updateDbPR(authGithub, repository.owner.login, repository.name, pr.number, repository.id, pr).catch(err => {
+            throw err;
+          });
           const index = dbPRs.indexOf(pr.id);
           if(index !== -1) {
             dbPRs.splice(index, 1);
@@ -82,7 +86,9 @@ export class MergeTask {
             // should we update all of the other data as well? we ignore them for now
             batch.set(this.pullRequests.doc(id.toString()), {state: 'closed'}, {merge: true});
           });
-          batch.commit();
+          batch.commit().catch(err => {
+            throw err;
+          });
         }
       });
     });
@@ -109,7 +115,9 @@ export class MergeTask {
 
       // Check if the PR has an override label, in which case we just update Firebase
       if(config.overrideLabel && labels.includes(config.overrideLabel)) {
-        doc.set({labels}, {merge: true});
+        doc.set({labels}, {merge: true}).catch(err => {
+          throw err;
+        });
         return;
       }
 
@@ -133,7 +141,9 @@ export class MergeTask {
           if(config.overrideLabel) {
             body = body.replace("{{OVERRIDE_LABEL}}", config.overrideLabel);
           }
-          this.addComment(context.github, owner, repo, pr.number, body);
+          this.addComment(context.github, owner, repo, pr.number, body).catch(err => {
+            throw err;
+          });
         }
         // return now, we don't want to add the new label to Firebase
         return;
@@ -144,11 +154,15 @@ export class MergeTask {
         labels.push(newLabel);
       }
       if(this.matchLabel(newLabel, config.checks.requiredLabels) || this.matchLabel(newLabel, config.checks.forbiddenLabels)) {
-        this.updateStatus(context);
+        this.updateStatus(context).catch(err => {
+          throw err;
+        });
       }
     }
 
-    doc.set({labels}, {merge: true});
+    doc.set({labels}, {merge: true}).catch(err => {
+      throw err;
+    });
   }
 
   matchLabel(label: string, labelsList: string[] = []): boolean {
@@ -160,7 +174,9 @@ export class MergeTask {
     const removedLabel = context.payload.label.name;
 
     if(this.matchLabel(removedLabel, config.checks.requiredLabels) || this.matchLabel(removedLabel, config.checks.forbiddenLabels)) {
-      this.updateStatus(context);
+      this.updateStatus(context).catch(err => {
+        throw err;
+      });
     }
 
     const pr = context.payload.pull_request;
@@ -204,7 +220,9 @@ export class MergeTask {
     }
 
     labels = await this.getGhLabels(context.github, owner, repo, pr.number);
-    doc.set({...pr, repository: context.payload.repository.id, labels}, {merge: true});
+    doc.set({...pr, repository: context.payload.repository.id, labels}, {merge: true}).catch(err => {
+      throw err;
+    });
     return labels;
   }
 
@@ -358,10 +376,11 @@ export class MergeTask {
       .get();
     return await pullRequests.forEach(async doc => {
       let pr = doc.data();
+
       // We need to get the updated mergeable status
       // TODO(ocombe): we might need to setTimeout this until we get a mergeable value !== null (or use probot scheduler)
       pr = await this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id);
-      console.log('on push:', pr);
+
       if(pr.mergeable === false) {
         // get the comments since the last time the PR was synchronized
         if(pr.conflict_comment_at && pr.synchronized_at && pr.conflict_comment_at >= pr.synchronized_at) {
@@ -376,7 +395,9 @@ export class MergeTask {
             number: pr.number,
             body: config.mergeConflictComment
           });
-          this.pullRequests.doc(pr.id.toString()).set({conflict_comment_at: new Date()}, {merge: true});
+          this.pullRequests.doc(pr.id.toString()).set({conflict_comment_at: new Date()}, {merge: true}).catch(err => {
+            throw err;
+          });
           this.robot.log(`Added comment to the PR ${pr.html_url}: conflict with the base branch "${pr.base.ref}"`);
         }
       }
@@ -490,7 +511,9 @@ export class MergeTask {
   async updateDbPR(github: probot.Context.github, owner: string, repo: string, number: number, repository: number, pr?: any): Promise<any> {
     pr = pr || (await github.pullRequests.get({owner, repo, number})).data;
     const data = {...pr, repository};
-    this.pullRequests.doc(pr.id.toString()).set(data, {merge: true});
+    this.pullRequests.doc(pr.id.toString()).set(data, {merge: true}).catch(err => {
+      throw err;
+    });
     return data;
   }
 
@@ -512,7 +535,7 @@ export class MergeTask {
   }
 
   async getConfig(context): Promise<MergeConfig> {
-    return {...appConfig.merge,  ...(await context.config(CONFIG_FILE)).merge};
+    return {...appConfig.merge, ...(await context.config(CONFIG_FILE)).merge};
   }
 }
 
