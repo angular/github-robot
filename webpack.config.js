@@ -47,7 +47,7 @@ module.exports = {
   },
   output: {
     libraryTarget: 'commonjs',
-    filename: 'probot.js',
-    path: path.resolve(__dirname, 'functions/libs')
+    filename: 'index.js',
+    path: path.resolve(__dirname, 'functions/libs/probot')
   }
 };

@@ -4,8 +4,8 @@ import {MergeTask} from './plugins/merge';
 
 console.warn(`Starting dev mode`);
 
-const config = require('../../private/env.json');
-const serviceAccount = require("../../private/firebase-key.json");
+const config = require('../private/env.json');
+const serviceAccount = require("../private/firebase-key.json");
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });

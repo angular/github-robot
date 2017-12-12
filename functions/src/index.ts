@@ -1,6 +1,6 @@
 import {https, config} from 'firebase-functions';
 import {Request, Response} from "express";
-import * as probot from "../libs/probot";
+import * as probot from "probot";
 import {consoleStream} from "./util";
 import {MergeTask} from "./plugins/merge";
 import {initializeApp} from "firebase-admin";

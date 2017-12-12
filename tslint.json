@@ -10,7 +10,7 @@
     "ban-comma-operator": true,
 
     // Do not allow internal modules or namespaces . These are deprecated in favor of ES6 modules.
-    "no-namespace": true,
+    "no-namespace": [true, "allow-declarations"],
 
     // Force the use of ES6-style imports instead of /// <reference path=> imports.
     "no-reference": true,
