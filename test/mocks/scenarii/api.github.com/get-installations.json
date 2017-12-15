@@ -1,0 +1,89 @@
+[
+  {
+    "scope": "https://api.github.com:443",
+    "method": "get",
+    "path": "/app/installations",
+    "body": "",
+    "status": 200,
+    "response": [
+      {
+        "id": 63922,
+        "account": {
+          "login": "ocombe",
+          "id": 265378,
+          "avatar_url": "https://avatars0.githubusercontent.com/u/265378?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/ocombe",
+          "html_url": "https://github.com/ocombe",
+          "followers_url": "https://api.github.com/users/ocombe/followers",
+          "following_url": "https://api.github.com/users/ocombe/following{/other_user}",
+          "gists_url": "https://api.github.com/users/ocombe/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/ocombe/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/ocombe/subscriptions",
+          "organizations_url": "https://api.github.com/users/ocombe/orgs",
+          "repos_url": "https://api.github.com/users/ocombe/repos",
+          "events_url": "https://api.github.com/users/ocombe/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/ocombe/received_events",
+          "type": "User",
+          "site_admin": false
+        },
+        "repository_selection": "selected",
+        "access_tokens_url": "https://api.github.com/installations/63922/access_tokens",
+        "repositories_url": "https://api.github.com/installation/repositories",
+        "html_url": "https://github.com/settings/installations/63922",
+        "app_id": 6359,
+        "target_id": 265378,
+        "target_type": "User",
+        "permissions": {
+          "pull_requests": "write",
+          "issues": "write",
+          "statuses": "write",
+          "contents": "read",
+          "metadata": "read"
+        },
+        "events": [
+          "issues",
+          "issue_comment",
+          "pull_request",
+          "pull_request_review",
+          "pull_request_review_comment",
+          "push",
+          "status"
+        ],
+        "created_at": "2017-10-31T09:58:10Z",
+        "updated_at": "2017-12-05T14:23:31Z",
+        "single_file_name": null
+      }
+    ],
+    "reqheaders": {
+      "accept": "application/vnd.github.machine-man-preview",
+      "host": "api.github.com"
+    },
+    "headers": {
+      "access-control-allow-origin": "*",
+      "access-control-expose-headers": "ETag, Link, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, X-OAuth-Scopes, X-Accepted-OAuth-Scopes, X-Poll-Interval",
+      "cache-control": "public, max-age=60, s-maxage=60",
+      "connection": "close",
+      "content-length": "906",
+      "content-security-policy": "default-src 'none'",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Tue, 10 Oct 2017 16:00:00 GMT",
+      "etag": "\"00000000000000000000000000000000\"",
+      "last-modified": "Tue, 10 Oct 2017 16:00:00 GMT",
+      "status": "200 OK",
+      "strict-transport-security": "max-age=31536000; includeSubdomains; preload",
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "deny",
+      "x-github-media-type": "github.v3; format=json",
+      "x-github-request-id": "0000:00000:0000000:0000000:00000000",
+      "x-ratelimit-limit": "60",
+      "x-ratelimit-remaining": "59",
+      "x-ratelimit-reset": "1507651200000",
+      "x-runtime-rack": "0.000000",
+      "x-xss-protection": "1; mode=block"
+    },
+    "badheaders": [
+      "authorization"
+    ]
+  }
+]

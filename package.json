@@ -6,14 +6,14 @@
   "license": "MIT",
   "repository": "https://github.com/angular/github-robot.git",
   "scripts": {
-    "prebuild": "npm run lint",
+    "prebuild": "npm run lint && rimraf functions/dist",
     "build": "npm run build:functions",
-    "build:functions": "rimraf functions/dist && tsc -p functions",
+    "build:functions": "tsc -p functions",
     "build:probot": "rimraf functions/libs && webpack",
     "dev": "webpack --watch",
     "lint": "tslint -p tslint.json",
     "watch:functions": "tsc -p functions -w",
-    "start:watch": "nodemon --watch ./functions/dist --watch ./functions/private functions/dist/src/dev.js ",
+    "start:watch": "nodemon --watch ./functions/dist --watch ./functions/private functions/dist/dev.js ",
     "start:dev": "concurrently \"npm run build:functions -- -w\" \"npm run start:watch\"",
     "test": "jest",
     "test:dev": "jest --watch",
@@ -32,6 +32,8 @@
     "@types/github": "7.1.0",
     "@types/jasmine": "2.8.2",
     "@types/jest": "21.1.8",
+    "@types/js-yaml": "3.10.1",
+    "@types/nock": "9.1.0",
     "@types/node": "8.0.58",
     "babel-core": "6.26.0",
     "babel-loader": "7.1.2",
@@ -43,7 +45,8 @@
     "firebase-tools": "3.16.0",
     "jasmine": "2.8.0",
     "jest": "21.2.1",
-    "nodemon": "1.12.5",
+    "nock": "9.1.4",
+    "nodemon": "1.13.2",
     "rimraf": "2.6.2",
     "ts-jest": "21.2.4",
     "ts-loader": "3.2.0",
@@ -54,7 +57,8 @@
   "jest": {
     "moduleFileExtensions": [
       "ts",
-      "js"
+      "js",
+      "json"
     ],
     "transform": {
       ".+\\.tsx?$": "<rootDir>/node_modules/ts-jest/preprocessor.js"

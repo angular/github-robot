@@ -1,18 +1,16 @@
 import * as Github from "github";
 import * as probot from "probot";
-import {firestore} from "firebase-admin";
 import {getAllResults} from "../util";
 import {appConfig, MergeConfig} from "../default";
 
-const CONFIG_FILE = "angular-robot.yml";
+export const CONFIG_FILE = "angular-robot.yml";
 
 // TODO(ocombe): create Typescript interfaces for each payload & DB data
 export class MergeTask {
-  db = firestore();
   repositories: FirebaseFirestore.CollectionReference;
   pullRequests: FirebaseFirestore.CollectionReference;
 
-  constructor(private robot: probot.Robot) {
+  constructor(private robot: probot.Robot, public db: FirebaseFirestore.Firestore) {
     this.robot.on('push', (context: probot.Context) => this.onPush(context));
     this.robot.on('pull_request.labeled', (context: probot.Context) => this.onLabeled(context));
     this.robot.on('pull_request.unlabeled', (context: probot.Context) => this.onUnlabeled(context));
@@ -46,11 +44,12 @@ export class MergeTask {
     this.robot.log('Starting init...');
     const github = await this.robot.auth();
     const installations = await getAllResults(github, github.apps.getInstallations({}));
-    installations.forEach(async installation => {
+    await Promise.all(installations.map(async installation => {
       const authGithub = await this.robot.auth(installation.id);
       const repositories = await authGithub.apps.getInstallationRepositories({});
-      repositories.data.repositories.forEach(async repository => {
+      await Promise.all(repositories.data.repositories.map(async repository => {
         this.repositories.doc(repository.id.toString()).set(repository).catch(err => {
+          this.robot.log.error(err);
           throw err;
         });
 
@@ -69,15 +68,16 @@ export class MergeTask {
         });
 
         // add or update all existing opened PRs
-        repoPRs.forEach(pr => {
-          this.updateDbPR(authGithub, repository.owner.login, repository.name, pr.number, repository.id, pr).catch(err => {
+        await Promise.all(repoPRs.map(async pr => {
+          await this.updateDbPR(authGithub, repository.owner.login, repository.name, pr.number, repository.id, pr).catch(err => {
+            this.robot.log.error(err);
             throw err;
           });
           const index = dbPRs.indexOf(pr.id);
           if(index !== -1) {
             dbPRs.splice(index, 1);
           }
-        });
+        }));
 
         // update the state of all PRs that are no longer opened
         if(dbPRs.length > 0) {
@@ -87,11 +87,12 @@ export class MergeTask {
             batch.set(this.pullRequests.doc(id.toString()), {state: 'closed'}, {merge: true});
           });
           batch.commit().catch(err => {
+            this.robot.log.error(err);
             throw err;
           });
         }
-      });
-    });
+      }));
+    }));
   }
 
   /**
@@ -436,8 +437,8 @@ export class MergeTask {
         const matches = (await this.pullRequests.where('head.sha', '==', sha)
           .where('repository', '==', context.payload.repository.id)
           .get());
-        await matches.forEach(async d => {
-          pr = d.data();
+        await matches.forEach(async doc => {
+          pr = doc.data();
           labels = pr.labels || await this.getGhLabels(context.github, owner, repo, pr.number);
         });
         // either init has not run yet and we don't have this PR in the DB, or it's a status update for a commit
@@ -511,7 +512,8 @@ export class MergeTask {
   async updateDbPR(github: probot.Context.github, owner: string, repo: string, number: number, repository: number, pr?: any): Promise<any> {
     pr = pr || (await github.pullRequests.get({owner, repo, number})).data;
     const data = {...pr, repository};
-    this.pullRequests.doc(pr.id.toString()).set(data, {merge: true}).catch(err => {
+    await this.pullRequests.doc(pr.id.toString()).set(data, {merge: true}).catch(err => {
+      this.robot.log.error(err);
       throw err;
     });
     return data;
