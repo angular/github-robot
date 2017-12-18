@@ -60,7 +60,7 @@
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 3);
+/******/ 	return __webpack_require__(__webpack_require__.s = 6);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -71,9 +71,73 @@ module.exports = require("path");
 
 /***/ }),
 /* 1 */
-/***/ (function(module, exports) {
+/***/ (function(module, exports, __webpack_require__) {
 
-module.exports = require("github");
+"use strict";
+
+
+/**
+ * A logger backed by [bunyan](https://github.com/trentm/node-bunyan)
+ *
+ * The default log level is `info`, but you can change it by setting the
+ * `LOG_LEVEL` environment variable to `trace`, `debug`, `info`, `warn`,
+ * `error`, or `fatal`.
+ *
+ * By default, logs are formatted for readability in development. If you intend
+ * to drain logs to a logging service, set `LOG_FORMAT=json`.
+ *
+ * **Note**: All execptions reported with `logger.error` will be forwarded to
+ * [sentry](https://github.com/getsentry/sentry) if the `SENTRY_DSN` environment
+ * variable is set.
+ *
+ * @typedef logger
+ *
+ * @example
+ *
+ * robot.log("This is an info message");
+ * robot.log.debug("…so is this");
+ * robot.log.trace("Now we're talking");
+ * robot.log.info("I thought you should know…");
+ * robot.log.warn("Woah there");
+ * robot.log.error("ETOOMANYLOGS");
+ * robot.log.fatal("Goodbye, cruel world!");
+ */
+
+const Logger = __webpack_require__(4);
+const bunyanFormat = __webpack_require__(15);
+const serializers = __webpack_require__(16);
+
+// Return a function that defaults to "info" level, and has properties for
+// other levels:
+//
+//     robot.log("info")
+//     robot.log.trace("verbose details");
+//
+Logger.prototype.wrap = function () {
+  const fn = this.info.bind(this);
+
+  // Add level methods on the logger
+  ['trace', 'debug', 'info', 'warn', 'error', 'fatal'].forEach(level => {
+    fn[level] = this[level].bind(this);
+  });
+
+  // Expose `child` method for creating new wrapped loggers
+  fn.child = attrs => this.child(attrs, true).wrap();
+
+  // Expose target logger
+  fn.target = logger;
+
+  return fn;
+};
+
+const logger = new Logger({
+  name: 'probot',
+  level: process.env.LOG_LEVEL || 'info',
+  stream: bunyanFormat({ outputMode: process.env.LOG_FORMAT || 'short' }),
+  serializers
+});
+
+module.exports = logger;
 
 /***/ }),
 /* 2 */
@@ -87,511 +151,11 @@ module.exports = require("express");
 
 "use strict";
 
-Object.defineProperty(exports, "__esModule", { value: true });
-const probot = __webpack_require__(4);
-exports.createProbot = probot;
-
-
-/***/ }),
-/* 4 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-const bunyan = __webpack_require__(5);
-const bunyanFormat = __webpack_require__(6);
-const sentryStream = __webpack_require__(7);
-const cacheManager = __webpack_require__(8);
-const createWebhook = __webpack_require__(9);
-const Raven = __webpack_require__(10);
-
-const createApp = __webpack_require__(11);
-const createRobot = __webpack_require__(13);
-const createServer = __webpack_require__(19);
-const resolve = __webpack_require__(20);
-const serializers = __webpack_require__(23);
-
-const cache = cacheManager.caching({
-  store: 'memory',
-  ttl: 60 * 60 // 1 hour
-});
-
-const logger = bunyan.createLogger({
-  name: 'Probot',
-  level: process.env.LOG_LEVEL || 'debug',
-  stream: bunyanFormat({ outputMode: process.env.LOG_FORMAT || 'short' }),
-  serializers
-});
-
-const defaultApps = [__webpack_require__(24), __webpack_require__(25)];
-
-module.exports = (options = {}) => {
-  const webhook = createWebhook({ path: options.webhookPath || '/', secret: options.secret || 'development' });
-  const app = createApp({
-    id: options.id,
-    cert: options.cert,
-    debug: process.env.LOG_LEVEL === 'trace'
-  });
-  const server = createServer(webhook);
-
-  // Log all received webhooks
-  webhook.on('*', event => {
-    logger.trace(event, 'webhook received');
-    receive(event);
-  });
-
-  // Log all webhook errors
-  webhook.on('error', logger.error.bind(logger));
-
-  // If sentry is configured, report all logged errors
-  if (process.env.SENTRY_DSN) {
-    Raven.disableConsoleAlerts();
-    Raven.config(process.env.SENTRY_DSN, {
-      autoBreadcrumbs: true
-    }).install({});
-
-    logger.addStream(sentryStream(Raven));
-  }
-
-  const robots = [];
-
-  function receive(event) {
-    return Promise.all(robots.map(robot => robot.receive(event)));
-  }
-
-  function load(plugin) {
-    if (typeof plugin === 'string') {
-      plugin = resolve(plugin);
-    }
-
-    const robot = createRobot({ app, cache, logger, catchErrors: true });
-
-    // Connect the router from the robot to the server
-    server.use(robot.router);
-
-    // Initialize the plugin
-    plugin(robot);
-    robots.push(robot);
-
-    return robot;
-  }
-
-  function setup(apps) {
-    // Log all unhandled rejections
-    process.on('unhandledRejection', logger.error.bind(logger));
-
-    // Load the given apps along with the default apps
-    apps.concat(defaultApps).forEach(app => load(app));
-  }
-
-  return {
-    server,
-    webhook,
-    receive,
-    logger,
-    load,
-    setup,
-
-    start() {
-      server.listen(options.port);
-      logger.trace('Listening on http://localhost:' + options.port);
-    }
-  };
-};
-
-module.exports.createRobot = createRobot;
-
-/***/ }),
-/* 5 */
-/***/ (function(module, exports) {
-
-module.exports = require("bunyan");
-
-/***/ }),
-/* 6 */
-/***/ (function(module, exports) {
-
-module.exports = require("bunyan-format");
-
-/***/ }),
-/* 7 */
-/***/ (function(module, exports) {
-
-module.exports = require("bunyan-sentry-stream");
-
-/***/ }),
-/* 8 */
-/***/ (function(module, exports) {
-
-module.exports = require("cache-manager");
-
-/***/ }),
-/* 9 */
-/***/ (function(module, exports) {
-
-module.exports = require("github-webhook-handler");
-
-/***/ }),
-/* 10 */
-/***/ (function(module, exports) {
-
-module.exports = require("raven");
-
-/***/ }),
-/* 11 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-const jwt = __webpack_require__(12);
-const GitHubApi = __webpack_require__(1);
-
-module.exports = function ({ id, cert, debug = false }) {
-  function asApp() {
-    const github = new GitHubApi({ debug });
-    github.authenticate({ type: 'integration', token: generateJwt(id, cert) });
-    // Return a promise to keep API consistent
-    return Promise.resolve(github);
-  }
-
-  // Authenticate as the given installation
-  function asInstallation(installationId) {
-    return createToken(installationId).then(res => {
-      const github = new GitHubApi({ debug });
-      github.authenticate({ type: 'token', token: res.data.token });
-      return github;
-    });
-  }
-
-  // https://developer.github.com/early-access/integrations/authentication/#as-an-installation
-  function createToken(installationId) {
-    return asApp().then(github => {
-      return github.apps.createInstallationToken({
-        installation_id: installationId
-      });
-    });
-  }
-
-  // Internal - no need to expose this right now
-  function generateJwt(id, cert) {
-    const payload = {
-      iat: Math.floor(new Date() / 1000), // Issued at time
-      exp: Math.floor(new Date() / 1000) + 60, // JWT expiration time
-      iss: id // Integration's GitHub id
-
-
-      // Sign with RSA SHA256
-    };return jwt.sign(payload, cert, { algorithm: 'RS256' });
-  }
-
-  return { asApp, asInstallation, createToken };
-};
-
-/***/ }),
-/* 12 */
-/***/ (function(module, exports) {
-
-module.exports = require("jsonwebtoken");
-
-/***/ }),
-/* 13 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { step("next", value); }, function (err) { step("throw", err); }); } } return step("next"); }); }; }
-
-const { EventEmitter } = __webpack_require__(14);
-const GitHubApi = __webpack_require__(1);
-const Bottleneck = __webpack_require__(15);
-const express = __webpack_require__(2);
-const Context = __webpack_require__(16);
-
-/**
- * The `robot` parameter available to apps
- *
- * @property {logger} log - A logger
- */
-class Robot {
-  constructor({ app, cache, logger, router, catchErrors } = {}) {
-    this.events = new EventEmitter();
-    this.app = app;
-    this.cache = cache;
-    this.router = router || new express.Router();
-    this.log = wrapLogger(logger);
-    this.catchErrors = catchErrors;
-  }
-
-  receive(event) {
-    var _this = this;
-
-    return _asyncToGenerator(function* () {
-      return _this.events.emit('*', event).then(function () {
-        return _this.events.emit(event.event, event);
-      });
-    })();
-  }
-
-  /**
-   * Get an {@link http://expressjs.com|express} router that can be used to
-   * expose HTTP endpoints
-   *
-   * @example
-   * module.exports = robot => {
-   *   // Get an express router to expose new HTTP endpoints
-   *   const app = robot.route('/my-app');
-   *
-   *   // Use any middleware
-   *   app.use(require('express').static(__dirname + '/public'));
-   *
-   *   // Add a new route
-   *   app.get('/hello-world', (req, res) => {
-   *     res.end('Hello World');
-   *   });
-   * };
-   *
-   * @param {string} path - the prefix for the routes
-   * @returns {@link http://expressjs.com/en/4x/api.html#router|express.Router}
-   */
-  route(path) {
-    if (path) {
-      const router = new express.Router();
-      this.router.use(path, router);
-      return router;
-    } else {
-      return this.router;
-    }
-  }
-
-  /**
-   * Listen for [GitHub webhooks](https://developer.github.com/webhooks/),
-   * which are fired for almost every significant action that users take on
-   * GitHub.
-   *
-   * @param {string} event - the name of the [GitHub webhook
-   * event](https://developer.github.com/webhooks/#events). Most events also
-   * include an "action". For example, the * [`issues`](
-   * https://developer.github.com/v3/activity/events/types/#issuesevent)
-   * event has actions of `assigned`, `unassigned`, `labeled`, `unlabeled`,
-   * `opened`, `edited`, `milestoned`, `demilestoned`, `closed`, and `reopened`.
-   * Often, your bot will only care about one type of action, so you can append
-   * it to the event name with a `.`, like `issues.closed`.
-   *
-   * @param {Robot~webhookCallback} callback - a function to call when the
-   * webhook is received.
-   *
-   * @example
-   *
-   * robot.on('push', context => {
-   *   // Code was just pushed.
-   * });
-   *
-   * robot.on('issues.opened', context => {
-   *   // An issue was just opened.
-   * });
-   */
-  on(event, callback) {
-    var _this2 = this;
-
-    if (event.constructor === Array) {
-      event.forEach(e => this.on(e, callback));
-      return;
-    }
-
-    const [name, action] = event.split('.');
-
-    return this.events.on(name, (() => {
-      var _ref = _asyncToGenerator(function* (event) {
-        if (!action || action === event.payload.action) {
-          try {
-            const github = yield _this2.auth(event.payload.installation.id);
-            const context = new Context(event, github);
-            yield callback(context);
-          } catch (err) {
-            _this2.log.error({ err, event });
-            if (!_this2.catchErrors) {
-              throw err;
-            }
-          }
-        }
-      });
-
-      return function (_x) {
-        return _ref.apply(this, arguments);
-      };
-    })());
-  }
-
-  /**
-   * Authenticate and get a GitHub client that can be used to make API calls.
-   *
-   * You'll probably want to use `context.github` instead.
-   *
-   * **Note**: `robot.auth` is asynchronous, so it needs to be prefixed with a
-   * [`await`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/await)
-   * to wait for the magic to happen.
-   *
-   * @example
-   *
-   *  module.exports = function(robot) {
-   *    robot.on('issues.opened', async context => {
-   *      const github = await robot.auth();
-   *    });
-   *  };
-   *
-   * @param {number} [id] - ID of the installation, which can be extracted from
-   * `context.payload.installation.id`. If called without this parameter, the
-   * client wil authenticate [as the app](https://developer.github.com/apps/building-integrations/setting-up-and-registering-github-apps/about-authentication-options-for-github-apps/#authenticating-as-a-github-app)
-   * instead of as a specific installation, which means it can only be used for
-   * [app APIs](https://developer.github.com/v3/apps/).
-   *
-   * @returns {Promise<github>} - An authenticated GitHub API client
-   * @private
-   */
-  auth(id) {
-    var _this3 = this;
-
-    return _asyncToGenerator(function* () {
-      let github;
-
-      if (id) {
-        const res = yield _this3.cache.wrap(`app:${id}:token`, function () {
-          _this3.log.trace(`creating token for installation ${id}`);
-          return _this3.app.createToken(id);
-        }, { ttl: 60 * 59 }); // Cache for 1 minute less than GitHub expiry
-
-        github = new GitHubApi({ debug: process.env.LOG_LEVEL === 'trace' });
-        github.authenticate({ type: 'token', token: res.data.token });
-      } else {
-        github = yield _this3.app.asApp();
-      }
-
-      return probotEnhancedClient(github);
-    })();
-  }
-}
-
-function probotEnhancedClient(github) {
-  github = rateLimitedClient(github);
-
-  github.paginate = __webpack_require__(18);
-
-  return github;
-}
-
-// Hack client to only allow one request at a time with a 1s delay
-// https://github.com/mikedeboer/node-github/issues/526
-function rateLimitedClient(github) {
-  const limiter = new Bottleneck(1, 1000);
-  const oldHandler = github.handler;
-  github.handler = (msg, block, callback) => {
-    limiter.submit(oldHandler.bind(github), msg, block, callback);
-  };
-  return github;
-}
-
-// Return a function that defaults to "debug" level, and has properties for
-// other levels:
-//
-//     robot.log("debug")
-//     robot.log.trace("verbose details");
-//
-function wrapLogger(logger) {
-  const fn = logger ? logger.debug.bind(logger) : function () {};
-
-  // Add level methods on the logger
-  ['trace', 'debug', 'info', 'warn', 'error', 'fatal'].forEach(level => {
-    fn[level] = logger ? logger[level].bind(logger) : function () {};
-  });
-
-  return fn;
-}
-
-module.exports = (...args) => new Robot(...args);
-
-/**
-* Do the thing
-* @callback Robot~webhookCallback
-* @param {Context} context - the context of the event that was triggered,
-*   including `context.payload`, and helpers for extracting information from
-*   the payload, which can be passed to GitHub API calls.
-*
-*  ```js
-*  module.exports = robot => {
-*    robot.on('push', context => {
-*      // Code was pushed to the repo, what should we do with it?
-*      robot.log(context);
-*    });
-*  };
-*  ```
-*/
-
-/**
- * A [GitHub webhook event](https://developer.github.com/webhooks/#events) payload
- *
- * @typedef payload
- */
-
-/**
- * the [github Node.js module](https://github.com/mikedeboer/node-github),
- * which wraps the [GitHub API](https://developer.github.com/v3/) and allows
- * you to do almost anything programmatically that you can do through a web
- * browser.
- * @typedef github
- * @see {@link https://github.com/mikedeboer/node-github}
- */
-
-/**
- * A logger backed by [bunyan](https://github.com/trentm/node-bunyan)
- *
- * The default log level is `debug`, but you can change it by setting the
- * `LOG_LEVEL` environment variable to `trace`, `info`, `warn`, `error`, or
- * `fatal`.
- *
- * **Note**: Probot supports execption tracking through raven, a client for
- * [sentry](https://github.com/getsentry/sentry). If the `SENTRY_DSN` is set
- * as an environment variable, all errors will be forwarded to the sentry host
- * specified by the environment variable.
- *
- * @typedef logger
- *
- * @example
- *
- * robot.log("This is a debug message");
- * robot.log.debug("…so is this");
- * robot.log.trace("Now we're talking");
- * robot.log.info("I thought you should know…");
- * robot.log.warn("Woah there");
- * robot.log.error("ETOOMANYLOGS");
- * robot.log.fatal("Goodbye, cruel world!");
- */
-
-/***/ }),
-/* 14 */
-/***/ (function(module, exports) {
-
-module.exports = require("promise-events");
-
-/***/ }),
-/* 15 */
-/***/ (function(module, exports) {
-
-module.exports = require("bottleneck");
-
-/***/ }),
-/* 16 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
 
 function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { step("next", value); }, function (err) { step("throw", err); }); } } return step("next"); }); }; }
 
 const path = __webpack_require__(0);
-const yaml = __webpack_require__(17);
+const yaml = __webpack_require__(14);
 
 /**
  * Helpers for extracting information from the webhook event, which can be
@@ -599,11 +163,13 @@ const yaml = __webpack_require__(17);
  *
  * @property {github} github - An authenticated GitHub API client
  * @property {payload} payload - The webhook event payload
+ * @property {logger} log - A logger
  */
 class Context {
-  constructor(event, github) {
+  constructor(event, github, log) {
     Object.assign(this, event);
     this.github = github;
+    this.log = log;
   }
 
   /**
@@ -714,13 +280,13 @@ class Context {
 module.exports = Context;
 
 /***/ }),
-/* 17 */
+/* 4 */
 /***/ (function(module, exports) {
 
-module.exports = require("js-yaml");
+module.exports = require("bunyan");
 
 /***/ }),
-/* 18 */
+/* 5 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -728,28 +294,514 @@ module.exports = require("js-yaml");
 
 function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { step("next", value); }, function (err) { step("throw", err); }); } } return step("next"); }); }; }
 
+const Bottleneck = __webpack_require__(17);
+const GitHubApi = __webpack_require__(18);
+
+/**
+ * the [github Node.js module](https://github.com/octokit/node-github),
+ * which wraps the [GitHub API](https://developer.github.com/v3/) and allows
+ * you to do almost anything programmatically that you can do through a web
+ * browser.
+ * @typedef github
+ * @see {@link https://github.com/octokit/node-github}
+ */
+
 // Default callback should just return the response passed to it.
 const defaultCallback = response => response;
 
-module.exports = (() => {
-  var _ref = _asyncToGenerator(function* (responsePromise, callback = defaultCallback) {
-    let collection = [];
-    let response = yield responsePromise;
+class EnhancedGitHubClient extends GitHubApi {
+  constructor(options) {
+    super(options);
+    this.limiter = new Bottleneck(1, 1000);
+    this.logger = options.logger;
+  }
 
-    collection = collection.concat((yield callback(response)));
+  handler(params, block, callback) {
+    // Only allow one request at a time with a 1s delay
+    // https://github.com/octokit/node-github/issues/526
+    this.limiter.submit(super.handler.bind(this), params, block, (err, res) => {
+      let msg = `GitHub request: ${block.method} ${block.url}`;
+      if (res) {
+        msg += ` - ${res.meta.status}`;
+      } else if (err) {
+        msg += ` - ${err.code} ${err.status}`;
+      }
+      this.logger.debug({ params }, msg);
 
-    while (this.hasNextPage(response)) {
-      response = yield this.getNextPage(response);
+      if (res) {
+        this.logger.trace(res, 'GitHub response:');
+      }
+
+      callback(err, res);
+    });
+  }
+
+  paginate(responsePromise, callback = defaultCallback) {
+    var _this = this;
+
+    return _asyncToGenerator(function* () {
+      let collection = [];
+      let response = yield responsePromise;
       collection = collection.concat((yield callback(response)));
-    }
+      while (_this.hasNextPage(response)) {
+        response = yield _this.getNextPage(response);
+        collection = collection.concat((yield callback(response)));
+      }
+      return collection;
+    })();
+  }
+}
 
-    return collection;
+module.exports = EnhancedGitHubClient;
+
+/***/ }),
+/* 6 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+const probot_1 = __webpack_require__(7);
+exports.createProbot = probot_1.default;
+exports.createRobot = probot_1.createRobot;
+const Context = __webpack_require__(3);
+exports.Context = Context;
+const EnhancedGitHubClient = __webpack_require__(5);
+exports.EnhancedGitHubClient = EnhancedGitHubClient;
+const logger = __webpack_require__(1);
+exports.logger = logger;
+
+
+/***/ }),
+/* 7 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+const cacheManager = __webpack_require__(8);
+const createWebhook = __webpack_require__(9);
+const createApp = __webpack_require__(10);
+const createRobot = __webpack_require__(12);
+const createServer = __webpack_require__(19);
+const createWebhookProxy = __webpack_require__(22);
+const resolve = __webpack_require__(24);
+const logger = __webpack_require__(1);
+
+const cache = cacheManager.caching({
+  store: 'memory',
+  ttl: 60 * 60 // 1 hour
+});
+
+const defaultApps = [__webpack_require__(27), __webpack_require__(30), __webpack_require__(31)];
+
+module.exports = (options = {}) => {
+  const webhook = createWebhook({ path: options.webhookPath || '/', secret: options.secret || 'development' });
+  const app = createApp({
+    id: options.id,
+    cert: options.cert
+  });
+  const server = createServer({ webhook, logger });
+
+  // Log all received webhooks
+  webhook.on('*', event => {
+    logger.info({ event }, 'Webhook received');
+    receive(event);
   });
 
-  return function (_x) {
-    return _ref.apply(this, arguments);
+  // Log all webhook errors
+  webhook.on('error', logger.error.bind(logger));
+
+  const robots = [];
+
+  function receive(event) {
+    return Promise.all(robots.map(robot => robot.receive(event)));
+  }
+
+  function load(plugin) {
+    if (typeof plugin === 'string') {
+      plugin = resolve(plugin);
+    }
+
+    const robot = createRobot({ app, cache, logger, catchErrors: true });
+
+    // Connect the router from the robot to the server
+    server.use(robot.router);
+
+    // Initialize the plugin
+    plugin(robot);
+    robots.push(robot);
+
+    return robot;
+  }
+
+  function setup(apps) {
+    // Log all unhandled rejections
+    process.on('unhandledRejection', logger.error.bind(logger));
+
+    // Load the given apps along with the default apps
+    apps.concat(defaultApps).forEach(app => load(app));
+  }
+
+  return {
+    server,
+    webhook,
+    receive,
+    logger,
+    load,
+    setup,
+
+    start() {
+      if (options.webhookProxy) {
+        createWebhookProxy({ url: options.webhookProxy, webhook, logger });
+      }
+
+      server.listen(options.port);
+      logger.trace('Listening on http://localhost:' + options.port);
+    }
   };
-})();
+};
+
+module.exports.createRobot = createRobot;
+
+/***/ }),
+/* 8 */
+/***/ (function(module, exports) {
+
+module.exports = require("cache-manager");
+
+/***/ }),
+/* 9 */
+/***/ (function(module, exports) {
+
+module.exports = require("github-webhook-handler");
+
+/***/ }),
+/* 10 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+const jwt = __webpack_require__(11);
+
+module.exports = function ({ id, cert }) {
+  return function () {
+    const payload = {
+      iat: Math.floor(new Date() / 1000), // Issued at time
+      exp: Math.floor(new Date() / 1000) + 60, // JWT expiration time
+      iss: id // GitHub App ID
+
+
+      // Sign with RSA SHA256
+    };return jwt.sign(payload, cert, { algorithm: 'RS256' });
+  };
+};
+
+/***/ }),
+/* 11 */
+/***/ (function(module, exports) {
+
+module.exports = require("jsonwebtoken");
+
+/***/ }),
+/* 12 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { step("next", value); }, function (err) { step("throw", err); }); } } return step("next"); }); }; }
+
+const { EventEmitter } = __webpack_require__(13);
+const express = __webpack_require__(2);
+const Context = __webpack_require__(3);
+const logger = __webpack_require__(1);
+const GitHubApi = __webpack_require__(5);
+
+/**
+ * The `robot` parameter available to apps
+ *
+ * @property {logger} log - A logger
+ */
+class Robot {
+  constructor({ app, cache, router, catchErrors } = {}) {
+    this.events = new EventEmitter();
+    this.app = app;
+    this.cache = cache;
+    this.router = router || new express.Router();
+    this.log = logger.wrap();
+    this.catchErrors = catchErrors;
+  }
+
+  receive(event) {
+    var _this = this;
+
+    return _asyncToGenerator(function* () {
+      return _this.events.emit('*', event).then(function () {
+        return _this.events.emit(event.event, event);
+      });
+    })();
+  }
+
+  /**
+   * Get an {@link http://expressjs.com|express} router that can be used to
+   * expose HTTP endpoints
+   *
+   * @example
+   * module.exports = robot => {
+   *   // Get an express router to expose new HTTP endpoints
+   *   const app = robot.route('/my-app');
+   *
+   *   // Use any middleware
+   *   app.use(require('express').static(__dirname + '/public'));
+   *
+   *   // Add a new route
+   *   app.get('/hello-world', (req, res) => {
+   *     res.end('Hello World');
+   *   });
+   * };
+   *
+   * @param {string} path - the prefix for the routes
+   * @returns {@link http://expressjs.com/en/4x/api.html#router|express.Router}
+   */
+  route(path) {
+    if (path) {
+      const router = new express.Router();
+      this.router.use(path, router);
+      return router;
+    } else {
+      return this.router;
+    }
+  }
+
+  /**
+   * Listen for [GitHub webhooks](https://developer.github.com/webhooks/),
+   * which are fired for almost every significant action that users take on
+   * GitHub.
+   *
+   * @param {string} event - the name of the [GitHub webhook
+   * event](https://developer.github.com/webhooks/#events). Most events also
+   * include an "action". For example, the * [`issues`](
+   * https://developer.github.com/v3/activity/events/types/#issuesevent)
+   * event has actions of `assigned`, `unassigned`, `labeled`, `unlabeled`,
+   * `opened`, `edited`, `milestoned`, `demilestoned`, `closed`, and `reopened`.
+   * Often, your bot will only care about one type of action, so you can append
+   * it to the event name with a `.`, like `issues.closed`.
+   *
+   * @param {Robot~webhookCallback} callback - a function to call when the
+   * webhook is received.
+   *
+   * @example
+   *
+   * robot.on('push', context => {
+   *   // Code was just pushed.
+   * });
+   *
+   * robot.on('issues.opened', context => {
+   *   // An issue was just opened.
+   * });
+   */
+  on(event, callback) {
+    var _this2 = this;
+
+    if (event.constructor === Array) {
+      event.forEach(e => this.on(e, callback));
+      return;
+    }
+
+    const [name, action] = event.split('.');
+
+    return this.events.on(name, (() => {
+      var _ref = _asyncToGenerator(function* (event) {
+        if (!action || action === event.payload.action) {
+          const log = _this2.log.child({ id: event.id });
+
+          try {
+            const github = yield _this2.auth(event.payload.installation.id, log);
+            const context = new Context(event, github, log);
+
+            yield callback(context);
+          } catch (err) {
+            log.error({ err, event });
+            if (!_this2.catchErrors) {
+              throw err;
+            }
+          }
+        }
+      });
+
+      return function (_x) {
+        return _ref.apply(this, arguments);
+      };
+    })());
+  }
+
+  /**
+   * Authenticate and get a GitHub client that can be used to make API calls.
+   *
+   * You'll probably want to use `context.github` instead.
+   *
+   * **Note**: `robot.auth` is asynchronous, so it needs to be prefixed with a
+   * [`await`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/await)
+   * to wait for the magic to happen.
+   *
+   * @example
+   *
+   *  module.exports = function(robot) {
+   *    robot.on('issues.opened', async context => {
+   *      const github = await robot.auth();
+   *    });
+   *  };
+   *
+   * @param {number} [id] - ID of the installation, which can be extracted from
+   * `context.payload.installation.id`. If called without this parameter, the
+   * client wil authenticate [as the app](https://developer.github.com/apps/building-integrations/setting-up-and-registering-github-apps/about-authentication-options-for-github-apps/#authenticating-as-a-github-app)
+   * instead of as a specific installation, which means it can only be used for
+   * [app APIs](https://developer.github.com/v3/apps/).
+   *
+   * @returns {Promise<github>} - An authenticated GitHub API client
+   * @private
+   */
+  auth(id, log = this.log) {
+    var _this3 = this;
+
+    return _asyncToGenerator(function* () {
+      const github = new GitHubApi({
+        debug: process.env.LOG_LEVEL === 'trace',
+        host: process.env.GHE_HOST || 'api.github.com',
+        pathPrefix: process.env.GHE_HOST ? '/api/v3' : '',
+        logger: log.child({ installation: id })
+      });
+
+      if (id) {
+        const res = yield _this3.cache.wrap(`app:${id}:token`, function () {
+          log.trace(`creating token for installation`);
+          github.authenticate({ type: 'integration', token: _this3.app() });
+
+          return github.apps.createInstallationToken({ installation_id: id });
+        }, { ttl: 60 * 59 }); // Cache for 1 minute less than GitHub expiry
+
+        github.authenticate({ type: 'token', token: res.data.token });
+      } else {
+        github.authenticate({ type: 'integration', token: _this3.app() });
+      }
+
+      return github;
+    })();
+  }
+}
+
+module.exports = (...args) => new Robot(...args);
+
+/**
+ * Do the thing
+ * @callback Robot~webhookCallback
+ * @param {Context} context - the context of the event that was triggered,
+ *   including `context.payload`, and helpers for extracting information from
+ *   the payload, which can be passed to GitHub API calls.
+ *
+ *  ```js
+ *  module.exports = robot => {
+ *    robot.on('push', context => {
+ *      // Code was pushed to the repo, what should we do with it?
+ *      robot.log(context);
+ *    });
+ *  };
+ *  ```
+ */
+
+/**
+ * A [GitHub webhook event](https://developer.github.com/webhooks/#events) payload
+ *
+ * @typedef payload
+ */
+
+/***/ }),
+/* 13 */
+/***/ (function(module, exports) {
+
+module.exports = require("promise-events");
+
+/***/ }),
+/* 14 */
+/***/ (function(module, exports) {
+
+module.exports = require("js-yaml");
+
+/***/ }),
+/* 15 */
+/***/ (function(module, exports) {
+
+module.exports = require("bunyan-format");
+
+/***/ }),
+/* 16 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+const bunyan = __webpack_require__(4);
+
+module.exports = {
+  repository: repository => repository.full_name,
+  event: event => {
+    if (typeof event !== 'object' || !event.payload) {
+      return event;
+    } else {
+      let name = event.event;
+      if (event.payload && event.payload.action) {
+        name = `${name}.${event.payload.action}`;
+      }
+
+      return {
+        id: event.id,
+        event: name,
+        repository: event.payload.repository && event.payload.repository.full_name,
+        installation: event.payload.installation && event.payload.installation.id
+      };
+    }
+  },
+  installation: installation => {
+    if (installation.account) {
+      return installation.account.login;
+    } else {
+      return installation;
+    }
+  },
+
+  err: bunyan.stdSerializers.err,
+
+  req: bunyan.stdSerializers.req,
+
+  // Same as buyan's standard serializers, but gets headers as an object
+  // instead of a string.
+  // https://github.com/trentm/node-bunyan/blob/fe31b83e42d9c7f784e83fdcc528a7c76e0dacae/lib/bunyan.js#L1105-L1113
+  res(res) {
+    if (!res || !res.statusCode) {
+      return res;
+    } else {
+      return {
+        duration: res.duration,
+        statusCode: res.statusCode,
+        headers: res.getHeaders()
+      };
+    }
+  }
+};
+
+/***/ }),
+/* 17 */
+/***/ (function(module, exports) {
+
+module.exports = require("bottleneck");
+
+/***/ }),
+/* 18 */
+/***/ (function(module, exports) {
+
+module.exports = require("github");
 
 /***/ }),
 /* 19 */
@@ -760,13 +812,15 @@ module.exports = (() => {
 
 const express = __webpack_require__(2);
 const path = __webpack_require__(0);
+const logging = __webpack_require__(20);
 
-module.exports = function (webhook) {
+module.exports = function ({ webhook, logger }) {
   const app = express();
 
+  app.use(logging({ logger }));
   app.use('/probot/static/', express.static(path.join(__dirname, '..', 'static')));
   app.use(webhook);
-  app.set('view engine', 'ejs');
+  app.set('view engine', 'hbs');
   app.set('views', path.join(__dirname, '..', 'views'));
   app.get('/ping', (req, res) => res.end('PONG'));
 
@@ -781,23 +835,132 @@ module.exports = function (webhook) {
 "use strict";
 
 
-module.exports = resolver;
+// Borrowed from https://github.com/vvo/bunyan-request
+// Copyright (c) Christian Tellnes <christian@tellnes.no>
+var uuid = __webpack_require__(21);
 
-function resolver(app, opts = {}) {
-  // These are mostly to ease testing
-  const basedir = opts.basedir || process.cwd();
-  const resolve = opts.resolver || __webpack_require__(21).sync;
-  return !(function webpackMissingModule() { var e = new Error("Cannot find module \".\""); e.code = 'MODULE_NOT_FOUND'; throw e; }());
-}
+module.exports = function logRequest({ logger }) {
+  return function (req, res, next) {
+    // Use X-Request-ID from request if it is set, otherwise generate a uuid
+    req.id = req.headers['x-request-id'] || req.headers['x-github-delivery'] || uuid.v4();
+    res.setHeader('x-request-id', req.id);
+
+    // Make a logger available on the request
+    req.log = logger.wrap().child({ id: req.id });
+
+    // Request started
+    req.log.trace({ req }, `${req.method} ${req.url}`);
+
+    // Start the request timer
+    const time = process.hrtime();
+
+    res.on('finish', () => {
+      // Calculate how long the request took
+      const [seconds, nanoseconds] = process.hrtime(time);
+      res.duration = (seconds * 1e3 + nanoseconds * 1e-6).toFixed(2);
+
+      const message = `${req.method} ${req.url} ${res.statusCode} - ${res.duration} ms`;
+
+      req.log.info(message);
+      req.log.trace({ res });
+    });
+
+    next();
+  };
+};
 
 /***/ }),
 /* 21 */
 /***/ (function(module, exports) {
 
-module.exports = require("resolve");
+module.exports = require("uuid");
 
 /***/ }),
 /* 22 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+const EventSource = __webpack_require__(23);
+
+module.exports = ({ url, logger, webhook }) => {
+  logger.trace({ url }, 'Setting up webhook proxy');
+  const events = new EventSource(url);
+
+  events.addEventListener('message', msg => {
+    logger.trace(msg, 'Message from webhook proxy');
+
+    const data = JSON.parse(msg.data);
+    const sig = data['x-hub-signature'];
+
+    if (sig && webhook.verify(sig, JSON.stringify(data.body))) {
+      const event = {
+        event: data['x-github-event'],
+        id: data['x-github-delivery'],
+        payload: data['body'],
+        protocol: data['x-forwarded-proto'],
+        host: data['host']
+      };
+
+      webhook.emit(event.event, event);
+      webhook.emit('*', event);
+    } else {
+      const err = new Error('X-Hub-Signature does not match blob signature');
+      webhook.emit('error', err, msg.data);
+    }
+  });
+
+  // Reconnect immediately
+  events.reconnectInterval = 0;
+
+  events.addEventListener('error', err => {
+    if (!err.status) {
+      // Errors are randomly re-emitted for no reason
+      // See https://github.com/EventSource/eventsource/pull/85
+    } else if (err.status >= 400 && err.status < 500) {
+      // Nothing we can do about it
+      logger.error({ url, err }, 'Webhook proxy error');
+    } else if (events.readyState === EventSource.CONNECTING) {
+      logger.trace({ url, err }, 'Reconnecting to webhook proxy');
+    } else {
+      logger.error({ url, err }, 'Webhook proxy error');
+    }
+  });
+
+  return events;
+};
+
+/***/ }),
+/* 23 */
+/***/ (function(module, exports) {
+
+module.exports = require("eventsource");
+
+/***/ }),
+/* 24 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+module.exports = resolver;
+
+function resolver(app, opts = {}) {
+  // These are mostly to ease testing
+  const basedir = opts.basedir || process.cwd();
+  const resolve = opts.resolver || __webpack_require__(25).sync;
+  return !(function webpackMissingModule() { var e = new Error("Cannot find module \".\""); e.code = 'MODULE_NOT_FOUND'; throw e; }());
+}
+
+/***/ }),
+/* 25 */
+/***/ (function(module, exports) {
+
+module.exports = require("resolve");
+
+/***/ }),
+/* 26 */
 /***/ (function(module, exports) {
 
 function webpackEmptyContext(req) {
@@ -806,34 +969,45 @@ function webpackEmptyContext(req) {
 webpackEmptyContext.keys = function() { return []; };
 webpackEmptyContext.resolve = webpackEmptyContext;
 module.exports = webpackEmptyContext;
-webpackEmptyContext.id = 22;
+webpackEmptyContext.id = 26;
 
 /***/ }),
-/* 23 */
+/* 27 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 
-module.exports = {
-  repository: repository => repository.full_name,
-  event: event => {
-    if (typeof event !== 'object' || !event.payload) {
-      return event;
-    } else {
-      return {
-        id: event.id,
-        event: event.event,
-        action: event.payload.action,
-        repository: event.payload.repository && event.payload.repository.full_name
-      };
-    }
-  },
-  installation: installation => installation.account.login
+const sentryStream = __webpack_require__(28);
+const Raven = __webpack_require__(29);
+
+module.exports = robot => {
+  // If sentry is configured, report all logged errors
+  if (process.env.SENTRY_DSN) {
+    robot.log.debug(process.env.SENTRY_DSN, 'Errors will be reported to Sentry');
+    Raven.disableConsoleAlerts();
+    Raven.config(process.env.SENTRY_DSN, {
+      autoBreadcrumbs: true
+    }).install({});
+
+    robot.log.target.addStream(sentryStream(Raven));
+  }
 };
 
 /***/ }),
-/* 24 */
+/* 28 */
+/***/ (function(module, exports) {
+
+module.exports = require("bunyan-sentry-stream");
+
+/***/ }),
+/* 29 */
+/***/ (function(module, exports) {
+
+module.exports = require("raven");
+
+/***/ }),
+/* 30 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -941,7 +1115,7 @@ module.exports = (() => {
 })();
 
 /***/ }),
-/* 25 */
+/* 31 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -949,23 +1123,24 @@ module.exports = (() => {
 
 const path = __webpack_require__(0);
 
-let pkg;
-
-try {
-  pkg = !(function webpackMissingModule() { var e = new Error("Cannot find module \".\""); e.code = 'MODULE_NOT_FOUND'; throw e; }());
-} catch (e) {
-  pkg = {};
-}
-
 module.exports = robot => {
   const app = robot.route();
 
-  app.get('/probot', (req, res) => res.render('probot.ejs', pkg));
+  app.get('/probot', (req, res) => {
+    let pkg;
+    try {
+      pkg = !(function webpackMissingModule() { var e = new Error("Cannot find module \".\""); e.code = 'MODULE_NOT_FOUND'; throw e; }());
+    } catch (e) {
+      pkg = {};
+    }
+
+    res.render('probot.hbs', pkg);
+  });
   app.get('/', (req, res, next) => res.redirect('/probot'));
 };
 
 /***/ }),
-/* 26 */
+/* 32 */
 /***/ (function(module, exports) {
 
 function webpackEmptyContext(req) {
@@ -974,7 +1149,7 @@ function webpackEmptyContext(req) {
 webpackEmptyContext.keys = function() { return []; };
 webpackEmptyContext.resolve = webpackEmptyContext;
 module.exports = webpackEmptyContext;
-webpackEmptyContext.id = 26;
+webpackEmptyContext.id = 32;
 
 /***/ })
 /******/ ])));

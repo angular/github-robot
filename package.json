@@ -23,7 +23,7 @@
     "logs:functions": "firebase functions:log"
   },
   "dependencies": {
-    "probot": "3.0.3"
+    "probot": "4.0.0"
   },
   "devDependencies": {
     "@types/core-js": "0.9.43",

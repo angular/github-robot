@@ -1,9 +1,8 @@
-import {createRobot, Context, paginate} from '../libs/probot';
+import {createRobot, Context, EnhancedGitHubClient, logger} from '../libs/probot';
 import * as probot from 'probot';
 import {MergeTask} from "../functions/src/plugins/merge";
 import {appConfig} from "../functions/src/default";
 import {MockFirestore} from './mocks/firestore';
-import * as Github from 'github';
 import {mockGithub} from "./mocks/github";
 
 describe('triage', () => {
@@ -25,8 +24,9 @@ describe('triage', () => {
     store = new MockFirestore();
 
     // Mock out the GitHub API
-    github = new Github();
-    github.paginate = paginate;
+    github = new EnhancedGitHubClient({
+      logger: logger
+    });
 
     // Create a new Robot to run our plugin
     robot = createRobot();
