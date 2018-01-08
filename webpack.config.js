@@ -51,5 +51,5 @@ module.exports = {
     filename: 'lib/index.js',
     path: path.resolve(__dirname, 'functions/libs/probot')
   },
-  plugins: [CopyWebpackPlugin(['node_modules/probot/package.json', {from: 'node_modules/probot/views/probot.hbs', to: 'views'}])]
+  plugins: [CopyWebpackPlugin(['node_modules/probot/package.json', {from: 'node_modules/probot/bin/probot.js', to: 'bin'}, {from: 'node_modules/probot/views/probot.hbs', to: 'views'}])]
 };

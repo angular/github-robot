@@ -17,9 +17,10 @@
     "start:dev": "concurrently \"npm run build:functions -- -w\" \"npm run start:watch\"",
     "test": "jest --coverage",
     "test:dev": "jest --coverage --watch",
-    "serve:functions": "firebase serve --only functions",
+    "serve:functions": "firebase serve --only functions -p 3000",
     "start:functions": "firebase experimental:functions:shell",
-    "deploy:functions": "firebase deploy --only functions",
+    "deploy:functions:dev": "firebase deploy --only functions -P development",
+    "deploy:functions:prod": "firebase deploy --only functions -P default",
     "logs:functions": "firebase functions:log"
   },
   "dependencies": {

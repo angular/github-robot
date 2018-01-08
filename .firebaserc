@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "angular-robot"
+    "default": "angular-robot",
+    "development": "probot-triage"
   }
 }

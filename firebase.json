@@ -7,6 +7,6 @@
     "indexes": "firestore.indexes.json"
   },
   "functions": {
-    "predeploy": "npm run build"
+    "predeploy": "npm run build && cd functions && yarn install && cd .."
   }
 }
