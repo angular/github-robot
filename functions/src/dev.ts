@@ -1,6 +1,7 @@
-import {createProbot} from "../libs/probot";
+import {createProbot} from "probot";
 import {MergeTask} from './plugins/merge';
 import {initializeApp, firestore, credential} from "firebase-admin";
+import {join} from "path";
 
 console.warn(`Starting dev mode`);
 
@@ -19,6 +20,9 @@ const store = firestore();
 bot.setup([robot => {
   mergeTask = new MergeTask(robot, store);
 }]);
+
+// fix for probot view in dev mode
+bot.server.set('views', join(__dirname, '../libs/probot/views'));
 
 // Start the bot
 bot.start();
