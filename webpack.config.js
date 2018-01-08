@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 const nodeModules = {};
 fs.readdirSync('node_modules')
@@ -47,7 +48,8 @@ module.exports = {
   },
   output: {
     libraryTarget: 'commonjs',
-    filename: 'index.js',
+    filename: 'lib/index.js',
     path: path.resolve(__dirname, 'functions/libs/probot')
-  }
+  },
+  plugins: [CopyWebpackPlugin(['node_modules/probot/package.json'])]
 };

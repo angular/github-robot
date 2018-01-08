@@ -361,15 +361,16 @@ module.exports = EnhancedGitHubClient;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const probot_1 = __webpack_require__(7);
-exports.createProbot = probot_1.default;
-exports.createRobot = probot_1.createRobot;
+const createProbot = __webpack_require__(7);
+exports.createProbot = createProbot;
 const Context = __webpack_require__(3);
 exports.Context = Context;
 const EnhancedGitHubClient = __webpack_require__(5);
 exports.EnhancedGitHubClient = EnhancedGitHubClient;
 const logger = __webpack_require__(1);
 exports.logger = logger;
+const createRobot = createProbot.createRobot;
+exports.createRobot = createRobot;
 
 
 /***/ }),
