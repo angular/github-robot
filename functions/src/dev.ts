@@ -20,15 +20,6 @@ bot.setup([robot => {
   mergeTask = new MergeTask(robot, store);
 }]);
 
-process.on('uncaughtException', function(err: any) {
-  if(err.errno === 'EADDRINUSE') {
-    console.error(`${err.message}`);
-  } else {
-    console.error(err);
-    process.exit(1);
-  }
-});
-
 // Start the bot
 bot.start();
 
