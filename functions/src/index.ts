@@ -1,4 +1,4 @@
-import {https, config} from 'firebase-functions';
+import {https, config, firestore as database} from 'firebase-functions';
 import {Request, Response} from "express";
 import {createProbot} from "probot";
 import {consoleStream} from "./util";
@@ -59,9 +59,8 @@ exports.bot = https.onRequest(async (request: Request, response: Response) => {
 // add new event on install that will add the repository to firestore
 exports.init = https.onRequest(async (request: Request, response: Response) => {
   try {
-    // don't wait for init, it will run in the background and can take a long time
-    mergeTask.manualInit().catch(err => {
-      console.log(err);
+    await mergeTask.manualInit().catch(err => {
+      console.error(err);
     });
     response.send({
       statusCode: 200,
@@ -73,4 +72,11 @@ exports.init = https.onRequest(async (request: Request, response: Response) => {
     console.error(err);
     response.sendStatus(500);
   }
+});
+
+exports.initRepoPRs = database.document('repositories/{id}').onCreate(event => {
+  const data = event.data.data();
+  return mergeTask.triggeredInit(data).catch(err => {
+    console.error(err);
+  });
 });

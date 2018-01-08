@@ -7,6 +7,7 @@ export const CONFIG_FILE = "angular-robot.yml";
 
 // TODO(ocombe): create Typescript interfaces for each payload & DB data
 export class MergeTask {
+  repositories: FirebaseFirestore.CollectionReference;
   pullRequests: FirebaseFirestore.CollectionReference;
 
   constructor(private robot: probot.Robot, public db: FirebaseFirestore.Firestore) {
@@ -31,6 +32,7 @@ export class MergeTask {
       'pull_request.reopened'
     ], (context: probot.Context) => this.onUpdate(context));
 
+    this.repositories = this.db.collection('repositories');
     this.pullRequests = this.db.collection('pullRequests');
   }
 
@@ -39,14 +41,33 @@ export class MergeTask {
    * @returns {Promise<void>}
    */
   async manualInit(): Promise<void> {
-    this.robot.log('Starting init...');
     const github = await this.robot.auth();
     const installations = await getAllResults(github, github.apps.getInstallations({}));
     await Promise.all(installations.map(async installation => {
       const authGithub = await this.robot.auth(installation.id);
       const repositories = await authGithub.apps.getInstallationRepositories({});
-      await this.init(authGithub, repositories.data.repositories);
+      await Promise.all(repositories.data.repositories.map(async repository => {
+        await this.repositories.doc(repository.id.toString()).set({
+          id: repository.id,
+          name: repository.name,
+          full_name: repository.full_name,
+          installationId: installation.id
+        }).catch(err => {
+          this.robot.log.error(err);
+          throw err;
+        });
+      }));
     }));
+  }
+
+  /**
+   * Function called by insertion into the Firebase collection "repositories" (see index.ts)
+   * @param {Repository & {installationId: number}} repository
+   * @returns {Promise<void>}
+   */
+  async triggeredInit(repository: Repository & { installationId: number }): Promise<void> {
+    const authGithub = await this.robot.auth(repository.installationId);
+    return this.init(authGithub, [repository]);
   }
 
   /**
@@ -64,7 +85,15 @@ export class MergeTask {
         break;
     }
 
-    return this.init(context.github, repositories);
+    await Promise.all(repositories.map(async repository => {
+      await this.repositories.doc(repository.id.toString()).set({
+        ...repository,
+        installationId: context.payload.installation.id
+      }).catch(err => {
+        this.robot.log.error(err);
+        throw err;
+      });
+    }));
   }
 
   /**
@@ -74,8 +103,8 @@ export class MergeTask {
    * @returns {Promise<void>}
    */
   async init(github: probot.Context.github, repositories: Repository[]): Promise<void> {
-    this.robot.log('Starting init...');
     await Promise.all(repositories.map(async repository => {
+      this.robot.log(`Starting init for repository "${repository.full_name}"`);
       const [owner, repo] = repository.full_name.split('/');
 
       const [repoPRs, dbPRSnapshots] = await Promise.all([
