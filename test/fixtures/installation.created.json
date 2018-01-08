@@ -1,0 +1,80 @@
+{
+  "event": "installation",
+  "payload": {
+    "action": "created",
+    "installation": {
+      "id": 78777,
+      "account": {
+        "login": "ocombe",
+        "id": 265378,
+        "avatar_url": "https://avatars0.githubusercontent.com/u/265378?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/ocombe",
+        "html_url": "https://github.com/ocombe",
+        "followers_url": "https://api.github.com/users/ocombe/followers",
+        "following_url": "https://api.github.com/users/ocombe/following{/other_user}",
+        "gists_url": "https://api.github.com/users/ocombe/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/ocombe/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/ocombe/subscriptions",
+        "organizations_url": "https://api.github.com/users/ocombe/orgs",
+        "repos_url": "https://api.github.com/users/ocombe/repos",
+        "events_url": "https://api.github.com/users/ocombe/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/ocombe/received_events",
+        "type": "User",
+        "site_admin": false
+      },
+      "repository_selection": "selected",
+      "access_tokens_url": "https://api.github.com/installations/78777/access_tokens",
+      "repositories_url": "https://api.github.com/installation/repositories",
+      "html_url": "https://github.com/settings/installations/78777",
+      "app_id": 6359,
+      "target_id": 265378,
+      "target_type": "User",
+      "permissions": {
+        "pull_requests": "write",
+        "issues": "write",
+        "statuses": "write",
+        "contents": "read",
+        "metadata": "read"
+      },
+      "events": [
+        "issues",
+        "issue_comment",
+        "pull_request",
+        "pull_request_review",
+        "pull_request_review_comment",
+        "push",
+        "status"
+      ],
+      "created_at": 1515417956,
+      "updated_at": 1515417956,
+      "single_file_name": null
+    },
+    "repositories": [
+      {
+        "id": 108976240,
+        "name": "test",
+        "full_name": "ocombe/test"
+      }
+    ],
+    "sender": {
+      "login": "ocombe",
+      "id": 265378,
+      "avatar_url": "https://avatars0.githubusercontent.com/u/265378?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/ocombe",
+      "html_url": "https://github.com/ocombe",
+      "followers_url": "https://api.github.com/users/ocombe/followers",
+      "following_url": "https://api.github.com/users/ocombe/following{/other_user}",
+      "gists_url": "https://api.github.com/users/ocombe/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/ocombe/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/ocombe/subscriptions",
+      "organizations_url": "https://api.github.com/users/ocombe/orgs",
+      "repos_url": "https://api.github.com/users/ocombe/repos",
+      "events_url": "https://api.github.com/users/ocombe/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/ocombe/received_events",
+      "type": "User",
+      "site_admin": false
+    }
+  }
+}

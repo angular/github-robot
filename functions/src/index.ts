@@ -60,7 +60,7 @@ exports.bot = https.onRequest(async (request: Request, response: Response) => {
 exports.init = https.onRequest(async (request: Request, response: Response) => {
   try {
     // don't wait for init, it will run in the background and can take a long time
-    mergeTask.init().catch(err => {
+    mergeTask.manualInit().catch(err => {
       console.log(err);
     });
     response.send({

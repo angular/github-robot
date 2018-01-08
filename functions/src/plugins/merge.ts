@@ -7,10 +7,10 @@ export const CONFIG_FILE = "angular-robot.yml";
 
 // TODO(ocombe): create Typescript interfaces for each payload & DB data
 export class MergeTask {
-  repositories: FirebaseFirestore.CollectionReference;
   pullRequests: FirebaseFirestore.CollectionReference;
 
   constructor(private robot: probot.Robot, public db: FirebaseFirestore.Firestore) {
+    this.robot.on(['installation.created', 'installation_repositories.added'], (context: probot.Context) => this.installInit(context));
     this.robot.on('push', (context: probot.Context) => this.onPush(context));
     this.robot.on('pull_request.labeled', (context: probot.Context) => this.onLabeled(context));
     this.robot.on('pull_request.unlabeled', (context: probot.Context) => this.onUnlabeled(context));
@@ -31,67 +31,91 @@ export class MergeTask {
       'pull_request.reopened'
     ], (context: probot.Context) => this.onUpdate(context));
 
-    this.repositories = this.db.collection('repositories');
     this.pullRequests = this.db.collection('pullRequests');
   }
 
   /**
-   * Updates the database with existing PRs when the bot is installed on a new server
+   * Manually call the init function on all existing repositories
    * @returns {Promise<void>}
    */
-  // TODO(ocombe): run a light 'init' on a repository on installed event instead of the manual init
-  async init(): Promise<void> {
+  async manualInit(): Promise<void> {
     this.robot.log('Starting init...');
     const github = await this.robot.auth();
     const installations = await getAllResults(github, github.apps.getInstallations({}));
     await Promise.all(installations.map(async installation => {
       const authGithub = await this.robot.auth(installation.id);
       const repositories = await authGithub.apps.getInstallationRepositories({});
-      await Promise.all(repositories.data.repositories.map(async repository => {
-        this.repositories.doc(repository.id.toString()).set(repository).catch(err => {
+      await this.init(authGithub, repositories.data.repositories);
+    }));
+  }
+
+  /**
+   * Updates the database with existing PRs when the bot is installed on a new server
+   * @returns {Promise<void>}
+   */
+  async installInit(context: probot.Context): Promise<void> {
+    let repositories: Repository[];
+    switch(context.event) {
+      case 'installation':
+        repositories = context.payload.repositories;
+        break;
+      case 'installation_repositories':
+        repositories = context.payload.repositories_added;
+        break;
+    }
+
+    return this.init(context.github, repositories);
+  }
+
+  /**
+   * Updates the database with existing PRs for a list of repositories
+   * @param {probot.Context.github} github
+   * @param {any[]} repositories
+   * @returns {Promise<void>}
+   */
+  async init(github: probot.Context.github, repositories: Repository[]): Promise<void> {
+    this.robot.log('Starting init...');
+    await Promise.all(repositories.map(async repository => {
+      const [owner, repo] = repository.full_name.split('/');
+
+      const [repoPRs, dbPRSnapshots] = await Promise.all([
+        this.getPRs(github, {owner, repo, state: 'open'}),
+        this.pullRequests
+          .where('repository', '==', repository.id)
+          .where('state', '==', 'open')
+          .get()
+      ]);
+
+      // list of existing opened PRs in the db
+      const dbPRs = [];
+      dbPRSnapshots.forEach(doc => {
+        dbPRs.push(doc.id);
+      });
+
+      // add or update all existing opened PRs
+      await Promise.all(repoPRs.map(async pr => {
+        await this.updateDbPR(github, owner, repo, pr.number, repository.id, pr).catch(err => {
           this.robot.log.error(err);
           throw err;
         });
-
-        const [repoPRs, dbPRSnapshots] = await Promise.all([
-          this.getPRs(authGithub, {owner: repository.owner.login, repo: repository.name, state: 'open'}),
-          this.pullRequests
-            .where('repository', '==', repository.id)
-            .where('state', '==', 'open')
-            .get()
-        ]);
-
-        // list of existing opened PRs in the db
-        const dbPRs = [];
-        dbPRSnapshots.forEach(doc => {
-          dbPRs.push(doc.id);
-        });
-
-        // add or update all existing opened PRs
-        await Promise.all(repoPRs.map(async pr => {
-          await this.updateDbPR(authGithub, repository.owner.login, repository.name, pr.number, repository.id, pr).catch(err => {
-            this.robot.log.error(err);
-            throw err;
-          });
-          const index = dbPRs.indexOf(pr.id);
-          if(index !== -1) {
-            dbPRs.splice(index, 1);
-          }
-        }));
-
-        // update the state of all PRs that are no longer opened
-        if(dbPRs.length > 0) {
-          const batch = this.db.batch();
-          dbPRs.forEach(async id => {
-            // should we update all of the other data as well? we ignore them for now
-            batch.set(this.pullRequests.doc(id.toString()), {state: 'closed'}, {merge: true});
-          });
-          batch.commit().catch(err => {
-            this.robot.log.error(err);
-            throw err;
-          });
+        const index = dbPRs.indexOf(pr.id);
+        if(index !== -1) {
+          dbPRs.splice(index, 1);
         }
       }));
+
+      // update the state of all PRs that are no longer opened
+      if(dbPRs.length > 0) {
+        const batch = this.db.batch();
+        dbPRs.forEach(async id => {
+          // should we update all of the other data as well? we ignore them for now
+          batch.set(this.pullRequests.doc(id.toString()), {state: 'closed'}, {merge: true});
+        });
+        batch.commit().catch(err => {
+          this.robot.log.error(err);
+          throw err;
+        });
+      }
     }));
   }
 
@@ -505,13 +529,13 @@ export class MergeTask {
    * @param {string} owner
    * @param {string} repo
    * @param {number} number
-   * @param repository
+   * @param repositoryId
    * @param pr
    * @returns {Promise<any>}
    */
-  async updateDbPR(github: probot.Context.github, owner: string, repo: string, number: number, repository: number, pr?: any): Promise<any> {
+  async updateDbPR(github: probot.Context.github, owner: string, repo: string, number: number, repositoryId: number, pr?: any): Promise<any> {
     pr = pr || (await github.pullRequests.get({owner, repo, number})).data;
-    const data = {...pr, repository};
+    const data = {...pr, repository: {owner, name: repo, id: repositoryId}};
     await this.pullRequests.doc(pr.id.toString()).set(data, {merge: true}).catch(err => {
       this.robot.log.error(err);
       throw err;
@@ -550,4 +574,10 @@ interface GithubStatus {
   context: string;
   created_at: string;
   updated_at: string;
+}
+
+interface Repository {
+  id: number;
+  name: string;
+  full_name: string;
 }

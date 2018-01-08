@@ -2,7 +2,7 @@
 
 > A Github Bot built with [probot](https://github.com/probot/probot) to triage issues and PRs 
 
-## Setup
+## Dev setup
 
 ```
 # Install dependencies
