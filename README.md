@@ -40,13 +40,11 @@ merge:
     failureText: "The following checks are failing:"
 
   # comment that will be added to a PR when there is a conflict, leave empty or set to false to disable
-  mergeConflictComment: "Hello? Don't want to hassle you. Sure you're busy. But--this PR has some conflicts that you probably ought to resolve.
+  mergeConflictComment: "Hello? Don't want to hassle you. Sure you're busy. But this PR has some conflicts that you probably ought to resolve.
 \nThat is... if you want it to be merged someday..."
 
-  # label to monitor, it will be removed if one of the checks doesn't pass
-  mergeLabel: "merge"
-  # label to override the checks, if present then the merge label will not be removed even if a check fails, leave empty or set to false to disable
-  overrideLabel: "override"
+  # label to monitor
+  mergeLabel: "PR action: merge"
 
   # list of checks that will determine if the merge label can be added
   checks:
@@ -69,15 +67,13 @@ merge:
       - "ci/circleci: build"
       - "ci/circleci: lint"
 
-  # the comment that will be added when the merge label is removed, leave empty or set to false to disable
-  # {{MERGE_LABEL}} will be replaced by the value of the mergeLabel option
-  # {{OVERRIDE_LABEL}} will be replaced by the value of the overrideLabel option
-  # {{PLACEHOLDER}} will be replaced by the list of failing checks
-  mergeRemovedComment: "I don't like to brag, but I just saved you from a horrible, slow and painful death by removing the `{{MERGE_LABEL}}` label. Probably. Maybe...
-\nThe following checks are failing:
-\n{{PLACEHOLDER}}
-\n
-\nBut if you think that you know better than me, then please, go ahead, add the `{{OVERRIDE_LABEL}}` label and add an override justification comment for the caretaker. You'll be free to do whatever you want. Don't say that I didn't warn you."
+    # the comment that will be added when the merge label is added despite failing checks, leave empty or set to false to disable
+    # {{MERGE_LABEL}} will be replaced by the value of the mergeLabel option
+    # {{PLACEHOLDER}} will be replaced by the list of failing checks
+    mergeRemovedComment: "I see that you just added the `{{MERGE_LABEL}}` label. It won't do anything good though, because the following checks are still failing:
+  \n{{PLACEHOLDER}}
+  \n
+  \nIf you want your PR to be merged, it has to pass all the checks. But if you have a good reason to want to merge this, please contact the caretaker to let them know."
 ```
 
 # Plugins
@@ -90,14 +86,11 @@ The merge plugin will monitor pull requests to check whether they are mergeable 
 - check for forbidden labels using regexps
 - check that required statuses are successful
 - add a status that is successful when all the checks pass
-- remove the `merge` label (the name is configurable) if any of the checks is failing and add a comment to list the reasons
-
-You can override this behavior by adding the `override` label (the name is configurable), in which case the
-bot will do nothing when you add the `merge` label.
+- monitor the `PR action: merge` label (the name is configurable). If any of the checks is failing it will add a comment to list the reasons
 
 When you install the bot on a new repository, it will start scanning for opened PRs and monitor them.
 
 It will **not**:
-- remove existing merge labels
+- add a comment for existing merge labels
 - add a comment for conflicts until you push a new commit to the base branch
 - add the new merge status until the PR is synchronized (new commit pushed), labeled, unlabeled, or receives another status update

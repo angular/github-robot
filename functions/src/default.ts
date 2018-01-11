@@ -16,13 +16,11 @@ export const appConfig: AppConfig = {
     },
 
     // comment that will be added to a PR when there is a conflict, leave empty or set to false to disable
-    mergeConflictComment: `Hello? Don't want to hassle you. Sure you're busy. But--this PR has some conflicts that you probably ought to resolve.
+    mergeConflictComment: `Hello? Don't want to hassle you. Sure you're busy. But this PR has some conflicts that you probably ought to resolve.
 That is... if you want it to be merged someday...`,
 
-    // label to monitor, it will be removed if one of the checks doesn't pass
-    mergeLabel: "merge",
-    // label to override the checks, if present then the merge label will not be removed even if a check fails, leave empty or set to false to disable
-    overrideLabel: "override",
+    // label to monitor
+    mergeLabel: "PR action: merge",
 
     // list of checks that will determine if the merge label can be added
     checks: {
@@ -38,13 +36,11 @@ That is... if you want it to be merged someday...`,
 
     // the comment that will be added when the merge label is removed, leave empty or set to false to disable
     // {{MERGE_LABEL}} will be replaced by the value of the mergeLabel option
-    // {{OVERRIDE_LABEL}} will be replaced by the value of the overrideLabel option
     // {{PLACEHOLDER}} will be replaced by the list of failing checks
-    mergeRemovedComment: `I don't like to brag, but I just saved you from a horrible, slow and painful death by removing the \`{{MERGE_LABEL}}\` label. Probably. Maybe...
-Anyway, here is why I did that:
+    mergeRemovedComment: `I see that you just added the \`{{MERGE_LABEL}}\` label. It won't do anything good though, because the following checks are still failing:
 {{PLACEHOLDER}}
 
-But if you think that you know better than me, then please, go ahead, add the \`{{OVERRIDE_LABEL}}\` label and add an override justification comment for the caretaker. You'll be free to do whatever you want. Don't say that I didn't warn you.`
+If you want your PR to be merged, it has to pass all the checks. But if you have a good reason to want to merge this, please contact the caretaker to let them know.`
   }
 };
 
@@ -61,7 +57,6 @@ export interface MergeConfig {
   };
   mergeConflictComment: string;
   mergeLabel: string;
-  overrideLabel: string;
   checks: {
     noConflict: boolean;
     requiredLabels: string[];

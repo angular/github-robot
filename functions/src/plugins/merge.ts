@@ -173,18 +173,18 @@ export class MergeTask {
       this.robot.log(`Checking merge label for the PR ${pr.html_url}`);
 
       // Check if the PR has an override label, in which case we just update Firebase
-      if(config.overrideLabel && labels.includes(config.overrideLabel)) {
+      /*if(config.overrideLabel && labels.includes(config.overrideLabel)) {
         doc.set({labels}, {merge: true}).catch(err => {
           throw err;
         });
         return;
-      }
+      }*/
 
       const failedChecks = await this.getFailedChecks(context, pr, config, labels);
 
       if(failedChecks.length > 0) {
         const reasons = `- ${failedChecks.join('\n- ')}`;
-        this.robot.log(`Removing "${config.mergeLabel}" label on PR #${pr.number} (id: ${pr.id}) for the following reasons:\n${reasons}`);
+        /*this.robot.log(`Removing "${config.mergeLabel}" label on PR #${pr.number} (id: ${pr.id}) for the following reasons:\n${reasons}`);
 
         try {
           await this.removeLabel(context.github, owner, repo, pr.number, config.mergeLabel);
@@ -192,20 +192,20 @@ export class MergeTask {
           // the label has already been removed
           this.robot.log.error(e);
           return;
-        }
+        }*/
 
         let body = config.mergeRemovedComment;
         if(body) {
           body = body.replace("{{MERGE_LABEL}}", config.mergeLabel).replace("{{PLACEHOLDER}}", reasons);
-          if(config.overrideLabel) {
+          /*if(config.overrideLabel) {
             body = body.replace("{{OVERRIDE_LABEL}}", config.overrideLabel);
-          }
+          }*/
           this.addComment(context.github, owner, repo, pr.number, body).catch(err => {
             throw err;
           });
         }
         // return now, we don't want to add the new label to Firebase
-        return;
+        // return;
       }
     } else {
       labels = await this.getLabels(context);
@@ -368,14 +368,14 @@ export class MergeTask {
   /**
    * Removes a label from a PR
    */
-  private async removeLabel(github: probot.Context.github, owner: string, repo: string, number: string, name: string): Promise<void> {
+  /*private async removeLabel(github: probot.Context.github, owner: string, repo: string, number: string, name: string): Promise<void> {
     return github.issues.removeLabel({
       owner,
       repo,
       number,
       name
     });
-  }
+  }*/
 
   /**
    * Adds a comment on a PR
