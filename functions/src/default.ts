@@ -44,7 +44,7 @@ That is... if you want it to be merged someday...`,
 Anyway, here is why I did that:
 {{PLACEHOLDER}}
 
-But if you think that you know better than me, then please, go ahead and add the \`{{OVERRIDE_LABEL}}\` label. You'll be free to do whatever you want. Don't say that I didn't warn you.`
+But if you think that you know better than me, then please, go ahead, add the \`{{OVERRIDE_LABEL}}\` label and add an override justification comment for the caretaker. You'll be free to do whatever you want. Don't say that I didn't warn you.`
   }
 };
 

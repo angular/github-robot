@@ -170,7 +170,7 @@ export class MergeTask {
       // we need the list of labels from Github because we might be adding multiple labels at once
       labels = await this.getGhLabels(context.github, owner, repo, pr.number);
 
-      this.robot.log.debug(`Checking merge label for the PR ${pr.html_url}`);
+      this.robot.log(`Checking merge label for the PR ${pr.html_url}`);
 
       // Check if the PR has an override label, in which case we just update Firebase
       if(config.overrideLabel && labels.includes(config.overrideLabel)) {
@@ -419,6 +419,7 @@ export class MergeTask {
    * Checks/updates the status of all opened PRs when the main repository gets a push update
    * Triggered by event
    */
+  // todo(OCOMBE): change it to use database trigger
   async onPush(context: probot.Context): Promise<void> {
     const config = await this.getConfig(context);
     if(!config.checks.noConflict) {
@@ -481,6 +482,10 @@ export class MergeTask {
         labels = await this.getLabels(context);
         break;
       case 'status':
+        // ignore status update events that are coming from this bot
+        if(context.payload.context === config.status.context) {
+          return;
+        }
         // ignore status events for commits coming directly from the default branch (most likely using github edit)
         // because they are not coming from a PR (e.g. travis runs for all commits and triggers a status update)
         if(context.payload.branches.name === context.payload.repository.default_branch) {
@@ -569,8 +574,10 @@ export class MergeTask {
     // get the opened PRs against the branch that received a push
     const PRs = await getAllResults(github, github.pullRequests.getAll(params));
 
-    const res = await PRs.map(async pr => {
-      return (await github.pullRequests.get({number: pr.number, owner: params.owner, repo: params.repo})).data;
+    const res = await PRs.map(async (pr: any) => {
+      if(pr.state === 'open') {
+        return (await github.pullRequests.get({number: pr.number, owner: params.owner, repo: params.repo})).data;
+      }
     });
 
     return Promise.all(res);
@@ -580,7 +587,11 @@ export class MergeTask {
    * Gets the config for the merge plugin from Github or uses default if necessary
    */
   async getConfig(context): Promise<MergeConfig> {
-    return {...appConfig.merge, ...(await context.config(CONFIG_FILE)).merge};
+    let repositoryConfig = await context.config(CONFIG_FILE);
+    if(!repositoryConfig || !repositoryConfig.merge) {
+      repositoryConfig = {merge: {}};
+    }
+    return {...appConfig.merge, ...repositoryConfig.merge};
   }
 }
 
