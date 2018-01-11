@@ -52,7 +52,7 @@ class DocumentReference implements FirebaseFirestore.DocumentReference {
   }
 }
 
-class DocumentSnapshot implements FirebaseFirestore.DocumentSnapshot {
+/*class DocumentSnapshot implements FirebaseFirestore.DocumentSnapshot {
   exists: boolean;
   ref: FirebaseFirestore.DocumentReference;
   id: string;
@@ -72,7 +72,7 @@ class DocumentSnapshot implements FirebaseFirestore.DocumentSnapshot {
   get(fieldPath: string | FirebaseFirestore.FieldPath) {
     throw new Error("Method not implemented.");
   }
-}
+}*/
 
 class QuerySnapshot implements FirebaseFirestore.QuerySnapshot {
   query: FirebaseFirestore.Query;

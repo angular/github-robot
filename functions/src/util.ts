@@ -1,4 +1,4 @@
-import * as Context from "probot/lib/context";
+import * as Context from "probot-ts/lib/context";
 
 /**
  * Get all results in case of paginated Github request

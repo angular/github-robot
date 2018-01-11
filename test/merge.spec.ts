@@ -68,7 +68,6 @@ describe('triage', () => {
 
     it('should work on app installation', async () => {
       const event = require('./fixtures/installation.created.json');
-      const context = new Context(event, github);
       await mergeTask.init(github, event.payload.repositories);
       const storeData = await mergeTask.pullRequests.get();
       expect(storeData.docs.length).toBeGreaterThan(0);

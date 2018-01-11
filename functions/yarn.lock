@@ -2977,7 +2977,7 @@ private@^0.1.7:
   version "0.1.8"
   resolved "https://registry.yarnpkg.com/private/-/private-0.1.8.tgz#2381edb3689f7a53d653190060fcf822d2f368ff"
 
-probot-ts@^4.0.0-typescript:
+probot-ts@4.0.0-typescript:
   version "4.0.0-typescript"
   resolved "https://registry.yarnpkg.com/probot-ts/-/probot-ts-4.0.0-typescript.tgz#df40bfd757c900ab8bf631dfe37391a190b29e53"
   dependencies:
