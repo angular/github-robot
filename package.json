@@ -7,14 +7,12 @@
   "repository": "https://github.com/angular/github-robot.git",
   "scripts": {
     "prebuild": "npm run lint && rimraf functions/dist",
-    "build": "npm run build:functions",
-    "build:functions": "tsc -p functions",
-    "build:probot": "rimraf functions/libs && webpack && cp node_modules/probot/package.json functions/libs/probot/",
+    "build": "tsc -p functions",
     "dev": "webpack --watch",
     "lint": "tslint -p tslint.json",
     "watch:functions": "tsc -p functions -w",
     "start:watch": "nodemon --watch ./functions/dist --watch ./functions/private functions/dist/dev.js ",
-    "start:dev": "concurrently \"npm run build:functions -- -w\" \"npm run start:watch\"",
+    "start:dev": "concurrently \"npm run build -- -w\" \"npm run start:watch\"",
     "test": "jest --coverage",
     "test:dev": "jest --coverage --watch",
     "serve:functions": "firebase serve --only functions -p 3000",
@@ -24,7 +22,7 @@
     "logs:functions": "firebase functions:log"
   },
   "dependencies": {
-    "probot": "4.0.0"
+    "probot-ts": "^4.0.0-typescript"
   },
   "devDependencies": {
     "@types/core-js": "0.9.43",

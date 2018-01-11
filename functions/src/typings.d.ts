@@ -248,12 +248,6 @@ declare namespace probot {
     router: express.Router;
     catchErrors: any;
   }
-
-  export function probotEnhancedClient(github: Github): Github;
-
-  export function rateLimitedClient(github: Github): Github;
-
-  export function wrapLogger(logger: any): any;
 }
 
 export = probot;

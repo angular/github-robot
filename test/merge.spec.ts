@@ -1,5 +1,7 @@
-import {createRobot, Context, EnhancedGitHubClient, logger} from '../libs/probot';
-import * as probot from 'probot';
+import * as probot from "probot-ts";
+import * as Context from "probot-ts/lib/context";
+import * as EnhancedGitHubClient from "probot-ts/lib/github";
+import * as logger from "probot-ts/lib/logger";
 import {MergeTask} from "../functions/src/plugins/merge";
 import {appConfig} from "../functions/src/default";
 import {MockFirestore} from './mocks/firestore';
@@ -27,7 +29,7 @@ describe('triage', () => {
     });
 
     // Create a new Robot to run our plugin
-    robot = createRobot();
+    robot = probot.createRobot();
 
     // Mock out GitHub App authentication and return our mock client
     robot.auth = () => Promise.resolve(github);

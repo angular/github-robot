@@ -1,6 +1,6 @@
 import {https, config, firestore as database} from 'firebase-functions';
 import {Request, Response} from "express";
-import {createProbot} from "probot";
+import * as probot from "probot-ts";
 import {consoleStream} from "./util";
 import {MergeTask} from "./plugins/merge";
 import {initializeApp, firestore, credential} from "firebase-admin";
@@ -24,7 +24,7 @@ if(probotConfig) {
 
 const store: FirebaseFirestore.Firestore = firestore();
 // Create the bot using Firebase's probot config (see Readme.md)
-bot = createProbot(probotConfig);
+bot = probot(probotConfig);
 // Use node console as the output stream
 bot.logger.addStream(consoleStream);
 // Load the merge task to monitor PRs

@@ -1,9 +1,9 @@
-import * as probot from "probot";
+import * as Context from "probot/lib/context";
 
 /**
  * Get all results in case of paginated Github request
  */
-export async function getAllResults(github: probot.Context.github, request): Promise<any[]> {
+export async function getAllResults(github: Context.github, request): Promise<any[]> {
   const pages = await github.paginate(request);
   const results = [];
   pages.forEach(page => {

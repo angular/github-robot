@@ -1,5 +1,5 @@
 import * as Github from "github";
-import * as probot from "probot";
+import * as probot from "probot-ts";
 import {getAllResults} from "../util";
 import {appConfig, MergeConfig} from "../default";
 
@@ -108,7 +108,7 @@ export class MergeTask {
   /**
    * Updates the PRs in Firebase for a list of repositories
    */
-  private async init(github: probot.Context.github, repositories: Repository[]): Promise<void> {
+  async init(github: probot.Context.github, repositories: Repository[]): Promise<void> {
     await Promise.all(repositories.map(async repository => {
       this.robot.log(`Starting init for repository "${repository.full_name}"`);
       const [owner, repo] = repository.full_name.split('/');
@@ -579,7 +579,7 @@ export class MergeTask {
   /**
    * Gets the config for the merge plugin from Github or uses default if necessary
    */
-  private async getConfig(context): Promise<MergeConfig> {
+  async getConfig(context): Promise<MergeConfig> {
     return {...appConfig.merge, ...(await context.config(CONFIG_FILE)).merge};
   }
 }
