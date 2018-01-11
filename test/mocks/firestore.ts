@@ -94,9 +94,11 @@ class QuerySnapshot implements FirebaseFirestore.QuerySnapshot {
 
 class Query implements FirebaseFirestore.Query {
   firestore: FirebaseFirestore.Firestore;
+  collection: FirebaseFirestore.CollectionReference;
 
-  constructor(firestore: FirebaseFirestore.Firestore) {
+  constructor(firestore: FirebaseFirestore.Firestore, collection: FirebaseFirestore.CollectionReference) {
     this.firestore = firestore;
+    this.collection = collection;
   }
 
   where(fieldPath: string | FirebaseFirestore.FieldPath, opStr: FirebaseFirestore.WhereFilterOp, value: any): FirebaseFirestore.Query {
@@ -136,7 +138,7 @@ class Query implements FirebaseFirestore.Query {
   }
 
   get(): Promise<FirebaseFirestore.QuerySnapshot> {
-    return Promise.resolve(new QuerySnapshot(this, [new DocumentSnapshot({})]));
+    return this.collection.get();
   }
 
   stream(): NodeJS.ReadableStream {
@@ -175,7 +177,7 @@ class Collection implements FirebaseFirestore.CollectionReference {
 
 
   where(fieldPath: string | FirebaseFirestore.FieldPath, opStr: FirebaseFirestore.WhereFilterOp, value: any): FirebaseFirestore.Query {
-    return new Query(this.firestore);
+    return new Query(this.firestore, this);
   }
 
   orderBy(fieldPath: string | FirebaseFirestore.FieldPath, directionStr?: FirebaseFirestore.OrderByDirection): FirebaseFirestore.Query {
@@ -215,7 +217,7 @@ class Collection implements FirebaseFirestore.CollectionReference {
       Array.from(this._documents.values())
       .map(async (doc: FirebaseFirestore.DocumentReference) => await doc.get())
     );
-    return Promise.resolve(new QuerySnapshot(this, docs));
+    return Promise.resolve(new QuerySnapshot(new Query(this.firestore, this), docs));
   }
 
   stream(): NodeJS.ReadableStream {

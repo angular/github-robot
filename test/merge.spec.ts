@@ -36,10 +36,6 @@ describe('triage', () => {
 
     // create plugin
     mergeTask = new MergeTask(robot, store);
-
-    // patching mock firestore collections
-    // issue https://github.com/soumak77/firebase-mock/issues/41
-    mergeTask.pullRequests.where = () => mergeTask.pullRequests;
   });
 
   describe('getConfig', () => {
@@ -54,26 +50,26 @@ describe('triage', () => {
   describe('init', () => {
     it('should work with a manual init', async () => {
       await mergeTask.manualInit();
-      const storeData = await mergeTask.pullRequests.get();
+      const storeData = await mergeTask.repositories.get();
       expect(storeData.docs.length).toBeGreaterThan(0);
-      // our data set in mocks/scenarii/api.github.com/repo-pull-request.json returns a PR whose number value is 1
-      expect(storeData.docs[0]['number']).toEqual(1);
+      // our data set in mocks/scenarii/api.github.com/get-installation-repositories.json returns a repository whose name is "test"
+      expect(storeData.docs[0]['name']).toEqual('test');
     });
 
     it('should work on repository added', async () => {
       const event = require('./fixtures/installation_repositories.added.json');
       const context = new Context(event, github);
       await mergeTask.installInit(context);
-      const storeData = await mergeTask.pullRequests.get();
+      const storeData = await mergeTask.repositories.get();
       expect(storeData.docs.length).toBeGreaterThan(0);
-      // our data set in mocks/scenarii/api.github.com/repo-pull-request.json returns a PR whose number value is 1
-      expect(storeData.docs[0]['number']).toEqual(1);
+      // our data set in mocks/scenarii/api.github.com/get-installation-repositories.json returns a repository whose name is "test"
+      expect(storeData.docs[0]['name']).toEqual('test');
     });
 
     it('should work on app installation', async () => {
       const event = require('./fixtures/installation.created.json');
       const context = new Context(event, github);
-      await mergeTask.installInit(context);
+      await mergeTask.init(github, event.payload.repositories);
       const storeData = await mergeTask.pullRequests.get();
       expect(storeData.docs.length).toBeGreaterThan(0);
       // our data set in mocks/scenarii/api.github.com/repo-pull-request.json returns a PR whose number value is 1
