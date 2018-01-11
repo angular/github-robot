@@ -1,6 +1,6 @@
-# Angular Github bot
+# Angular Robot
 
-> A Github Bot built with [probot](https://github.com/probot/probot) to triage issues and PRs 
+A Bot built with [probot](https://github.com/probot/probot) to handle multiple tasks on Github
 
 ## Dev setup
 
@@ -44,13 +44,13 @@ merge:
 \nThat is... if you want it to be merged someday..."
 
   # label to monitor, it will be removed if one of the checks doesn't pass
-  mergeLabel: merge
+  mergeLabel: "merge"
   # label to override the checks, if present then the merge label will not be removed even if a check fails, leave empty or set to false to disable
-  overrideLabel: override
+  overrideLabel: "override"
 
   # list of checks that will determine if the merge label can be added
   checks:
-    # the PR shouldn't have a conflict with the base branch
+    # whether the PR shouldn't have a conflict with the base branch
     noConflict: true
     # list of labels that a PR needs to have, checked with a regexp (e.g. "PR target:" will work for the label "PR target: master")
     requiredLabels:
@@ -84,15 +84,15 @@ merge:
 The bot is designed to run multiple plugins.
 
 ### Merge plugin:
-The merge plugin will monitor pull requests to check if they are mergeable. It will:
+The merge plugin will monitor pull requests to check whether they are mergeable or not. It will:
 - check for conflicts with the base branch and add a comment when it happens
 - check for required labels using regexps
 - check for forbidden labels using regexps
 - check that required statuses are successful
 - add a status that is successful when all the checks pass
-- remove the `merge` label if any of the checks is failing and add a comment to list the reasons
+- remove the `merge` label (the name is configurable) if any of the checks is failing and add a comment to list the reasons
 
-You can override this behavior by adding the `override` label (the name of the label is configurable), in which case the
+You can override this behavior by adding the `override` label (the name is configurable), in which case the
 bot will do nothing when you add the `merge` label.
 
 When you install the bot on a new repository, it will start scanning for opened PRs and monitor them.

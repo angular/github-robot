@@ -18,13 +18,13 @@ merge:
 \nThat is... if you want it to be merged someday..."
 
   # label to monitor, it will be removed if one of the checks doesn't pass
-  mergeLabel: merge
+  mergeLabel: "merge"
   # label to override the checks, if present then the merge label will not be removed even if a check fails, leave empty or set to false to disable
-  overrideLabel: override
+  overrideLabel: "override"
 
   # list of checks that will determine if the merge label can be added
   checks:
-    # the PR shouldn't have a conflict with the base branch
+    # whether the PR shouldn't have a conflict with the base branch
     noConflict: true
     # list of labels that a PR needs to have, checked with a regexp (e.g. "PR target:" will work for the label "PR target: master")
     requiredLabels:

@@ -1,5 +1,8 @@
 import * as probot from "probot";
 
+/**
+ * Get all results in case of paginated Github request
+ */
 export async function getAllResults(github: probot.Context.github, request): Promise<any[]> {
   const pages = await github.paginate(request);
   const results = [];
@@ -34,6 +37,9 @@ class Stream {
   }
 }
 
+/**
+ * Stream Probot logs to console for Firebase
+ */
 export const consoleStream = {
   level: "debug",
   stream: new Stream()

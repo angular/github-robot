@@ -9,10 +9,12 @@ let bot;
 let mergeTask: MergeTask;
 let probotConfig = config().probot;
 
+// Check if we are in Firebase or in development
 if(probotConfig) {
-  // init database
+  // Init Firebase
   initializeApp(config().firebase);
 } else {
+  // Use dev config
   probotConfig = require('../private/env.json');
   const serviceAccount = require("../private/firebase-key.json");
   initializeApp({
@@ -21,15 +23,18 @@ if(probotConfig) {
 }
 
 const store: FirebaseFirestore.Firestore = firestore();
-// create the bot using Firebase's probot config (see Readme.md)
+// Create the bot using Firebase's probot config (see Readme.md)
 bot = createProbot(probotConfig);
-// use node console as the output stream
+// Use node console as the output stream
 bot.logger.addStream(consoleStream);
-// load the merge task to monitor PRs
+// Load the merge task to monitor PRs
 bot.load(robot => {
   mergeTask = new MergeTask(robot, store);
 });
 
+/**
+ * Relay Github events to the bot
+ */
 exports.bot = https.onRequest(async (request: Request, response: Response) => {
   const event = request.get('x-github-event') || request.get('X-GitHub-Event');
 
@@ -55,8 +60,9 @@ exports.bot = https.onRequest(async (request: Request, response: Response) => {
   }
 });
 
-// todo change this function to be triggered by firestore update, when a new repository is added
-// add new event on install that will add the repository to firestore
+/**
+ * Manually trigger init for all repositories, you shouldn't need to use that unless you clean the database
+ */
 exports.init = https.onRequest(async (request: Request, response: Response) => {
   try {
     await mergeTask.manualInit().catch(err => {
@@ -74,6 +80,9 @@ exports.init = https.onRequest(async (request: Request, response: Response) => {
   }
 });
 
+/**
+ * Init the PRs of a repository, triggered by an insertion in the "repositories" table
+ */
 exports.initRepoPRs = database.document('repositories/{id}').onCreate(event => {
   const data = event.data.data();
   return mergeTask.triggeredInit(data).catch(err => {

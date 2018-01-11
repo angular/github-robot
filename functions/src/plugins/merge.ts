@@ -11,10 +11,18 @@ export class MergeTask {
   pullRequests: FirebaseFirestore.CollectionReference;
 
   constructor(private robot: probot.Robot, public db: FirebaseFirestore.Firestore) {
-    this.robot.on(['installation.created', 'installation_repositories.added'], (context: probot.Context) => this.installInit(context));
+    // App installations on a new repository
+    this.robot.on([
+      'installation.created',
+      'installation_repositories.added'
+    ], (context: probot.Context) => this.installInit(context));
+    // Pushs to the repository to check for merge conflicts
     this.robot.on('push', (context: probot.Context) => this.onPush(context));
+    // PR receives a new label
     this.robot.on('pull_request.labeled', (context: probot.Context) => this.onLabeled(context));
+    // PR looses a label
     this.robot.on('pull_request.unlabeled', (context: probot.Context) => this.onUnlabeled(context));
+    // PR updated or received a new status update from another app
     this.robot.on([
       'status',
       'pull_request.synchronize',
@@ -23,10 +31,12 @@ export class MergeTask {
       // 'pull_request_review.submitted',
       // 'pull_request_review.dismissed'
     ], (context: probot.Context) => this.updateStatus(context));
+    // PR created or updated
     this.robot.on([
       'pull_request.synchronize',
       'pull_request.opened'
     ], (context: probot.Context) => this.onSynchronize(context));
+    // PR closed or reopened (but content not changed)
     this.robot.on([
       'pull_request.closed',
       'pull_request.reopened'
@@ -37,8 +47,8 @@ export class MergeTask {
   }
 
   /**
-   * Manually call the init function on all existing repositories
-   * @returns {Promise<void>}
+   * Init all existing repositories
+   * Manual call
    */
   async manualInit(): Promise<void> {
     const github = await this.robot.auth();
@@ -61,9 +71,8 @@ export class MergeTask {
   }
 
   /**
-   * Function called by insertion into the Firebase collection "repositories" (see index.ts)
-   * @param {Repository & {installationId: number}} repository
-   * @returns {Promise<void>}
+   * Init a single repository
+   * Triggered by Firebase when there is an insertion into the Firebase collection "repositories"
    */
   async triggeredInit(repository: Repository & { installationId: number }): Promise<void> {
     const authGithub = await this.robot.auth(repository.installationId);
@@ -72,7 +81,7 @@ export class MergeTask {
 
   /**
    * Updates the database with existing PRs when the bot is installed on a new server
-   * @returns {Promise<void>}
+   * Triggered by event
    */
   async installInit(context: probot.Context): Promise<void> {
     let repositories: Repository[];
@@ -97,18 +106,15 @@ export class MergeTask {
   }
 
   /**
-   * Updates the database with existing PRs for a list of repositories
-   * @param {probot.Context.github} github
-   * @param {any[]} repositories
-   * @returns {Promise<void>}
+   * Updates the PRs in Firebase for a list of repositories
    */
-  async init(github: probot.Context.github, repositories: Repository[]): Promise<void> {
+  private async init(github: probot.Context.github, repositories: Repository[]): Promise<void> {
     await Promise.all(repositories.map(async repository => {
       this.robot.log(`Starting init for repository "${repository.full_name}"`);
       const [owner, repo] = repository.full_name.split('/');
 
       const [repoPRs, dbPRSnapshots] = await Promise.all([
-        this.getPRs(github, {owner, repo, state: 'open'}),
+        this.getGhPRs(github, {owner, repo, state: 'open'}),
         this.pullRequests
           .where('repository', '==', repository.id)
           .where('state', '==', 'open')
@@ -149,9 +155,8 @@ export class MergeTask {
   }
 
   /**
-   * Checks whether the label can be added or not, and removes it if necessary
-   * @param {probot.Context} context
-   * @returns {Promise<void>}
+   * Checks whether the label can be added or not, and removes it if necessary. It also updates Firebase.
+   * Triggered by event
    */
   async onLabeled(context: probot.Context): Promise<void> {
     const newLabel = context.payload.label.name;
@@ -219,10 +224,17 @@ export class MergeTask {
     });
   }
 
-  matchLabel(label: string, labelsList: string[] = []): boolean {
-    return labelsList.some(l => !!label.match(new RegExp(l)));
+  /**
+   * Tests if a string matches a label
+   */
+  private matchLabel(str: string, labelsList: string[] = []): boolean {
+    return labelsList.some(l => !!str.match(new RegExp(l)));
   }
 
+  /**
+   * Checks what label was removed and updates the PR status if necessary. It also updates Firebase.
+   * Triggered by event
+   */
   async onUnlabeled(context: probot.Context): Promise<void> {
     const config = await this.getConfig(context);
     const removedLabel = context.payload.label.name;
@@ -245,13 +257,8 @@ export class MergeTask {
 
   /**
    * Gets the PR labels from Github
-   * @param {probot.Context.github} github
-   * @param {string} owner
-   * @param {string} repo
-   * @param {number} number
-   * @returns {Promise<string[]>}
    */
-  async getGhLabels(github: probot.Context.github, owner: string, repo: string, number: number): Promise<string[]> {
+  private async getGhLabels(github: probot.Context.github, owner: string, repo: string, number: number): Promise<string[]> {
     return (await github.issues.get({
       owner,
       repo,
@@ -259,20 +266,27 @@ export class MergeTask {
     })).data.labels.map((label: Github.Label) => label.name);
   }
 
-  async getLabels(context: probot.Context, pr?: any): Promise<string[]> {
+  /**
+   * Gets the list of labels from a PR
+   */
+  private async getLabels(context: probot.Context, pr?: any): Promise<string[]> {
     const {owner, repo} = context.repo();
     pr = pr || context.payload.pull_request;
     const doc = this.pullRequests.doc(pr.id.toString());
     const dbPR = await doc.get();
     let labels: string[];
 
+    // if the PR is already in Firebase
     if(dbPR.exists) {
       labels = dbPR.data().labels;
+
+      // if we have the labels listed in the PR
       if(labels) {
         return labels;
       }
     }
 
+    // otherwise get the labels from Github and update Firebase
     labels = await this.getGhLabels(context.github, owner, repo, pr.number);
     doc.set({...pr, repository: context.payload.repository.id, labels}, {merge: true}).catch(err => {
       throw err;
@@ -280,9 +294,13 @@ export class MergeTask {
     return labels;
   }
 
-  async getFailedChecks(context: probot.Context, pr: any, config: MergeConfig, labels: string[] = []): Promise<string[]> {
+  /**
+   * Based on the repo config, returns the list of checks that failed for this PR
+   */
+  private async getFailedChecks(context: probot.Context, pr: any, config: MergeConfig, labels: string[] = []): Promise<string[]> {
     const failedChecks = [];
 
+    // Check if there is any merge conflict
     if(config.checks.noConflict) {
       // if mergeable is null, we need to get the updated status
       if(pr.mergeable === null) {
@@ -323,7 +341,7 @@ export class MergeTask {
       }
     }
 
-    // Check if we have any failed/pending status
+    // Check if we have any failed/pending external status
     const statuses = await this.getStatuses(context, pr.head.sha);
     const failedStatuses = statuses.filter(status => status.state !== 'success');
     if(failedStatuses.length > 0) {
@@ -349,14 +367,8 @@ export class MergeTask {
 
   /**
    * Removes a label from a PR
-   * @param {probot.Context.github} github
-   * @param {string} owner
-   * @param {string} repo
-   * @param {string} number
-   * @param {string} name
-   * @returns {Promise<void>}
    */
-  async removeLabel(github: probot.Context.github, owner: string, repo: string, number: string, name: string): Promise<void> {
+  private async removeLabel(github: probot.Context.github, owner: string, repo: string, number: string, name: string): Promise<void> {
     return github.issues.removeLabel({
       owner,
       repo,
@@ -367,14 +379,8 @@ export class MergeTask {
 
   /**
    * Adds a comment on a PR
-   * @param {probot.Context.github} github
-   * @param {string} owner
-   * @param {string} repo
-   * @param {string} number
-   * @param {string} body
-   * @returns {Promise<void>}
    */
-  async addComment(github: probot.Context.github, owner: string, repo: string, number: string, body: string): Promise<void> {
+  private async addComment(github: probot.Context.github, owner: string, repo: string, number: string, body: string): Promise<void> {
     return github.issues.createComment({
       owner,
       repo,
@@ -385,8 +391,7 @@ export class MergeTask {
 
   /**
    * Updates the database when the PR is synchronized (new commit or commit force pushed)
-   * @param {probot.Context} context
-   * @returns {Promise<void>}
+   * Triggered by event
    */
   async onSynchronize(context: probot.Context): Promise<void> {
     const pr = context.payload.pull_request;
@@ -400,9 +405,8 @@ export class MergeTask {
   }
 
   /**
-   * Updates the database when the PR is updated
-   * @param {probot.Context} context
-   * @returns {Promise<void>}
+   * Updates Firebase data when the PR is updated
+   * Triggered by event
    */
   async onUpdate(context: probot.Context): Promise<void> {
     const pr = context.payload.pull_request;
@@ -412,9 +416,8 @@ export class MergeTask {
   }
 
   /**
-   * Checks the PRs status when the main repository gets a push update
-   * @param {probot.Context} context
-   * @returns {Promise<void>}
+   * Checks/updates the status of all opened PRs when the main repository gets a push update
+   * Triggered by event
    */
   async onPush(context: probot.Context): Promise<void> {
     const config = await this.getConfig(context);
@@ -460,18 +463,14 @@ export class MergeTask {
 
   /**
    * Updates the status of a PR
-   * @param {probot.Context} context
-   * @returns {Promise<void>}
    */
-  async updateStatus(context: probot.Context): Promise<void> {
-    let sha, url;
+  private async updateStatus(context: probot.Context): Promise<void> {
     const config = await this.getConfig(context);
     if(config.status.disabled) {
       return;
     }
+    let sha, url, pr, labels = [];
     const {owner, repo} = context.repo();
-    let pr;
-    let labels = [];
 
     switch(context.event) {
       case 'pull_request':
@@ -482,7 +481,8 @@ export class MergeTask {
         labels = await this.getLabels(context);
         break;
       case 'status':
-        // ignore status events for commits directly to the default branch (most likely using github edit)
+        // ignore status events for commits coming directly from the default branch (most likely using github edit)
+        // because they are not coming from a PR (e.g. travis runs for all commits and triggers a status update)
         if(context.payload.branches.name === context.payload.repository.default_branch) {
           return;
         }
@@ -494,8 +494,8 @@ export class MergeTask {
           pr = doc.data();
           labels = pr.labels || await this.getGhLabels(context.github, owner, repo, pr.number);
         });
-        // either init has not run yet and we don't have this PR in the DB, or it's a status update for a commit
-        // made directly on a branch without a PR
+        // either init has not finished yet and we don't have this PR in the DB, or it's a status update for a commit
+        // made directly on a branch without a PR (e.g. travis runs for all commits and triggers a status update)
         if(!pr) {
           return;
         }
@@ -533,13 +533,10 @@ export class MergeTask {
   }
 
   /**
-   * Get all statuses except for the one added by this bot
-   * @param {probot.Context} context
-   * @param {string} ref
-   * @returns {Promise<GithubStatus[]>}
+   * Get all external statuses except for the one added by this bot
    */
   // TODO(ocombe): use Firebase instead
-  async getStatuses(context: probot.Context, ref: string): Promise<GithubStatus[]> {
+  private async getStatuses(context: probot.Context, ref: string): Promise<GithubStatus[]> {
     const {owner, repo} = context.repo();
     const config = await this.getConfig(context);
 
@@ -554,15 +551,8 @@ export class MergeTask {
 
   /**
    * Gets the PR data from Github (or parameter) and adds/updates it in Firebase
-   * @param {probot.Context.github} github
-   * @param {string} owner
-   * @param {string} repo
-   * @param {number} number
-   * @param repositoryId
-   * @param pr
-   * @returns {Promise<any>}
    */
-  async updateDbPR(github: probot.Context.github, owner: string, repo: string, number: number, repositoryId: number, pr?: any): Promise<any> {
+  private async updateDbPR(github: probot.Context.github, owner: string, repo: string, number: number, repositoryId: number, pr?: any): Promise<any> {
     pr = pr || (await github.pullRequests.get({owner, repo, number})).data;
     const data = {...pr, repository: {owner, name: repo, id: repositoryId}};
     await this.pullRequests.doc(pr.id.toString()).set(data, {merge: true}).catch(err => {
@@ -573,12 +563,9 @@ export class MergeTask {
   }
 
   /**
-   * Gets the list of PRs from Github (expensive, be careful)
-   * @param {probot.Context.github} github
-   * @param {Github.PullRequestsGetAllParams} params
-   * @returns {Promise<any[]>}
+   * Gets the list of PRs from Github (/!\ expensive, be careful)
    */
-  async getPRs(github: probot.Context.github, params: Github.PullRequestsGetAllParams): Promise<any[]> {
+  private async getGhPRs(github: probot.Context.github, params: Github.PullRequestsGetAllParams): Promise<any[]> {
     // get the opened PRs against the branch that received a push
     const PRs = await getAllResults(github, github.pullRequests.getAll(params));
 
@@ -589,7 +576,10 @@ export class MergeTask {
     return Promise.all(res);
   }
 
-  async getConfig(context): Promise<MergeConfig> {
+  /**
+   * Gets the config for the merge plugin from Github or uses default if necessary
+   */
+  private async getConfig(context): Promise<MergeConfig> {
     return {...appConfig.merge, ...(await context.config(CONFIG_FILE)).merge};
   }
 }
