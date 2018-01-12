@@ -172,40 +172,18 @@ export class MergeTask {
 
       this.robot.log(`Checking merge label for the PR ${pr.html_url}`);
 
-      // Check if the PR has an override label, in which case we just update Firebase
-      /*if(config.overrideLabel && labels.includes(config.overrideLabel)) {
-        doc.set({labels}, {merge: true}).catch(err => {
-          throw err;
-        });
-        return;
-      }*/
-
       const failedChecks = await this.getFailedChecks(context, pr, config, labels);
 
       if(failedChecks.length > 0) {
         const reasons = `- ${failedChecks.join('\n- ')}`;
-        /*this.robot.log(`Removing "${config.mergeLabel}" label on PR #${pr.number} (id: ${pr.id}) for the following reasons:\n${reasons}`);
-
-        try {
-          await this.removeLabel(context.github, owner, repo, pr.number, config.mergeLabel);
-        } catch(e) {
-          // the label has already been removed
-          this.robot.log.error(e);
-          return;
-        }*/
 
         let body = config.mergeRemovedComment;
         if(body) {
           body = body.replace("{{MERGE_LABEL}}", config.mergeLabel).replace("{{PLACEHOLDER}}", reasons);
-          /*if(config.overrideLabel) {
-            body = body.replace("{{OVERRIDE_LABEL}}", config.overrideLabel);
-          }*/
           this.addComment(context.github, owner, repo, pr.number, body).catch(err => {
             throw err;
           });
         }
-        // return now, we don't want to add the new label to Firebase
-        // return;
       }
     } else {
       labels = await this.getLabels(context);
@@ -288,9 +266,7 @@ export class MergeTask {
 
     // otherwise get the labels from Github and update Firebase
     labels = await this.getGhLabels(context.github, owner, repo, pr.number);
-    doc.set({...pr, repository: context.payload.repository.id, labels}, {merge: true}).catch(err => {
-      throw err;
-    });
+    await this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id, {...pr, labels});
     return labels;
   }
 
@@ -395,12 +371,9 @@ export class MergeTask {
    */
   async onSynchronize(context: probot.Context): Promise<void> {
     const pr = context.payload.pull_request;
+    const {owner, repo} = context.repo();
 
-    await this.pullRequests.doc(pr.id.toString()).set({
-      ...pr,
-      repository: context.payload.repository.id,
-      synchronized_at: new Date()
-    }, {merge: true});
+    await this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id, {...pr, synchronized_at: new Date()});
     this.robot.log(`Updated synchronized date for the PR ${pr.id} (${pr.html_url})`);
   }
 
@@ -410,8 +383,9 @@ export class MergeTask {
    */
   async onUpdate(context: probot.Context): Promise<void> {
     const pr = context.payload.pull_request;
+    const {owner, repo} = context.repo();
 
-    await this.pullRequests.doc(pr.id.toString()).set(pr, {merge: true});
+    await this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id, pr);
     this.robot.log(`Updated the PR ${pr.id} (${pr.html_url})`);
   }
 
@@ -480,31 +454,45 @@ export class MergeTask {
         url = context.payload.pull_request.html_url;
         pr = context.payload.pull_request;
         labels = await this.getLabels(context);
+        this.robot.log(`Update status from event ${context.event} (action: ${context.payload.action}) for PR ${url}`);
         break;
       case 'status':
         // ignore status update events that are coming from this bot
         if(context.payload.context === config.status.context) {
+          this.robot.log(`Update status coming from this bot, ignored`);
           return;
         }
         // ignore status events for commits coming directly from the default branch (most likely using github edit)
         // because they are not coming from a PR (e.g. travis runs for all commits and triggers a status update)
         if(context.payload.branches.name === context.payload.repository.default_branch) {
+          this.robot.log(`Update status coming directly from the default branch (${context.payload.branches.name}, ignored`);
           return;
         }
         sha = context.payload.sha;
-        const matches = (await this.pullRequests.where('head.sha', '==', sha)
-          .where('repository', '==', context.payload.repository.id)
+        let matches = (await this.pullRequests.where('head.sha', '==', sha)
+          .where('repository.id', '==', context.payload.repository.id)
           .get());
-        await matches.forEach(async doc => {
+        matches.forEach(async doc => {
           pr = doc.data();
-          labels = pr.labels || await this.getGhLabels(context.github, owner, repo, pr.number);
         });
+        if(!pr) {
+          // the repository data was previously stored as a simple id, checking if this PR still has old data
+          matches = (await this.pullRequests.where('head.sha', '==', sha)
+            .where('repository', '==', context.payload.repository.id)
+            .get());
+          matches.forEach(async doc => {
+            pr = doc.data();
+          });
+        }
         // either init has not finished yet and we don't have this PR in the DB, or it's a status update for a commit
         // made directly on a branch without a PR (e.g. travis runs for all commits and triggers a status update)
         if(!pr) {
+          this.robot.log(`Update status for unknown PR, ignored. Head sha == ${sha}, repository == ${context.payload.repository.id}`);
           return;
         }
+        labels = pr.labels || await this.getGhLabels(context.github, owner, repo, pr.number);
         url = pr.html_url;
+        this.robot.log(`Update status from event ${context.event} (context: ${context.payload.context}) for PR ${url}`);
         break;
       default:
         throw new Error(`Unhandled event ${context.event} in updateStatus`);
@@ -557,10 +545,10 @@ export class MergeTask {
   /**
    * Gets the PR data from Github (or parameter) and adds/updates it in Firebase
    */
-  private async updateDbPR(github: probot.Context.github, owner: string, repo: string, number: number, repositoryId: number, pr?: any): Promise<any> {
-    pr = pr || (await github.pullRequests.get({owner, repo, number})).data;
-    const data = {...pr, repository: {owner, name: repo, id: repositoryId}};
-    await this.pullRequests.doc(pr.id.toString()).set(data, {merge: true}).catch(err => {
+  private async updateDbPR(github: probot.Context.github, owner: string, repo: string, number: number, repositoryId: number, newData?: any): Promise<any> {
+    newData = newData || (await github.pullRequests.get({owner, repo, number})).data;
+    const data = {...newData, repository: {owner, name: repo, id: repositoryId}};
+    await this.pullRequests.doc(newData.id.toString()).set(data, {merge: true}).catch(err => {
       this.robot.log.error(err);
       throw err;
     });
