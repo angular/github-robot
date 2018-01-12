@@ -172,10 +172,12 @@ export class MergeTask {
 
       this.robot.log(`Checking merge label for the PR ${pr.html_url}`);
 
-      const failedChecks = await this.getFailedChecks(context, pr, config, labels);
+      const checks = await this.getChecksStatus(context, pr, config, labels);
 
-      if(failedChecks.length > 0) {
-        const reasons = `- ${failedChecks.join('\n- ')}`;
+      if(checks.failure.length > 0) {
+        const failures = checks.failure.map(check => `&nbsp;&nbsp;&nbsp;&nbsp;![failure](https://raw.githubusercontent.com/angular/github-robot/master/assets/failing.png) ${check}`);
+        const pendings = checks.pending.map(check => `&nbsp;&nbsp;&nbsp;&nbsp;![pending](https://raw.githubusercontent.com/angular/github-robot/master/assets/pending.png) ${check}`);
+        const reasons = `${failures.concat(pendings).join('\n')}`;
 
         let body = config.mergeRemovedComment;
         if(body) {
@@ -273,8 +275,11 @@ export class MergeTask {
   /**
    * Based on the repo config, returns the list of checks that failed for this PR
    */
-  private async getFailedChecks(context: probot.Context, pr: any, config: MergeConfig, labels: string[] = []): Promise<string[]> {
-    const failedChecks = [];
+  private async getChecksStatus(context: probot.Context, pr: any, config: MergeConfig, labels: string[] = []): Promise<ChecksStatus> {
+    const checksStatus: ChecksStatus = {
+      pending: [],
+      failure: []
+    };
 
     // Check if there is any merge conflict
     if(config.checks.noConflict) {
@@ -285,7 +290,7 @@ export class MergeTask {
       }
       // Check if there is a conflict with the base branch
       if(!pr.mergeable) {
-        failedChecks.push(`conflicts with base branch "${pr.base.ref}"`);
+        checksStatus.failure.push(`conflicts with base branch "${pr.base.ref}"`);
       }
     }
 
@@ -299,7 +304,7 @@ export class MergeTask {
       });
 
       if(missingLabels.length > 0) {
-        failedChecks.push(`missing required label${missingLabels.length > 1 ? 's' : ''}: "${missingLabels.join('", "')}"`);
+        checksStatus.failure.push(`missing required label${missingLabels.length > 1 ? 's' : ''}: "${missingLabels.join('", "')}"`);
       }
     }
 
@@ -313,45 +318,35 @@ export class MergeTask {
       });
 
       if(fbdLabels.length > 0) {
-        failedChecks.push(`forbidden label${fbdLabels.length > 1 ? 's' : ''} detected: ${fbdLabels.join(', ')}`);
+        checksStatus.failure.push(`forbidden label${fbdLabels.length > 1 ? 's' : ''} detected: ${fbdLabels.join(', ')}`);
       }
     }
 
     // Check if we have any failed/pending external status
     const statuses = await this.getStatuses(context, pr.head.sha);
-    const failedStatuses = statuses.filter(status => status.state !== 'success');
-    if(failedStatuses.length > 0) {
-      failedChecks.push(`status${failedStatuses.length > 1 ? 'es' : ''} failing/pending (${failedStatuses.map(status => status.context).join(', ')})`);
-    }
+    statuses.forEach((status: GithubStatus) => {
+      switch(status.state) {
+        case 'failure':
+        case 'error':
+          checksStatus.failure.push(`status "${status.context}" is failing`);
+          break;
+        case 'pending':
+          checksStatus.pending.push(`status "${status.context}" is pending`);
+          break;
+      }
+    });
 
-    // Check if all required status are present
+    // Check if all required statuses are present
     if(config.checks.requiredStatuses) {
-      const missingStatuses = [];
       config.checks.requiredStatuses.forEach(reqCheck => {
         if(!statuses.some(status => !!status.context.match(new RegExp(reqCheck)))) {
-          missingStatuses.push(reqCheck);
+          checksStatus.failure.push(`missing required status "${reqCheck}"`);
         }
       });
-
-      if(missingStatuses.length > 0) {
-        failedChecks.push(`missing required status${missingStatuses.length > 1 ? 'es' : ''}: "${missingStatuses.join('", "')}"`);
-      }
     }
 
-    return failedChecks;
+    return checksStatus;
   }
-
-  /**
-   * Removes a label from a PR
-   */
-  /*private async removeLabel(github: probot.Context.github, owner: string, repo: string, number: string, name: string): Promise<void> {
-    return github.issues.removeLabel({
-      owner,
-      repo,
-      number,
-      name
-    });
-  }*/
 
   /**
    * Adds a comment on a PR
@@ -506,15 +501,21 @@ export class MergeTask {
       state: 'success'
     };
 
-    const failedChecks = await this.getFailedChecks(context, pr, config, labels);
+    const failedChecks = await this.getChecksStatus(context, pr, config, labels);
 
-    if(failedChecks.length === 0) {
+    if(failedChecks.failure.length > 0) {
+      statusParams.state = 'failure';
+      statusParams.description = failedChecks.failure.concat(failedChecks.pending).join(', ');
+    } else if(failedChecks.pending.length > 0) {
+      statusParams.state = 'pending';
+      statusParams.description = failedChecks.pending.join(', ');
+    } else {
       statusParams.state = 'success';
       statusParams.description = config.status.successText;
-    } else {
-      statusParams.state = 'failure';
-      statusParams.description = `The following checks are failing: ${failedChecks.join(', ')}`;
     }
+
+    // Capitalize first letter
+    statusParams.description = statusParams.description.replace(statusParams.description[0], statusParams.description[0].toUpperCase());
 
     // TODO(ocombe): add a link to a dynamic page with the complete status & some description of what's required
     if(statusParams.description.length > 140) {
@@ -598,4 +599,9 @@ interface Repository {
   id: number;
   name: string;
   full_name: string;
+}
+
+interface ChecksStatus {
+  pending: string[];
+  failure: string[];
 }
