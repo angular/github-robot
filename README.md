@@ -76,6 +76,10 @@ merge:
   \nIf you want your PR to be merged, it has to pass all the checks. But if you have a good reason to want to merge this, please contact the caretaker to let them know."
 ```
 
+### Manual installation
+By default the bot will automatically trigger its installation routines when you install it on a new repository.
+If for some reason you need to trigger the init manually, you need to change the value `allowInit` to true in the admin / config database and then you can call the "init" function from Firebase functions. Don't forget to set `allowInit` to false after that.
+
 # Plugins
 The bot is designed to run multiple plugins.
 

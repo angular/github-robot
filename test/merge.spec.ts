@@ -50,10 +50,16 @@ describe('triage', () => {
   describe('init', () => {
     it('should work with a manual init', async () => {
       await mergeTask.manualInit();
-      const storeData = await mergeTask.repositories.get();
+      let storeData = await mergeTask.repositories.get();
+      // shouldn't work if allowInit is false
+      expect(storeData.docs.length).toEqual(0);
+
+      await mergeTask.admin.doc('config').set({allowInit: true});
+      await mergeTask.manualInit();
+      storeData = await mergeTask.repositories.get();
       expect(storeData.docs.length).toBeGreaterThan(0);
       // our data set in mocks/scenarii/api.github.com/get-installation-repositories.json returns a repository whose name is "test"
-      expect(storeData.docs[0]['name']).toEqual('test');
+      expect(storeData.docs[0].data()['name']).toEqual('test');
     });
 
     it('should work on repository added', async () => {
@@ -63,7 +69,7 @@ describe('triage', () => {
       const storeData = await mergeTask.repositories.get();
       expect(storeData.docs.length).toBeGreaterThan(0);
       // our data set in mocks/scenarii/api.github.com/get-installation-repositories.json returns a repository whose name is "test"
-      expect(storeData.docs[0]['name']).toEqual('test');
+      expect(storeData.docs[0].data()['name']).toEqual('test');
     });
 
     it('should work on app installation', async () => {
@@ -72,7 +78,7 @@ describe('triage', () => {
       const storeData = await mergeTask.pullRequests.get();
       expect(storeData.docs.length).toBeGreaterThan(0);
       // our data set in mocks/scenarii/api.github.com/repo-pull-request.json returns a PR whose number value is 1
-      expect(storeData.docs[0]['number']).toEqual(1);
+      expect(storeData.docs[0].data()['number']).toEqual(1);
     });
   });
 });

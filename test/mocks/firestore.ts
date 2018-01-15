@@ -6,6 +6,31 @@ class WriteResult implements FirebaseFirestore.WriteResult {
   }
 }
 
+class DocumentSnapshot implements FirebaseFirestore.DocumentSnapshot {
+  exists: boolean;
+  ref: FirebaseFirestore.DocumentReference;
+  id: string;
+  createTime?: string;
+  updateTime?: string;
+  readTime: string;
+  private _data: any;
+
+  constructor(data?: any) {
+    if(data) {
+      this._data = data;
+      this.exists = true;
+    }
+  }
+
+  data(): FirebaseFirestore.DocumentData {
+    return this._data;
+  }
+
+  get(fieldPath: string | FirebaseFirestore.FieldPath) {
+    throw new Error("Method not implemented.");
+  }
+}
+
 class DocumentReference implements FirebaseFirestore.DocumentReference {
   id: string;
   firestore: FirebaseFirestore.Firestore;
@@ -44,35 +69,13 @@ class DocumentReference implements FirebaseFirestore.DocumentReference {
   }
 
   get(): Promise<FirebaseFirestore.DocumentSnapshot> {
-    return Promise.resolve(this._data);
+    return Promise.resolve(new DocumentSnapshot(this._data));
   }
 
   onSnapshot(onNext: (snapshot: FirebaseFirestore.DocumentSnapshot) => void, onError?: (error: Error) => void): () => void {
     throw new Error("Method not implemented.");
   }
 }
-
-/*class DocumentSnapshot implements FirebaseFirestore.DocumentSnapshot {
-  exists: boolean;
-  ref: FirebaseFirestore.DocumentReference;
-  id: string;
-  createTime?: string;
-  updateTime?: string;
-  readTime: string;
-  private _data: any;
-
-  constructor(data: any) {
-    this._data = data;
-  }
-
-  data(): FirebaseFirestore.DocumentData {
-    return this._data;
-  }
-
-  get(fieldPath: string | FirebaseFirestore.FieldPath) {
-    throw new Error("Method not implemented.");
-  }
-}*/
 
 class QuerySnapshot implements FirebaseFirestore.QuerySnapshot {
   query: FirebaseFirestore.Query;
@@ -215,7 +218,7 @@ class Collection implements FirebaseFirestore.CollectionReference {
   async get(): Promise<FirebaseFirestore.QuerySnapshot> {
     const docs = await Promise.all(
       Array.from(this._documents.values())
-      .map(async (doc: FirebaseFirestore.DocumentReference) => await doc.get())
+        .map(async (doc: FirebaseFirestore.DocumentReference) => await doc.get())
     );
     return Promise.resolve(new QuerySnapshot(new Query(this.firestore, this), docs));
   }

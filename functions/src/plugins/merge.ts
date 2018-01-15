@@ -1,7 +1,7 @@
 import * as Github from "github";
 import * as probot from "probot-ts";
 import {getAllResults} from "../util";
-import {appConfig, MergeConfig} from "../default";
+import {AdminConfig, appConfig, MergeConfig} from "../default";
 
 export const CONFIG_FILE = "angular-robot.yml";
 
@@ -9,6 +9,7 @@ export const CONFIG_FILE = "angular-robot.yml";
 export class MergeTask {
   repositories: FirebaseFirestore.CollectionReference;
   pullRequests: FirebaseFirestore.CollectionReference;
+  admin: FirebaseFirestore.CollectionReference;
 
   constructor(private robot: probot.Robot, public db: FirebaseFirestore.Firestore) {
     // App installations on a new repository
@@ -44,6 +45,7 @@ export class MergeTask {
 
     this.repositories = this.db.collection('repositories');
     this.pullRequests = this.db.collection('pullRequests');
+    this.admin = this.db.collection('admin');
   }
 
   /**
@@ -51,23 +53,26 @@ export class MergeTask {
    * Manual call
    */
   async manualInit(): Promise<void> {
-    const github = await this.robot.auth();
-    const installations = await getAllResults(github, github.apps.getInstallations({}));
-    await Promise.all(installations.map(async installation => {
-      const authGithub = await this.robot.auth(installation.id);
-      const repositories = await authGithub.apps.getInstallationRepositories({});
-      await Promise.all(repositories.data.repositories.map(async repository => {
-        await this.repositories.doc(repository.id.toString()).set({
-          id: repository.id,
-          name: repository.name,
-          full_name: repository.full_name,
-          installationId: installation.id
-        }).catch(err => {
-          this.robot.log.error(err);
-          throw err;
-        });
+    const adminConfig = await this.admin.doc('config').get();
+    if(adminConfig.exists && (<AdminConfig>adminConfig.data()).allowInit) {
+      const github = await this.robot.auth();
+      const installations = await getAllResults(github, github.apps.getInstallations({}));
+      await Promise.all(installations.map(async installation => {
+        const authGithub = await this.robot.auth(installation.id);
+        const repositories = await authGithub.apps.getInstallationRepositories({});
+        await Promise.all(repositories.data.repositories.map(async repository => {
+          await this.repositories.doc(repository.id.toString()).set({
+            id: repository.id,
+            name: repository.name,
+            full_name: repository.full_name,
+            installationId: installation.id
+          }).catch(err => {
+            this.robot.log.error(err);
+            throw err;
+          });
+        }));
       }));
-    }));
+    }
   }
 
   /**

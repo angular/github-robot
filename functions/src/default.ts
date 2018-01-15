@@ -65,3 +65,7 @@ export interface MergeConfig {
   };
   mergeRemovedComment: string;
 }
+
+export interface AdminConfig {
+  allowInit: boolean;
+}
