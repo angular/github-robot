@@ -72,6 +72,8 @@ export class MergeTask {
           });
         }));
       }));
+    } else {
+      this.robot.log.error(`Manual init is disabled: the value of allowInit is set to false in the admin config database`);
     }
   }
 
@@ -118,37 +120,27 @@ export class MergeTask {
       this.robot.log(`Starting init for repository "${repository.full_name}"`);
       const [owner, repo] = repository.full_name.split('/');
 
-      const [repoPRs, dbPRSnapshots] = await Promise.all([
-        this.getGhPRs(github, {owner, repo, state: 'open'}),
-        this.pullRequests
-          .where('repository', '==', repository.id)
-          .where('state', '==', 'open')
-          .get()
-      ]);
+      const dbPRSnapshots = await this.pullRequests
+        .where('repository', '==', repository.id)
+        .where('state', '==', 'open')
+        .get();
 
       // list of existing opened PRs in the db
-      const dbPRs = [];
-      dbPRSnapshots.forEach(doc => {
-        dbPRs.push(doc.id);
-      });
+      const dbPRs = dbPRSnapshots.docs.map(doc => doc.id);
 
-      // add or update all existing opened PRs
-      await Promise.all(repoPRs.map(async pr => {
-        await this.updateDbPR(github, owner, repo, pr.number, repository.id, pr).catch(err => {
-          this.robot.log.error(err);
-          throw err;
-        });
+      const ghPRs = await getAllResults(github, github.pullRequests.getAll({owner, repo, state: 'open'}));
+
+      ghPRs.forEach(async pr => {
         const index = dbPRs.indexOf(pr.id);
         if(index !== -1) {
           dbPRs.splice(index, 1);
         }
-      }));
+      });
 
       // update the state of all PRs that are no longer opened
       if(dbPRs.length > 0) {
         const batch = this.db.batch();
         dbPRs.forEach(async id => {
-          // should we update all of the other data as well? we ignore them for now
           batch.set(this.pullRequests.doc(id.toString()), {state: 'closed'}, {merge: true});
         });
         batch.commit().catch(err => {
@@ -156,6 +148,10 @@ export class MergeTask {
           throw err;
         });
       }
+
+      // add/update opened PRs
+      return Promise.all(ghPRs.map(pr => github.pullRequests.get({number: pr.number, owner, repo})
+        .then(res => this.updateDbPR(github, owner, repo, pr.number, repository.id, res.data))));
     }));
   }
 
@@ -373,7 +369,10 @@ export class MergeTask {
     const pr = context.payload.pull_request;
     const {owner, repo} = context.repo();
 
-    await this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id, {...pr, synchronized_at: new Date()});
+    await this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id, {
+      ...pr,
+      synchronized_at: new Date()
+    });
     this.robot.log(`Updated synchronized date for the PR ${pr.id} (${pr.html_url})`);
   }
 
@@ -559,22 +558,6 @@ export class MergeTask {
       throw err;
     });
     return data;
-  }
-
-  /**
-   * Gets the list of PRs from Github (/!\ expensive, be careful)
-   */
-  private async getGhPRs(github: probot.Context.github, params: Github.PullRequestsGetAllParams): Promise<any[]> {
-    // get the opened PRs against the branch that received a push
-    const PRs = await getAllResults(github, github.pullRequests.getAll(params));
-
-    const res = await PRs.map(async (pr: any) => {
-      if(pr.state === 'open') {
-        return (await github.pullRequests.get({number: pr.number, owner: params.owner, repo: params.repo})).data;
-      }
-    });
-
-    return Promise.all(res);
   }
 
   /**
