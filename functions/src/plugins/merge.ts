@@ -399,18 +399,20 @@ export class MergeTask {
       return;
     }
     const {owner, repo} = context.repo();
+    const repoId = context.payload.repository.id;
     let ref = context.payload.ref.split('/');
     ref = ref[ref.length - 1];
 
     const pullRequests = await this.pullRequests.where('state', '==', 'open')
       .where('base.ref', '==', ref)
+      .where('repository.id', '==', repoId)
       .get();
     return await pullRequests.forEach(async doc => {
       let pr = doc.data();
 
       // We need to get the updated mergeable status
       // TODO(ocombe): we might need to setTimeout this until we get a mergeable value !== null (or use probot scheduler)
-      pr = await this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id);
+      pr = await this.updateDbPR(context.github, owner, repo, pr.number, repoId);
 
       if(pr.mergeable === false) {
         // get the comments since the last time the PR was synchronized
