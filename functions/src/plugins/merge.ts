@@ -414,7 +414,7 @@ export class MergeTask {
 
       if(pr.mergeable === false) {
         // get the comments since the last time the PR was synchronized
-        if(pr.conflict_comment_at && pr.synchronized_at && pr.conflict_comment_at >= pr.synchronized_at) {
+        if((pr.conflict_comment_at && pr.synchronized_at && pr.conflict_comment_at >= pr.synchronized_at) || (!pr.synchronized_at && pr.conflict_comment_at)) {
           this.robot.log(`The PR ${pr.html_url} already contains a merge conflict comment since the last synchronized date, skipping it`);
           return;
         }
