@@ -555,11 +555,12 @@ export class MergeTask {
   private async updateDbPR(github: probot.Context.github, owner: string, repo: string, number: number, repositoryId: number, newData?: any): Promise<any> {
     newData = newData || (await github.pullRequests.get({owner, repo, number})).data;
     const data = {...newData, repository: {owner, name: repo, id: repositoryId}};
-    await this.pullRequests.doc(newData.id.toString()).set(data, {merge: true}).catch(err => {
+    const doc = this.pullRequests.doc(data.id.toString());
+    await doc.set(data, {merge: true}).catch(err => {
       this.robot.log.error(err);
       throw err;
     });
-    return data;
+    return (await doc.get()).data();
   }
 
   /**
