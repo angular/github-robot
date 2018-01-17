@@ -164,13 +164,16 @@ export class MergeTask {
     const pr = context.payload.pull_request;
     const config = await this.getConfig(context);
     const doc = this.pullRequests.doc(pr.id.toString());
-    let labels: string[] = [];
+    const {owner, repo} = context.repo();
+    // we need the list of labels from Github because we might be adding multiple labels at once
+    // and we could overwrite some labels because of a race condition
+    const labels = await this.getGhLabels(context.github, owner, repo, pr.number);
+    // update the DB
+    await doc.set({labels}, {merge: true}).catch(err => {
+      throw err;
+    });
 
     if(newLabel === config.mergeLabel) {
-      const {owner, repo} = context.repo();
-      // we need the list of labels from Github because we might be adding multiple labels at once
-      labels = await this.getGhLabels(context.github, owner, repo, pr.number);
-
       this.robot.log(`Checking merge label for the PR ${pr.html_url}`);
 
       const checks = await this.getChecksStatus(context, pr, config, labels);
@@ -188,21 +191,13 @@ export class MergeTask {
           });
         }
       }
-    } else {
-      labels = await this.getLabels(context);
-      if(!labels.includes(newLabel)) {
-        labels.push(newLabel);
-      }
-      if(this.matchLabel(newLabel, config.checks.requiredLabels) || this.matchLabel(newLabel, config.checks.forbiddenLabels)) {
-        this.updateStatus(context).catch(err => {
-          throw err;
-        });
-      }
     }
 
-    doc.set({labels}, {merge: true}).catch(err => {
-      throw err;
-    });
+    if(this.matchLabel(newLabel, config.checks.requiredLabels) || this.matchLabel(newLabel, config.checks.forbiddenLabels)) {
+      this.updateStatus(context, labels).catch(err => {
+        throw err;
+      });
+    }
   }
 
   /**
@@ -218,22 +213,20 @@ export class MergeTask {
    */
   async onUnlabeled(context: probot.Context): Promise<void> {
     const config = await this.getConfig(context);
+    const {owner, repo} = context.repo();
     const removedLabel = context.payload.label.name;
+    const pr = context.payload.pull_request;
+    const doc = this.pullRequests.doc(pr.id.toString());
+    // we need the list of labels from Github because we might be adding multiple labels at once
+    // and we could overwrite some labels because of a race condition
+    const labels = await this.getGhLabels(context.github, owner, repo, pr.number);
+    await doc.set({labels}, {merge: true});
 
     if(this.matchLabel(removedLabel, config.checks.requiredLabels) || this.matchLabel(removedLabel, config.checks.forbiddenLabels)) {
-      this.updateStatus(context).catch(err => {
+      this.updateStatus(context, labels).catch(err => {
         throw err;
       });
     }
-
-    const pr = context.payload.pull_request;
-    const doc = this.pullRequests.doc(pr.id.toString());
-    const labels = await this.getLabels(context);
-    const index = labels.indexOf(removedLabel);
-    if(index !== -1) {
-      labels.splice(labels.indexOf(removedLabel), 1);
-    }
-    await doc.set({labels}, {merge: true});
   }
 
   /**
@@ -440,12 +433,12 @@ export class MergeTask {
   /**
    * Updates the status of a PR
    */
-  private async updateStatus(context: probot.Context): Promise<void> {
+  private async updateStatus(context: probot.Context, labels?: string[]): Promise<void> {
     const config = await this.getConfig(context);
     if(config.status.disabled) {
       return;
     }
-    let sha, url, pr, labels = [];
+    let sha, url, pr;
     const {owner, repo} = context.repo();
 
     switch(context.event) {
@@ -454,7 +447,9 @@ export class MergeTask {
         sha = context.payload.pull_request.head.sha;
         url = context.payload.pull_request.html_url;
         pr = context.payload.pull_request;
-        labels = await this.getLabels(context);
+        if(!labels) {
+          labels = await this.getLabels(context);
+        }
         this.robot.log(`Update status from event ${context.event} (action: ${context.payload.action}) for PR ${url}`);
         break;
       case 'status':
@@ -491,7 +486,9 @@ export class MergeTask {
           this.robot.log(`Update status for unknown PR, ignored. Head sha == ${sha}, repository == ${context.payload.repository.id}`);
           return;
         }
-        labels = pr.labels || await this.getGhLabels(context.github, owner, repo, pr.number);
+        if(!labels) {
+          labels = pr.labels || await this.getGhLabels(context.github, owner, repo, pr.number);
+        }
         url = pr.html_url;
         this.robot.log(`Update status from event ${context.event} (context: ${context.payload.context}) for PR ${url}`);
         break;
