@@ -419,7 +419,7 @@ export class MergeTask {
             owner,
             repo,
             number: pr.number,
-            body: config.mergeConflictComment
+            body: config.mergeConflictComment.replace("{{PRAuthor}}", pr.user.login)
           });
           this.pullRequests.doc(pr.id.toString()).set({conflict_comment_at: new Date()}, {merge: true}).catch(err => {
             throw err;
