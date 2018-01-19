@@ -1,12 +1,11 @@
-import {https, config, firestore as database} from 'firebase-functions';
+import {config, firestore as database, https} from 'firebase-functions';
 import {Request, Response} from "express";
 import * as probot from "probot-ts";
-import {consoleStream} from "./util";
-import {MergeTask} from "./plugins/merge";
-import {initializeApp, firestore, credential} from "firebase-admin";
+import {consoleStream, registerTasks, Tasks} from "./util";
+import {credential, firestore, initializeApp} from "firebase-admin";
 
 let bot;
-let mergeTask: MergeTask;
+let tasks: Tasks;
 let probotConfig = config().probot;
 
 // Check if we are in Firebase or in development
@@ -29,7 +28,7 @@ bot = probot(probotConfig);
 bot.logger.addStream(consoleStream);
 // Load the merge task to monitor PRs
 bot.load(robot => {
-  mergeTask = new MergeTask(robot, store);
+  tasks = registerTasks(robot, store);
 });
 
 /**
@@ -65,7 +64,7 @@ exports.bot = https.onRequest(async (request: Request, response: Response) => {
  */
 exports.init = https.onRequest(async (request: Request, response: Response) => {
   try {
-    await mergeTask.manualInit().catch(err => {
+    await tasks.commonTask.manualInit().catch(err => {
       console.error(err);
     });
     response.send({
@@ -85,7 +84,7 @@ exports.init = https.onRequest(async (request: Request, response: Response) => {
  */
 exports.initRepoPRs = database.document('repositories/{id}').onCreate(event => {
   const data = event.data.data();
-  return mergeTask.triggeredInit(data).catch(err => {
+  return tasks.commonTask.triggeredInit(data).catch(err => {
     console.error(err);
   });
 });

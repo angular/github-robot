@@ -1,9 +1,12 @@
-import * as Context from "probot-ts/lib/context";
+import * as probot from "probot-ts";
+import {CommonTask} from "./plugins/common";
+import {MergeTask} from "./plugins/merge";
+import {TriageTask} from "./plugins/triage";
 
 /**
  * Get all results in case of paginated Github request
  */
-export async function getAllResults(github: Context.github, request): Promise<any[]> {
+export async function getAllResults(github: probot.Context.github, request): Promise<any[]> {
   const pages = await github.paginate(request);
   const results = [];
   pages.forEach(page => {
@@ -44,3 +47,17 @@ export const consoleStream = {
   level: "debug",
   stream: new Stream()
 };
+
+export interface Tasks {
+  commonTask: CommonTask;
+  mergeTask: MergeTask;
+  triageTask: TriageTask;
+}
+
+export function registerTasks(robot: probot.Robot, store: FirebaseFirestore.Firestore): Tasks {
+  return {
+    commonTask: new CommonTask(robot, store),
+    mergeTask: new MergeTask(robot, store),
+    triageTask: new TriageTask(robot, store)
+  };
+}

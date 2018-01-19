@@ -77,6 +77,21 @@ merge:
 \n**If you want your PR to be merged, it has to pass all the CI checks.**
 \n
 \nIf you can't get the PR to a green state due to flakes or broken master, please try rebasing to master and/or restarting the CI job. If that fails and you believe that the issue is not due to your change, please contact the caretaker and ask for help."
+
+# options for the triage plugin
+triage:
+  # number of the milestone to apply when the issue is triaged
+  defaultMilestone: 82,
+  # arrays of labels that determine if an issue is triaged
+  triagedLabels:
+    -
+      - "type: bug"
+      - "severity"
+      - "freq"
+      - "comp:"
+    -
+      - "type: feature"
+      - "comp:"
 ```
 
 ### Manual installation
@@ -101,3 +116,7 @@ It will **not**:
 - add a comment for existing merge labels
 - add a comment for conflicts until you push a new commit to the base branch
 - add the new merge status until the PR is synchronized (new commit pushed), labeled, unlabeled, or receives another status update
+
+### Triage plugin:
+The triage plugin will triage issues. It will:
+- apply the default milestone when all required labels have been applied (= issue has been triaged)

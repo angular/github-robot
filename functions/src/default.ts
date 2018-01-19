@@ -44,11 +44,17 @@ Please help to unblock it by resolving these conflicts. Thanks!`,
 **If you want your PR to be merged, it has to pass all the CI checks.**
 
 If you can't get the PR to a green state due to flakes or broken master, please try rebasing to master and/or restarting the CI job. If that fails and you believe that the issue is not due to your change, please contact the caretaker and ask for help.`
+  },
+
+  triage: {
+    defaultMilestone: 82,
+    triagedLabels: [["type: bug", "severity", "freq", "comp:"], ["type: feature", "comp:"]]
   }
 };
 
 export interface AppConfig {
   merge: MergeConfig;
+  triage: TriageConfig;
 }
 
 export interface MergeConfig {
@@ -67,6 +73,11 @@ export interface MergeConfig {
     requiredStatuses: string[];
   };
   mergeRemovedComment: string;
+}
+
+export interface TriageConfig {
+  defaultMilestone: number;
+  triagedLabels: string[][];
 }
 
 export interface AdminConfig {

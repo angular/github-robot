@@ -1,22 +1,16 @@
 import * as Github from "github";
 import * as probot from "probot-ts";
-import {getAllResults} from "../util";
-import {AdminConfig, appConfig, MergeConfig} from "../default";
+import {appConfig, MergeConfig} from "../default";
+import {addComment, getGhLabels, matchLabel} from "./common";
+import {Task} from "./task";
 
 export const CONFIG_FILE = "angular-robot.yml";
 
 // TODO(ocombe): create Typescript interfaces for each payload & DB data
-export class MergeTask {
-  repositories: FirebaseFirestore.CollectionReference;
-  pullRequests: FirebaseFirestore.CollectionReference;
-  admin: FirebaseFirestore.CollectionReference;
+export class MergeTask extends Task {
+  constructor(robot: probot.Robot, db: FirebaseFirestore.Firestore) {
+    super(robot, db);
 
-  constructor(private robot: probot.Robot, public db: FirebaseFirestore.Firestore) {
-    // App installations on a new repository
-    this.robot.on([
-      'installation.created',
-      'installation_repositories.added'
-    ], (context: probot.Context) => this.installInit(context));
     // Pushs to the repository to check for merge conflicts
     this.robot.on('push', (context: probot.Context) => this.onPush(context));
     // PR receives a new label
@@ -42,117 +36,6 @@ export class MergeTask {
       'pull_request.closed',
       'pull_request.reopened'
     ], (context: probot.Context) => this.onUpdate(context));
-
-    this.repositories = this.db.collection('repositories');
-    this.pullRequests = this.db.collection('pullRequests');
-    this.admin = this.db.collection('admin');
-  }
-
-  /**
-   * Init all existing repositories
-   * Manual call
-   */
-  async manualInit(): Promise<void> {
-    const adminConfig = await this.admin.doc('config').get();
-    if(adminConfig.exists && (<AdminConfig>adminConfig.data()).allowInit) {
-      const github = await this.robot.auth();
-      const installations = await getAllResults(github, github.apps.getInstallations({}));
-      await Promise.all(installations.map(async installation => {
-        const authGithub = await this.robot.auth(installation.id);
-        const repositories = await authGithub.apps.getInstallationRepositories({});
-        await Promise.all(repositories.data.repositories.map(async repository => {
-          await this.repositories.doc(repository.id.toString()).set({
-            id: repository.id,
-            name: repository.name,
-            full_name: repository.full_name,
-            installationId: installation.id
-          }).catch(err => {
-            this.robot.log.error(err);
-            throw err;
-          });
-        }));
-      }));
-    } else {
-      this.robot.log.error(`Manual init is disabled: the value of allowInit is set to false in the admin config database`);
-    }
-  }
-
-  /**
-   * Init a single repository
-   * Triggered by Firebase when there is an insertion into the Firebase collection "repositories"
-   */
-  async triggeredInit(repository: Repository & { installationId: number }): Promise<void> {
-    const authGithub = await this.robot.auth(repository.installationId);
-    return this.init(authGithub, [repository]);
-  }
-
-  /**
-   * Updates the database with existing PRs when the bot is installed on a new server
-   * Triggered by event
-   */
-  async installInit(context: probot.Context): Promise<void> {
-    let repositories: Repository[];
-    switch(context.event) {
-      case 'installation':
-        repositories = context.payload.repositories;
-        break;
-      case 'installation_repositories':
-        repositories = context.payload.repositories_added;
-        break;
-    }
-
-    await Promise.all(repositories.map(async repository => {
-      await this.repositories.doc(repository.id.toString()).set({
-        ...repository,
-        installationId: context.payload.installation.id
-      }).catch(err => {
-        this.robot.log.error(err);
-        throw err;
-      });
-    }));
-  }
-
-  /**
-   * Updates the PRs in Firebase for a list of repositories
-   */
-  async init(github: probot.Context.github, repositories: Repository[]): Promise<void> {
-    await Promise.all(repositories.map(async repository => {
-      this.robot.log(`Starting init for repository "${repository.full_name}"`);
-      const [owner, repo] = repository.full_name.split('/');
-
-      const dbPRSnapshots = await this.pullRequests
-        .where('repository', '==', repository.id)
-        .where('state', '==', 'open')
-        .get();
-
-      // list of existing opened PRs in the db
-      const dbPRs = dbPRSnapshots.docs.map(doc => doc.id);
-
-      const ghPRs = await getAllResults(github, github.pullRequests.getAll({owner, repo, state: 'open'}));
-
-      ghPRs.forEach(async pr => {
-        const index = dbPRs.indexOf(pr.id);
-        if(index !== -1) {
-          dbPRs.splice(index, 1);
-        }
-      });
-
-      // update the state of all PRs that are no longer opened
-      if(dbPRs.length > 0) {
-        const batch = this.db.batch();
-        dbPRs.forEach(async id => {
-          batch.set(this.pullRequests.doc(id.toString()), {state: 'closed'}, {merge: true});
-        });
-        batch.commit().catch(err => {
-          this.robot.log.error(err);
-          throw err;
-        });
-      }
-
-      // add/update opened PRs
-      return Promise.all(ghPRs.map(pr => github.pullRequests.get({number: pr.number, owner, repo})
-        .then(res => this.updateDbPR(github, owner, repo, pr.number, repository.id, res.data))));
-    }));
   }
 
   /**
@@ -167,7 +50,7 @@ export class MergeTask {
     const {owner, repo} = context.repo();
     // we need the list of labels from Github because we might be adding multiple labels at once
     // and we could overwrite some labels because of a race condition
-    const labels = await this.getGhLabels(context.github, owner, repo, pr.number);
+    const labels = await getGhLabels(context.github, owner, repo, pr.number);
     // update the DB
     await doc.set({labels}, {merge: true}).catch(err => {
       throw err;
@@ -186,25 +69,18 @@ export class MergeTask {
         let body = config.mergeRemovedComment;
         if(body) {
           body = body.replace("{{MERGE_LABEL}}", config.mergeLabel).replace("{{PLACEHOLDER}}", reasons);
-          this.addComment(context.github, owner, repo, pr.number, body).catch(err => {
+          addComment(context.github, owner, repo, pr.number, body).catch(err => {
             throw err;
           });
         }
       }
     }
 
-    if(this.matchLabel(newLabel, config.checks.requiredLabels) || this.matchLabel(newLabel, config.checks.forbiddenLabels)) {
+    if(matchLabel(newLabel, config.checks.requiredLabels) || matchLabel(newLabel, config.checks.forbiddenLabels)) {
       this.updateStatus(context, labels).catch(err => {
         throw err;
       });
     }
-  }
-
-  /**
-   * Tests if a string matches a label
-   */
-  private matchLabel(str: string, labelsList: string[] = []): boolean {
-    return labelsList.some(l => !!str.match(new RegExp(l)));
   }
 
   /**
@@ -219,25 +95,14 @@ export class MergeTask {
     const doc = this.pullRequests.doc(pr.id.toString());
     // we need the list of labels from Github because we might be adding multiple labels at once
     // and we could overwrite some labels because of a race condition
-    const labels = await this.getGhLabels(context.github, owner, repo, pr.number);
+    const labels = await getGhLabels(context.github, owner, repo, pr.number);
     await doc.set({labels}, {merge: true});
 
-    if(this.matchLabel(removedLabel, config.checks.requiredLabels) || this.matchLabel(removedLabel, config.checks.forbiddenLabels)) {
+    if(matchLabel(removedLabel, config.checks.requiredLabels) || matchLabel(removedLabel, config.checks.forbiddenLabels)) {
       this.updateStatus(context, labels).catch(err => {
         throw err;
       });
     }
-  }
-
-  /**
-   * Gets the PR labels from Github
-   */
-  private async getGhLabels(github: probot.Context.github, owner: string, repo: string, number: number): Promise<string[]> {
-    return (await github.issues.get({
-      owner,
-      repo,
-      number
-    })).data.labels.map((label: Github.Label) => label.name);
   }
 
   /**
@@ -261,7 +126,7 @@ export class MergeTask {
     }
 
     // otherwise get the labels from Github and update Firebase
-    labels = await this.getGhLabels(context.github, owner, repo, pr.number);
+    labels = await getGhLabels(context.github, owner, repo, pr.number);
     await this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id, {...pr, labels});
     return labels;
   }
@@ -340,18 +205,6 @@ export class MergeTask {
     }
 
     return checksStatus;
-  }
-
-  /**
-   * Adds a comment on a PR
-   */
-  private async addComment(github: probot.Context.github, owner: string, repo: string, number: string, body: string): Promise<void> {
-    return github.issues.createComment({
-      owner,
-      repo,
-      number,
-      body
-    });
   }
 
   /**
@@ -487,7 +340,7 @@ export class MergeTask {
           return;
         }
         if(!labels) {
-          labels = pr.labels || await this.getGhLabels(context.github, owner, repo, pr.number);
+          labels = pr.labels || await getGhLabels(context.github, owner, repo, pr.number);
         }
         url = pr.html_url;
         this.robot.log(`Update status from event ${context.event} (context: ${context.payload.context}) for PR ${url}`);
@@ -547,23 +400,9 @@ export class MergeTask {
   }
 
   /**
-   * Gets the PR data from Github (or parameter) and adds/updates it in Firebase
-   */
-  private async updateDbPR(github: probot.Context.github, owner: string, repo: string, number: number, repositoryId: number, newData?: any): Promise<any> {
-    newData = newData || (await github.pullRequests.get({owner, repo, number})).data;
-    const data = {...newData, repository: {owner, name: repo, id: repositoryId}};
-    const doc = this.pullRequests.doc(data.id.toString());
-    await doc.set(data, {merge: true}).catch(err => {
-      this.robot.log.error(err);
-      throw err;
-    });
-    return (await doc.get()).data();
-  }
-
-  /**
    * Gets the config for the merge plugin from Github or uses default if necessary
    */
-  async getConfig(context): Promise<MergeConfig> {
+  async getConfig(context: probot.Context): Promise<MergeConfig> {
     let repositoryConfig = await context.config(CONFIG_FILE);
     if(!repositoryConfig || !repositoryConfig.merge) {
       repositoryConfig = {merge: {}};
@@ -581,12 +420,6 @@ interface GithubStatus {
   context: string;
   created_at: string;
   updated_at: string;
-}
-
-interface Repository {
-  id: number;
-  name: string;
-  full_name: string;
 }
 
 interface ChecksStatus {

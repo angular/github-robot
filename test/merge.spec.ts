@@ -40,7 +40,7 @@ describe('triage', () => {
 
   describe('getConfig', () => {
     it('should return the default merge config', async () => {
-      const event = require('./fixtures/issue.opened.json');
+      const event = require('./fixtures/issues.opened.json');
       const context = new Context(event, github);
       const config = await mergeTask.getConfig(context);
       expect(config).toEqual(appConfig.merge);

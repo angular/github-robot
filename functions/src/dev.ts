@@ -1,6 +1,6 @@
 import * as probot from "probot-ts";
-import {MergeTask} from './plugins/merge';
-import {initializeApp, firestore, credential} from "firebase-admin";
+import {credential, firestore, initializeApp} from "firebase-admin";
+import {registerTasks} from "./util";
 
 console.warn(`Starting dev mode`);
 
@@ -14,13 +14,10 @@ initializeApp({
 const bot = probot(config);
 
 // Load plugins
-let mergeTask: MergeTask;
 const store = firestore();
 bot.setup([robot => {
-  mergeTask = new MergeTask(robot, store);
+  registerTasks(robot, store);
 }]);
 
 // Start the bot
 bot.start();
-
-export {bot, mergeTask};
