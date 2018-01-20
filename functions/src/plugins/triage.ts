@@ -27,7 +27,7 @@ export class TriageTask extends Task {
     const isTriaged = await this.isTriaged(config.triagedLabels, labels);
     if(isTriaged) {
       this.robot.log(`Adding milestone ${config.defaultMilestone} to issue ${issue.html_url}`);
-      return context.github.issues.edit({owner, repo, number: issue.number, milestone: config.defaultMilestone});
+      return context.github.issues.edit({owner, repo, number: issue.number, milestone: Number(config.defaultMilestone)});
     } else {
       this.robot.log(`Ignoring this issue because it has not been triaged yet`);
     }
