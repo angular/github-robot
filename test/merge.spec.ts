@@ -6,10 +6,12 @@ import {MergeTask} from "../functions/src/plugins/merge";
 import {appConfig} from "../functions/src/default";
 import {MockFirestore} from './mocks/firestore';
 import {mockGithub} from "./mocks/github";
+import {CommonTask} from "../functions/src/plugins/common";
 
 describe('triage', () => {
   let robot: probot;
   let github: probot.github;
+  let commonTask: CommonTask;
   let mergeTask: MergeTask;
   let store: FirebaseFirestore.Firestore;
 
@@ -36,6 +38,7 @@ describe('triage', () => {
 
     // create plugin
     mergeTask = new MergeTask(robot, store);
+    commonTask = new CommonTask(robot, store);
   });
 
   describe('getConfig', () => {
@@ -49,14 +52,14 @@ describe('triage', () => {
 
   describe('init', () => {
     it('should work with a manual init', async () => {
-      await mergeTask.manualInit();
-      let storeData = await mergeTask.repositories.get();
+      await commonTask.manualInit();
+      let storeData = await commonTask.repositories.get();
       // shouldn't work if allowInit is false
       expect(storeData.docs.length).toEqual(0);
 
-      await mergeTask.admin.doc('config').set({allowInit: true});
-      await mergeTask.manualInit();
-      storeData = await mergeTask.repositories.get();
+      await commonTask.admin.doc('config').set({allowInit: true});
+      await commonTask.manualInit();
+      storeData = await commonTask.repositories.get();
       expect(storeData.docs.length).toBeGreaterThan(0);
       // our data set in mocks/scenarii/api.github.com/get-installation-repositories.json returns a repository whose name is "test"
       expect(storeData.docs[0].data()['name']).toEqual('test');
@@ -65,8 +68,8 @@ describe('triage', () => {
     it('should work on repository added', async () => {
       const event = require('./fixtures/installation_repositories.added.json');
       const context = new Context(event, github);
-      await mergeTask.installInit(context);
-      const storeData = await mergeTask.repositories.get();
+      await commonTask.installInit(context);
+      const storeData = await commonTask.repositories.get();
       expect(storeData.docs.length).toBeGreaterThan(0);
       // our data set in mocks/scenarii/api.github.com/get-installation-repositories.json returns a repository whose name is "test"
       expect(storeData.docs[0].data()['name']).toEqual('test');
@@ -74,8 +77,8 @@ describe('triage', () => {
 
     it('should work on app installation', async () => {
       const event = require('./fixtures/installation.created.json');
-      await mergeTask.init(github, event.payload.repositories);
-      const storeData = await mergeTask.pullRequests.get();
+      await commonTask.init(github, event.payload.repositories);
+      const storeData = await commonTask.pullRequests.get();
       expect(storeData.docs.length).toBeGreaterThan(0);
       // our data set in mocks/scenarii/api.github.com/repo-pull-request.json returns a PR whose number value is 1
       expect(storeData.docs[0].data()['number']).toEqual(1);
