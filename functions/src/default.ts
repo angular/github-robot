@@ -47,7 +47,7 @@ If you can't get the PR to a green state due to flakes or broken master, please 
   },
 
   triage: {
-    defaultMilestone: 82,
+    defaultMilestone: '82',
     triagedLabels: [["type: bug", "severity", "freq", "comp:"], ["type: feature", "comp:"]]
   }
 };
@@ -76,7 +76,7 @@ export interface MergeConfig {
 }
 
 export interface TriageConfig {
-  defaultMilestone: number;
+  defaultMilestone: string;
   triagedLabels: string[][];
 }
 

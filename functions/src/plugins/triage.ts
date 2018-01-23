@@ -26,8 +26,11 @@ export class TriageTask extends Task {
     const labels = await getGhLabels(context.github, owner, repo, issue.number);
     const isTriaged = await this.isTriaged(config.triagedLabels, labels);
     if(isTriaged) {
-      this.robot.log(`Adding milestone ${config.defaultMilestone} to issue ${issue.html_url}`);
-      return context.github.issues.edit({owner, repo, number: issue.number, milestone: Number(config.defaultMilestone)});
+      const milestoneNumber = parseInt(config.defaultMilestone, 10);
+      this.robot.log(`Adding milestone ${milestoneNumber} to issue ${issue.html_url}`);
+      await context.github.issues.edit({owner, repo, number: issue.number, milestone: milestoneNumber}).catch(err => {
+        throw err;
+      });
     } else {
       this.robot.log(`Ignoring this issue because it has not been triaged yet`);
     }
