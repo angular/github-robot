@@ -25,6 +25,15 @@ declare namespace probot {
     setup: (apps: any) => void
   };
 
+  export class EnhancedGitHubClient extends Github {
+    constructor(options: Github.Options);
+
+    handler(params, block, callback): void;
+
+    paginate<T>(responsePromise: Promise<T>, callback?: (response: T) => any): Promise<any>;
+  }
+
+
   /**
    * Helpers for extracting information from the webhook event, which can be
    * passed to GitHub API calls.
@@ -35,6 +44,7 @@ declare namespace probot {
    */
   export class Context {
     constructor(properties: probot.ContextProperties);
+    github: EnhancedGitHubClient;
 
     /**
      * Return the `owner` and `repo` params for making API requests against a
@@ -250,7 +260,8 @@ declare namespace probot {
   }
 }
 
-export = probot;
+// export = probot;
+export {probot};
 
 declare module "github" {
   export interface SearchRequest<T> {
@@ -275,5 +286,61 @@ declare module "github" {
     name: string;
     color: string;
     default: boolean; // if this is a default label from Github
+  }
+
+  export interface User {
+    login: string;
+    id: number;
+    url: string;
+    html_url: string;
+    type: string;
+    site_admin: boolean;
+  }
+
+  export interface License {
+    key: string;
+    name: string;
+    spdx_id: string;
+    url: string;
+  }
+
+  export interface Repository {
+    id: number;
+    name: string;
+    full_name: string;
+    owner: User;
+    private: boolean;
+    url: string;
+    html_url: string;
+    description: string;
+    stargazers_count: number;
+    watchers_count: number;
+    forks_count: number;
+    has_issues: boolean;
+    has_projects: boolean;
+    has_downloads: boolean;
+    has_wiki: boolean;
+    has_pages: boolean;
+    open_issues_count: number;
+    license: License;
+    forks: number;
+    open_issues: number;
+    watchers: number;
+    default_branch: string;
+  }
+
+  export interface Issue {
+    url: string;
+    repository_url: string;
+    html_url: string;
+    id: number;
+    number: number;
+    title: string;
+    user: User;
+    labels: Label[];
+    pull_request?: {
+      url: string;
+      html_url: string;
+    };
   }
 }

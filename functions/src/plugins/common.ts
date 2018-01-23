@@ -1,6 +1,5 @@
 import * as probot from "probot-ts";
 import * as Github from "github";
-import {getAllResults} from "../util";
 import {AdminConfig} from "../default";
 import {Task} from "./task";
 
@@ -22,11 +21,11 @@ export class CommonTask extends Task {
     const adminConfig = await this.admin.doc('config').get();
     if(adminConfig.exists && (<AdminConfig>adminConfig.data()).allowInit) {
       const github = await this.robot.auth();
-      const installations = await getAllResults(github, github.apps.getInstallations({}));
+      const installations = await github.paginate(github.apps.getInstallations({}), pages => pages.data);
       await Promise.all(installations.map(async installation => {
         const authGithub = await this.robot.auth(installation.id);
         const repositories = await authGithub.apps.getInstallationRepositories({});
-        await Promise.all(repositories.data.repositories.map(async repository => {
+        await Promise.all(repositories.data.repositories.map(async (repository: Github.Repository) => {
           await this.repositories.doc(repository.id.toString()).set({
             id: repository.id,
             name: repository.name,
@@ -81,7 +80,7 @@ export class CommonTask extends Task {
   /**
    * Updates the PRs in Firebase for a list of repositories
    */
-  async init(github: probot.Context.github, repositories: Repository[]): Promise<void> {
+  async init(github: probot.EnhancedGitHubClient, repositories: Repository[]): Promise<void> {
     await Promise.all(repositories.map(async repository => {
       this.robot.log(`Starting init for repository "${repository.full_name}"`);
       const [owner, repo] = repository.full_name.split('/');
@@ -94,7 +93,12 @@ export class CommonTask extends Task {
       // list of existing opened PRs in the db
       const dbPRs = dbPRSnapshots.docs.map(doc => doc.id);
 
-      const ghPRs = await getAllResults(github, github.pullRequests.getAll({owner, repo, state: 'open'}));
+      const ghPRs = await github.paginate(github.pullRequests.getAll({
+        owner,
+        repo,
+        state: 'open',
+        per_page: 100
+      }), pages => pages.data);
 
       ghPRs.forEach(async pr => {
         const index = dbPRs.indexOf(pr.id);
@@ -132,7 +136,7 @@ export function matchLabel(existingLabel: string, partialLabelsList: string[] = 
 /**
  * Gets the PR labels from Github
  */
-export async function getGhLabels(github: probot.Context.github, owner: string, repo: string, number: number): Promise<string[]> {
+export async function getGhLabels(github: probot.EnhancedGitHubClient, owner: string, repo: string, number: number): Promise<string[]> {
   return (await github.issues.get({
     owner,
     repo,
@@ -144,7 +148,7 @@ export async function getGhLabels(github: probot.Context.github, owner: string, 
 /**
  * Adds a comment on a PR
  */
-export async function addComment(github: probot.Context.github, owner: string, repo: string, number: string, body: string): Promise<void> {
+export async function addComment(github: probot.EnhancedGitHubClient, owner: string, repo: string, number: string, body: string): Promise<void> {
   return github.issues.createComment({
     owner,
     repo,

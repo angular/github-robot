@@ -6,13 +6,8 @@ import {TriageTask} from "./plugins/triage";
 /**
  * Get all results in case of paginated Github request
  */
-export async function getAllResults(github: probot.Context.github, request): Promise<any[]> {
-  const pages = await github.paginate(request);
-  const results = [];
-  pages.forEach(page => {
-    results.push(...page.data);
-  });
-  return results;
+export function getAllResults(github: probot.EnhancedGitHubClient, request): Promise<any[]> {
+  return github.paginate(request, page => page.data);
 }
 
 class Stream {

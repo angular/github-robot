@@ -14,7 +14,7 @@ export class Task {
   /**
    * Gets the PR data from Github (or parameter) and adds/updates it in Firebase
    */
-  async updateDbPR(github: probot.Context.github, owner: string, repo: string, number: number, repositoryId: number, newData?: any): Promise<any> {
+  async updateDbPR(github: probot.EnhancedGitHubClient, owner: string, repo: string, number: number, repositoryId: number, newData?: any): Promise<any> {
     newData = newData || (await github.pullRequests.get({owner, repo, number})).data;
     const data = {...newData, repository: {owner, name: repo, id: repositoryId}};
     const doc = this.pullRequests.doc(data.id.toString());
