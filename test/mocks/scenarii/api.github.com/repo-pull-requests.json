@@ -2,7 +2,7 @@
   {
     "scope": "https://api.github.com:443",
     "method": "get",
-    "path": "/repos/ocombe/test/pulls?state=open",
+    "path": "/repos/ocombe/test/pulls?state=open&per_page=100",
     "body": "",
     "status": 200,
     "response": [
