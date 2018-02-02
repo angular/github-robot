@@ -9,7 +9,6 @@
     "prebuild": "npm run lint && rimraf functions/dist",
     "build": "tsc -p functions",
     "build:dev": "tsc -p functions -w",
-    "dev": "webpack --watch",
     "lint": "tslint -p tslint.json",
     "watch:functions": "tsc -p functions -w",
     "start:watch": "nodemon --watch ./functions/dist --watch ./functions/private functions/dist/dev.js ",
@@ -34,11 +33,7 @@
     "@types/js-yaml": "3.10.1",
     "@types/nock": "9.1.2",
     "@types/node": "8.0.58",
-    "babel-core": "6.26.0",
-    "babel-loader": "7.1.2",
-    "babel-preset-env": "1.6.1",
     "concurrently": "3.5.1",
-    "copy-webpack-plugin": "^4.3.1",
     "firebase": "4.9.0",
     "firebase-admin": "5.8.1",
     "firebase-functions": "0.8.1",
@@ -49,10 +44,8 @@
     "nodemon": "1.14.11",
     "rimraf": "2.6.2",
     "ts-jest": "22.0.1",
-    "ts-loader": "3.3.1",
     "tslint": "5.9.1",
-    "typescript": "2.6.2",
-    "webpack": "3.10.0"
+    "typescript": "2.6.2"
   },
   "jest": {
     "moduleFileExtensions": [
