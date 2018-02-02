@@ -13,7 +13,9 @@ export class TriageTask extends Task {
     // TODO(ocombe): add a debounce for labeled events per issue
     this.robot.on([
       'issues.labeled',
-    ], (context: probot.Context) => this.onLabeled(context));
+      'issues.unlabeled',
+      'issues.milestoned'
+    ], (context: probot.Context) => this.checkTriage(context));
   }
 
   async manualInit(): Promise<any> {
@@ -32,15 +34,20 @@ export class TriageTask extends Task {
             owner,
             repo,
             state: 'open',
-            milestone: 'none',
             per_page: 100
           }), page => page.data);
 
           issues.forEach(async (issue: Github.Issue) => {
-            if(!issue.pull_request) { // PRs are issues for github, but we don't want them here
+            // PRs are issues for github, but we don't want them here
+            if(!issue.pull_request && (!issue.milestone || issue.milestone.number === config.defaultMilestone)) {
               const isTriaged = this.isTriaged(config.triagedLabels, issue.labels.map((label: Github.Label) => label.name));
-              if(isTriaged) {
-                await this.setMilestone(config, context.github, owner, repo, issue);
+              if(!issue.milestone) {
+                if(isTriaged) {
+                  await this.setMilestone(config.defaultMilestone, context.github, owner, repo, issue);
+                }
+              } else if(!isTriaged) {
+                // if it's not triaged, remove the milestone
+                await this.setMilestone(null, context.github, owner, repo, issue);
               }
             }
           });
@@ -51,28 +58,31 @@ export class TriageTask extends Task {
     }
   }
 
-  async onLabeled(context: probot.Context): Promise<any> {
+  async checkTriage(context: probot.Context): Promise<any> {
     const issue = context.payload.issue;
-    const hasMilestone = issue.milestone !== null;
-    if(hasMilestone) {
-      this.robot.log(`Ignoring issue ${issue.html_url} because it already has a milestone`);
-      return;
-    }
-    const {owner, repo} = context.repo();
     const config = await this.getConfig(context);
-    // getting labels from Github because we might be adding multiple labels at once
-    const labels = await getGhLabels(context.github, owner, repo, issue.number);
-    const isTriaged = this.isTriaged(config.triagedLabels, labels);
-    if(isTriaged) {
-      await this.setMilestone(config, context.github, owner, repo, issue);
-    } else {
-      this.robot.log(`Ignoring issue ${issue.html_url} because it has not been triaged yet`);
+    if(!issue.milestone || issue.milestone.number === config.defaultMilestone) {
+      const {owner, repo} = context.repo();
+      // getting labels from Github because we might be adding multiple labels at once
+      const labels = await getGhLabels(context.github, owner, repo, issue.number);
+      const isTriaged = this.isTriaged(config.triagedLabels, labels);
+      if(!issue.milestone) {
+        if(isTriaged) {
+          await this.setMilestone(config.defaultMilestone, context.github, owner, repo, issue);
+        }
+      } else if(!isTriaged) {
+        // if it's not triaged, remove the milestone
+        await this.setMilestone(null, context.github, owner, repo, issue);
+      }
     }
   }
 
-  setMilestone(config: TriageConfig, github: probot.EnhancedGitHubClient, owner: string, repo: string, issue: Github.Issue): Promise<any> {
-    const milestoneNumber = parseInt(config.defaultMilestone, 10);
-    this.robot.log(`Adding milestone ${milestoneNumber} to issue ${issue.html_url}`);
+  setMilestone(milestoneNumber: number|null, github: probot.EnhancedGitHubClient, owner: string, repo: string, issue: Github.Issue): Promise<any> {
+    if(milestoneNumber) {
+      this.robot.log(`Adding milestone ${milestoneNumber} to issue ${issue.html_url}`);
+    } else {
+      this.robot.log(`Removing milestone from issue ${issue.html_url}`);
+    }
     return github.issues.edit({owner, repo, number: issue.number, milestone: milestoneNumber}).catch(err => {
       throw err;
     });
@@ -100,6 +110,8 @@ export class TriageTask extends Task {
     if(!repositoryConfig || !repositoryConfig.triage) {
       repositoryConfig = {triage: {}};
     }
-    return {...appConfig.triage, ...repositoryConfig.triage};
+    const config = {...appConfig.triage, ...repositoryConfig.triage};
+    config.defaultMilestone = parseInt(config.defaultMilestone, 10);
+    return config;
   }
 }

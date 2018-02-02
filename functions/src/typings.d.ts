@@ -329,6 +329,23 @@ declare module "github" {
     default_branch: string;
   }
 
+  export interface Milestone {
+    url: string;
+    html_url: string;
+    id: number;
+    number: number;
+    title: string;
+    description: string;
+    creator: User;
+    open_issues: number;
+    closed_issues: number;
+    state: string;
+    created_at: string;
+    updated_at: string;
+    due_on: string | null;
+    closed_at: string | null;
+  }
+
   export interface Issue {
     url: string;
     repository_url: string;
@@ -342,5 +359,6 @@ declare module "github" {
       url: string;
       html_url: string;
     };
+    milestone: Milestone | null;
   }
 }
