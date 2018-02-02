@@ -22,77 +22,7 @@ See [docs/deploy.md](docs/deploy.md) if you would like to run your own instance.
 2. [Configure the Github App](https://github.com/apps/wheatley)
 3. It will start scanning for opened issues and pull requests to monitor
 
-A `.github/angular-robot.yml` file is required to enable the plugin. The file can be empty, or it can override any of these default settings:
-```yaml
-# Configuration for angular-robot
-
-# options for the merge plugin
-merge:
-  # the status will be added to your pull requests
-  status:
-    # set to true to disable
-    disabled: false
-    # the name of the status
-    context: "ci/angular: merge status"
-    # text to show when all checks pass
-    successText: "All checks passed!"
-    # text to show when some checks are failing
-    failureText: "The following checks are failing:"
-
-  # comment that will be added to a PR when there is a conflict, leave empty or set to false to disable
-  # {{PRAuthor}} will be replaced by the value of the PR author name
-  mergeConflictComment: "Hi @{{PRAuthor}}! This PR has merge conflicts due to recent upstream merges.
-\nPlease help to unblock it by resolving these conflicts. Thanks!"
-
-  # label to monitor
-  mergeLabel: "PR action: merge"
-
-  # list of checks that will determine if the merge label can be added
-  checks:
-    # whether the PR shouldn't have a conflict with the base branch
-    noConflict: true
-    # list of labels that a PR needs to have, checked with a regexp (e.g. "PR target:" will work for the label "PR target: master")
-    requiredLabels:
-      - "PR target:"
-      - "cla: yes"
-
-    # list of labels that a PR shouldn't have, checked after the required labels with a regexp
-    forbiddenLabels:
-      - "PR target: TBD"
-      - "cla: no"
-
-    # list of PR statuses that need to be successful
-    requiredStatuses:
-      - "continuous-integration/travis-ci/pr"
-      - "code-review/pullapprove"
-      - "ci/circleci: build"
-      - "ci/circleci: lint"
-
-    # the comment that will be added when the merge label is added despite failing checks, leave empty or set to false to disable
-    # {{MERGE_LABEL}} will be replaced by the value of the mergeLabel option
-    # {{PLACEHOLDER}} will be replaced by the list of failing checks
-    mergeRemovedComment: "I see that you just added the `{{MERGE_LABEL}}` label, but the following checks are still failing:
-\n{{PLACEHOLDER}}
-\n
-\n**If you want your PR to be merged, it has to pass all the CI checks.**
-\n
-\nIf you can't get the PR to a green state due to flakes or broken master, please try rebasing to master and/or restarting the CI job. If that fails and you believe that the issue is not due to your change, please contact the caretaker and ask for help."
-
-# options for the triage plugin
-triage:
-  # number of the milestone to apply when the issue is triaged
-  defaultMilestone: 82,
-  # arrays of labels that determine if an issue is triaged
-  triagedLabels:
-    -
-      - "type: bug"
-      - "severity"
-      - "freq"
-      - "comp:"
-    -
-      - "type: feature"
-      - "comp:"
-```
+A [`.github/angular-robot.yml`](test/fixtures/angular-robot.yml) file is required to enable the plugin. The file can be empty, or it can override any of these default settings.
 
 ### Manual installation
 By default the bot will automatically trigger its installation routines when you install it on a new repository.

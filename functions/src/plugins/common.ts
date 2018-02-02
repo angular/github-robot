@@ -1,5 +1,6 @@
 import * as probot from "probot-ts";
 import * as Github from "github";
+import * as minimatch from "minimatch";
 import {AdminConfig} from "../default";
 import {Task} from "./task";
 
@@ -148,7 +149,7 @@ export async function getGhLabels(github: probot.EnhancedGitHubClient, owner: st
 /**
  * Adds a comment on a PR
  */
-export async function addComment(github: probot.EnhancedGitHubClient, owner: string, repo: string, number: string, body: string): Promise<void> {
+export async function addComment(github: probot.EnhancedGitHubClient, owner: string, repo: string, number: number, body: string): Promise<void> {
   return github.issues.createComment({
     owner,
     repo,
@@ -161,4 +162,14 @@ interface Repository {
   id: number;
   name: string;
   full_name: string;
+}
+
+export function match(names: string[], patterns: (string | RegExp)[], negPatterns: (string | RegExp)[] = []): boolean {
+  return names.some(name =>
+    patterns.some(pattern =>
+      minimatch(name, pattern) && !negPatterns.some(negPattern =>
+        minimatch(name, negPattern)
+      )
+    )
+  );
 }

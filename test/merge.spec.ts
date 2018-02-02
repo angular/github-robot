@@ -8,7 +8,7 @@ import {MockFirestore} from './mocks/firestore';
 import {mockGithub} from "./mocks/github";
 import {CommonTask} from "../functions/src/plugins/common";
 
-describe('triage', () => {
+describe('merge', () => {
   let robot: probot;
   let github: probot.github;
   let commonTask: CommonTask;

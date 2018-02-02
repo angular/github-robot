@@ -1,7 +1,7 @@
 import * as Github from "github";
 import * as probot from "probot-ts";
 import {appConfig, MergeConfig} from "../default";
-import {addComment, getGhLabels, matchLabel} from "./common";
+import {addComment, getGhLabels, match, matchLabel} from "./common";
 import {Task} from "./task";
 
 export const CONFIG_FILE = "angular-robot.yml";
@@ -44,7 +44,7 @@ export class MergeTask extends Task {
    */
   async onLabeled(context: probot.Context): Promise<void> {
     const newLabel = context.payload.label.name;
-    const pr = context.payload.pull_request;
+    const pr: Github.PullRequest = context.payload.pull_request;
     const config = await this.getConfig(context);
     const doc = this.pullRequests.doc(pr.id.toString());
     const {owner, repo} = context.repo();
@@ -55,6 +55,9 @@ export class MergeTask extends Task {
     await doc.set({labels}, {merge: true}).catch(err => {
       throw err;
     });
+
+    let updateStatus = false;
+    let updateG3Status = false;
 
     if(newLabel === config.mergeLabel) {
       this.robot.log(`Checking merge label for the PR ${pr.html_url}`);
@@ -74,13 +77,17 @@ export class MergeTask extends Task {
           });
         }
       }
+
+      updateG3Status = true;
     }
 
     if(matchLabel(newLabel, config.checks.requiredLabels) || matchLabel(newLabel, config.checks.forbiddenLabels)) {
-      this.updateStatus(context, labels).catch(err => {
-        throw err;
-      });
+      updateStatus = true;
     }
+
+    this.updateStatus(context, updateStatus, updateG3Status, labels).catch(err => {
+      throw err;
+    });
   }
 
   /**
@@ -99,7 +106,7 @@ export class MergeTask extends Task {
     await doc.set({labels}, {merge: true});
 
     if(matchLabel(removedLabel, config.checks.requiredLabels) || matchLabel(removedLabel, config.checks.forbiddenLabels)) {
-      this.updateStatus(context, labels).catch(err => {
+      this.updateStatus(context, true, false, labels).catch(err => {
         throw err;
       });
     }
@@ -134,7 +141,7 @@ export class MergeTask extends Task {
   /**
    * Based on the repo config, returns the list of checks that failed for this PR
    */
-  private async getChecksStatus(context: probot.Context, pr: any, config: MergeConfig, labels: string[] = []): Promise<ChecksStatus> {
+  private async getChecksStatus(context: probot.Context, pr: any, config: MergeConfig, labels: string[] = [], statuses?: Github.Status[]): Promise<ChecksStatus> {
     const checksStatus: ChecksStatus = {
       pending: [],
       failure: []
@@ -182,8 +189,8 @@ export class MergeTask extends Task {
     }
 
     // Check if we have any failed/pending external status
-    const statuses = await this.getStatuses(context, pr.head.sha);
-    statuses.forEach((status: GithubStatus) => {
+    statuses = statuses || await this.getStatuses(context, pr.head.sha);
+    statuses.forEach(status => {
       switch(status.state) {
         case 'failure':
         case 'error':
@@ -286,7 +293,13 @@ export class MergeTask extends Task {
   /**
    * Updates the status of a PR
    */
-  private async updateStatus(context: probot.Context, labels?: string[]): Promise<void> {
+  private async updateStatus(context: probot.Context, updateStatus = true, updateG3Status = false, labels?: string[]): Promise<void> {
+    if(context.payload.action === "synchronize") {
+      updateG3Status = true;
+    }
+    if(!updateStatus && !updateG3Status) {
+      return;
+    }
     const config = await this.getConfig(context);
     if(config.status.disabled) {
       return;
@@ -349,44 +362,79 @@ export class MergeTask extends Task {
         throw new Error(`Unhandled event ${context.event} in updateStatus`);
     }
 
-    const statusParams: Github.ReposCreateStatusParams = {
-      owner,
-      repo,
-      sha: sha,
-      context: config.status.context,
-      state: 'success'
-    };
+    const statuses = await this.getStatuses(context, sha);
 
-    const failedChecks = await this.getChecksStatus(context, pr, config, labels);
-
-    if(failedChecks.failure.length > 0) {
-      statusParams.state = 'failure';
-      statusParams.description = failedChecks.failure.concat(failedChecks.pending).join(', ');
-    } else if(failedChecks.pending.length > 0) {
-      statusParams.state = 'pending';
-      statusParams.description = failedChecks.pending.join(', ');
-    } else {
-      statusParams.state = 'success';
-      statusParams.description = config.status.successText;
+    if(updateG3Status) {
+      // checking if we need to add g3 status
+      const files: Github.File[] = (await context.github.pullRequests.getFiles({owner, repo, number: pr.number})).data;
+      if(match(files.map(file => file.filename), config.g3Status.include, config.g3Status.exclude)) {
+        // only update g3 status if a commit was just pushed, or there was no g3 status
+        if(context.payload.action === "synchronize" || !statuses.some(status => status.context === config.g3Status.context)) {
+          const status = (await context.github.repos.createStatus({
+            owner,
+            repo,
+            sha: sha,
+            context: config.g3Status.context,
+            state: 'pending',
+            description: config.g3Status.pendingDesc
+          })).data;
+          statuses.push(status);
+          this.robot.log(`Updated g3 status to pending for the PR ${url}`);
+        }
+      } else {
+        const status = (await context.github.repos.createStatus({
+          owner,
+          repo,
+          sha: pr.head.sha,
+          context: config.g3Status.context,
+          state: 'success',
+          description: config.g3Status.successDesc
+        })).data;
+        statuses.push(status);
+        this.robot.log(`Updated g3 status to success for the PR ${url}`);
+      }
     }
 
-    // Capitalize first letter
-    statusParams.description = statusParams.description.replace(statusParams.description[0], statusParams.description[0].toUpperCase());
+    if(updateStatus) {
+      const statusParams: Github.ReposCreateStatusParams = {
+        owner,
+        repo,
+        sha: sha,
+        context: config.status.context,
+        state: 'success'
+      };
 
-    // TODO(ocombe): add a link to a dynamic page with the complete status & some description of what's required
-    if(statusParams.description.length > 140) {
-      statusParams.description = statusParams.description.substring(0, 137) + '...';
+      const failedChecks = await this.getChecksStatus(context, pr, config, labels, statuses);
+
+      if(failedChecks.failure.length > 0) {
+        statusParams.state = 'failure';
+        statusParams.description = failedChecks.failure.concat(failedChecks.pending).join(', ');
+      } else if(failedChecks.pending.length > 0) {
+        statusParams.state = 'pending';
+        statusParams.description = failedChecks.pending.join(', ');
+      } else {
+        statusParams.state = 'success';
+        statusParams.description = config.status.successText;
+      }
+
+      // Capitalize first letter
+      statusParams.description = statusParams.description.replace(statusParams.description[0], statusParams.description[0].toUpperCase());
+
+      // TODO(ocombe): add a link to a dynamic page with the complete status & some description of what's required
+      if(statusParams.description.length > 140) {
+        statusParams.description = statusParams.description.substring(0, 137) + '...';
+      }
+
+      await context.github.repos.createStatus(statusParams);
+      this.robot.log(`Updated status to "${statusParams.state}" for the PR ${url}`);
     }
-
-    await context.github.repos.createStatus(statusParams);
-    this.robot.log(`Updated status to "${statusParams.state}" for the PR ${url}`);
   }
 
   /**
    * Get all external statuses except for the one added by this bot
    */
   // TODO(ocombe): use Firebase instead
-  private async getStatuses(context: probot.Context, ref: string): Promise<GithubStatus[]> {
+  private async getStatuses(context: probot.Context, ref: string): Promise<Github.Status[]> {
     const {owner, repo} = context.repo();
     const config = await this.getConfig(context);
 
@@ -396,7 +444,7 @@ export class MergeTask extends Task {
       ref
     });
 
-    return res.data.statuses.filter((status: GithubStatus) => status.context !== config.status.context);
+    return res.data.statuses.filter((status: Github.Status) => status.context !== config.status.context);
   }
 
   /**
@@ -409,17 +457,6 @@ export class MergeTask extends Task {
     }
     return {...appConfig.merge, ...repositoryConfig.merge};
   }
-}
-
-interface GithubStatus {
-  url: string;
-  id: number;
-  state: 'pending' | 'success' | 'failure' | 'error';
-  description: string | null;
-  target_url: string | null;
-  context: string;
-  created_at: string;
-  updated_at: string;
 }
 
 interface ChecksStatus {

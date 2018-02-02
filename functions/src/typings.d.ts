@@ -44,6 +44,7 @@ declare namespace probot {
    */
   export class Context {
     constructor(properties: probot.ContextProperties);
+
     github: EnhancedGitHubClient;
 
     /**
@@ -360,5 +361,41 @@ declare module "github" {
       html_url: string;
     };
     milestone: Milestone | null;
+  }
+
+  export interface PullRequest extends Issue {
+    head: {
+      label: string;
+      ref: string;
+      sha: string;
+      user: User;
+    };
+    base: {
+      label: string;
+      ref: string;
+      sha: string;
+      user: User;
+    };
+  }
+
+  export interface File {
+    sha: string;
+    filename: string;
+    status: 'added' | 'modified' | 'deleted';
+    additions: number;
+    deletions: number;
+    changes: number;
+    patch: string;
+  }
+
+  export interface Status {
+    url: string;
+    id: number;
+    state: 'pending' | 'success' | 'failure' | 'error';
+    description: string | null;
+    target_url: string | null;
+    context: string;
+    created_at: string;
+    updated_at: string;
   }
 }

@@ -15,6 +15,25 @@ export const appConfig: AppConfig = {
       failureText: "The following checks are failing:"
     },
 
+    g3Status: {
+      disabled: false,
+      context: "google3",
+      pendingDesc: "Googler: test this change in google3 http://go/angular-g3sync",
+      successDesc: "Does not affect google3",
+      include: [
+        "BUILD.bazel",
+        "LICENSE",
+        "WORKSPACE",
+        "modules/**",
+        "packages/**",
+      ],
+      exclude: [
+        "packages/language-service/**",
+        "**/.gitignore",
+        "**/.gitkeep",
+      ]
+    },
+
     // comment that will be added to a PR when there is a conflict, leave empty or set to false to disable
     // {{PRAuthor}} will be replaced by the value of the PR author name
     mergeConflictComment: `Hi @{{PRAuthor}}! This PR has merge conflicts due to recent upstream merges.
@@ -63,6 +82,14 @@ export interface MergeConfig {
     context: string;
     successText: string;
     failureText: string;
+  };
+  g3Status: {
+    disabled: boolean;
+    context: string;
+    pendingDesc: string;
+    successDesc: string;
+    include: string[];
+    exclude: string[];
   };
   mergeConflictComment: string;
   mergeLabel: string;

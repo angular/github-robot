@@ -22,6 +22,7 @@
     "logs:functions": "firebase functions:log"
   },
   "dependencies": {
+    "minimatch": "^3.0.4",
     "probot-ts": "^4.0.1-typescript"
   },
   "devDependencies": {
