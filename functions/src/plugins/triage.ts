@@ -2,7 +2,7 @@ import * as probot from "probot-ts";
 import {Task} from "./task";
 import {CONFIG_FILE} from "./merge";
 import {AdminConfig, appConfig, TriageConfig} from "../default";
-import {getGhLabels} from "./common";
+import {getGhLabels, getLabelsNames} from "./common";
 import * as Context from "probot-ts/lib/context";
 import * as Github from "github";
 
@@ -65,7 +65,7 @@ export class TriageTask extends Task {
       const {owner, repo} = context.repo();
       // getting labels from Github because we might be adding multiple labels at once
       const labels = await getGhLabels(context.github, owner, repo, issue.number);
-      const isTriaged = this.isTriaged(config.triagedLabels, labels);
+      const isTriaged = this.isTriaged(config.triagedLabels, getLabelsNames(labels));
       if(!issue.milestone) {
         if(isTriaged) {
           await this.setMilestone(config.defaultMilestone, context.github, owner, repo, issue);

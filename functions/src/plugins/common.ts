@@ -137,14 +137,20 @@ export function matchLabel(existingLabel: string, partialLabelsList: string[] = 
 /**
  * Gets the PR labels from Github
  */
-export async function getGhLabels(github: probot.EnhancedGitHubClient, owner: string, repo: string, number: number): Promise<string[]> {
+export async function getGhLabels(github: probot.EnhancedGitHubClient, owner: string, repo: string, number: number): Promise<Github.Label[]> {
   return (await github.issues.get({
     owner,
     repo,
     number
-  })).data.labels.map((label: Github.Label) => label.name);
+  })).data.labels;
 }
 
+export function getLabelsNames(labels: Github.Label[]|string[]): string[] {
+  if(typeof labels[0] !== 'string') {
+    labels = (labels as any as Github.Label[]).map(label => label.name);
+  }
+  return labels as string[];
+}
 
 /**
  * Adds a comment on a PR

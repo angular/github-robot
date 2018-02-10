@@ -1,7 +1,7 @@
 import * as Github from "github";
 import * as probot from "probot-ts";
 import {appConfig, MergeConfig} from "../default";
-import {addComment, getGhLabels, match, matchLabel} from "./common";
+import {addComment, getGhLabels, getLabelsNames, match, matchLabel} from "./common";
 import {Task} from "./task";
 
 export const CONFIG_FILE = "angular-robot.yml";
@@ -115,12 +115,12 @@ export class MergeTask extends Task {
   /**
    * Gets the list of labels from a PR
    */
-  private async getLabels(context: probot.Context, pr?: any): Promise<string[]> {
+  private async getLabels(context: probot.Context, pr?: any): Promise<Github.Label[]> {
     const {owner, repo} = context.repo();
     pr = pr || context.payload.pull_request;
     const doc = this.pullRequests.doc(pr.id.toString());
     const dbPR = await doc.get();
-    let labels: string[];
+    let labels: Github.Label[];
 
     // if the PR is already in Firebase
     if(dbPR.exists) {
@@ -141,11 +141,12 @@ export class MergeTask extends Task {
   /**
    * Based on the repo config, returns the list of checks that failed for this PR
    */
-  private async getChecksStatus(context: probot.Context, pr: any, config: MergeConfig, labels: string[] = [], statuses?: Github.Status[]): Promise<ChecksStatus> {
+  private async getChecksStatus(context: probot.Context, pr: any, config: MergeConfig, labels: Github.Label[] = [], statuses?: Github.Status[]): Promise<ChecksStatus> {
     const checksStatus: ChecksStatus = {
       pending: [],
       failure: []
     };
+    const labelsNames = getLabelsNames(labels);
 
     // Check if there is any merge conflict
     if(config.checks.noConflict) {
@@ -164,7 +165,7 @@ export class MergeTask extends Task {
     if(config.checks.requiredLabels) {
       const missingLabels = [];
       config.checks.requiredLabels.forEach(reqLabel => {
-        if(!labels.some(label => !!label.match(new RegExp(reqLabel)))) {
+        if(!labelsNames.some(label => !!label.match(new RegExp(reqLabel)))) {
           missingLabels.push(reqLabel);
         }
       });
@@ -178,7 +179,7 @@ export class MergeTask extends Task {
     if(config.checks.forbiddenLabels) {
       const fbdLabels = [];
       config.checks.forbiddenLabels.forEach(fbdLabel => {
-        if(labels.some(label => !!label.match(new RegExp(fbdLabel)))) {
+        if(labelsNames.some(label => !!label.match(new RegExp(fbdLabel)))) {
           fbdLabels.push(fbdLabel);
         }
       });
@@ -293,7 +294,7 @@ export class MergeTask extends Task {
   /**
    * Updates the status of a PR
    */
-  private async updateStatus(context: probot.Context, updateStatus = true, updateG3Status = false, labels?: string[]): Promise<void> {
+  private async updateStatus(context: probot.Context, updateStatus = true, updateG3Status = false, labels?: Github.Label[]): Promise<void> {
     if(context.payload.action === "synchronize") {
       updateG3Status = true;
     }
