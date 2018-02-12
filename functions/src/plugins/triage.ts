@@ -2,7 +2,7 @@ import * as probot from "probot-ts";
 import {Task} from "./task";
 import {CONFIG_FILE} from "./merge";
 import {AdminConfig, appConfig, TriageConfig} from "../default";
-import {getGhLabels, getLabelsNames} from "./common";
+import {getGhLabels, getLabelsNames, matchAllOfAny} from "./common";
 import * as Context from "probot-ts/lib/context";
 import * as Github from "github";
 
@@ -89,17 +89,7 @@ export class TriageTask extends Task {
   }
 
   isTriaged(triagedLabels: string[][], currentLabels: string[]): boolean {
-    return triagedLabels
-    // is one of the triaged labels array 100% present
-      .some((labels: string[]) => labels
-        // for this array of labels, are they all matching one of the current labels?
-          .map(triagedLabel => currentLabels
-            // is this triage label matching one of the current label
-              .some(currentLabel => !!currentLabel.match(new RegExp(triagedLabel)))
-          )
-          // are they all matching or is at least one of them not a match
-          .reduce((previous: boolean, current: boolean) => previous && current)
-      );
+    return matchAllOfAny(currentLabels, triagedLabels);
   }
 
   /**

@@ -47,7 +47,7 @@ Please help to unblock it by resolving these conflicts. Thanks!`,
       // whether the PR shouldn't have a conflict with the base branch
       noConflict: true,
       // list of labels that a PR needs to have, checked with a regexp (e.g. "PR target:" will work for the label "PR target: master")
-      requiredLabels: ["PR target:", "cla: yes"],
+      requiredLabels: ["PR target: *", "cla: yes"],
       // list of labels that a PR shouldn't have, checked after the required labels with a regexp
       forbiddenLabels: ["PR target: TBD", "cla: no"],
       // list of PR statuses that need to be successful
@@ -67,7 +67,7 @@ If you can't get the PR to a green state due to flakes or broken master, please 
 
   triage: {
     defaultMilestone: 82,
-    triagedLabels: [["type: bug", "severity", "freq", "comp:"], ["type: feature", "comp:"]]
+    triagedLabels: [["type: bug", "severity*", "freq*", "comp: *"], ["type: feature", "comp: *"]]
   }
 };
 

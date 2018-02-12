@@ -5,6 +5,7 @@ import * as logger from "probot-ts/lib/logger";
 import {TriageTask} from "../functions/src/plugins/triage";
 import {appConfig} from "../functions/src/default";
 import {MockFirestore} from './mocks/firestore';
+import {mockGithub} from "./mocks/github";
 
 describe('triage', () => {
   let robot: probot;
@@ -13,6 +14,8 @@ describe('triage', () => {
   let store: FirebaseFirestore.Firestore;
 
   beforeEach(() => {
+    mockGithub('repos');
+
     // create the mock Firebase Firestore
     store = new MockFirestore();
 
@@ -50,6 +53,12 @@ describe('triage', () => {
       expect(isTriaged).toBeFalsy();
 
       isTriaged = triageTask.isTriaged(config.triagedLabels, ['comp: aio', 'type: feature']);
+      expect(isTriaged).toBeTruthy();
+
+      isTriaged = triageTask.isTriaged(config.triagedLabels, ['comp: common', 'type: bug']);
+      expect(isTriaged).toBeFalsy();
+
+      isTriaged = triageTask.isTriaged(config.triagedLabels, ['comp: common', 'type: bug', 'freq3: high', 'severity3: broken']);
       expect(isTriaged).toBeTruthy();
     });
   });

@@ -1,8 +1,8 @@
-import {match} from "../functions/src/plugins/common";
+import {matchAny} from "../functions/src/plugins/common";
 
 describe('common', () => {
   describe('match', () => {
-    it('should return true if it matches, false otherwise', async () => {
+    it('matchAny should return true if it matches, false otherwise', async () => {
       const files = [
         "packages/common/BUILD.bazel",
         "README.md"
@@ -19,20 +19,20 @@ describe('common', () => {
         "**/.gitignore",
         "**/.gitkeep",
       ];
-      expect(match(files, [])).toBeFalsy();
-      expect(match(files, patterns)).toBeTruthy();
-      expect(match(files, patterns, negPatterns)).toBeTruthy();
-      expect(match(["BUILD.bazel"], patterns, negPatterns)).toBeTruthy();
-      expect(match(["packages/common/tsconfig.json"], patterns, negPatterns)).toBeTruthy();
-      expect(match(["packages/language-service/tsconfig.json"], patterns, negPatterns)).toBeFalsy();
+      expect(matchAny(files, [])).toBeFalsy();
+      expect(matchAny(files, patterns)).toBeTruthy();
+      expect(matchAny(files, patterns, negPatterns)).toBeTruthy();
+      expect(matchAny(["BUILD.bazel"], patterns, negPatterns)).toBeTruthy();
+      expect(matchAny(["packages/common/tsconfig.json"], patterns, negPatterns)).toBeTruthy();
+      expect(matchAny(["packages/language-service/tsconfig.json"], patterns, negPatterns)).toBeFalsy();
 
       const files2 = [
         "packages/common/BUILD.bazel",
         ".gitignore"
       ];
-      expect(match(files2, patterns, negPatterns)).toBeTruthy();
-      expect(match([".gitkeep"], patterns, negPatterns)).toBeFalsy();
-      expect(match(["packages/common/.gitkeep"], patterns, negPatterns)).toBeFalsy();
+      expect(matchAny(files2, patterns, negPatterns)).toBeTruthy();
+      expect(matchAny([".gitkeep"], patterns, negPatterns)).toBeFalsy();
+      expect(matchAny(["packages/common/.gitkeep"], patterns, negPatterns)).toBeFalsy();
     });
   });
 });

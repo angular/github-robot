@@ -128,13 +128,6 @@ export class CommonTask extends Task {
 }
 
 /**
- * Tests if a string matches a label
- */
-export function matchLabel(existingLabel: string, partialLabelsList: string[] = []): boolean {
-  return partialLabelsList.some(l => !!existingLabel.match(new RegExp(l)));
-}
-
-/**
  * Gets the PR labels from Github
  */
 export async function getGhLabels(github: probot.EnhancedGitHubClient, owner: string, repo: string, number: number): Promise<Github.Label[]> {
@@ -170,7 +163,11 @@ interface Repository {
   full_name: string;
 }
 
-export function match(names: string[], patterns: (string | RegExp)[], negPatterns: (string | RegExp)[] = []): boolean {
+/**
+ * Returns true if any of the names match any of the patterns
+ * It ignores any pattern match that is also matching a negPattern
+ */
+export function matchAny(names: string[], patterns: (string | RegExp)[], negPatterns: (string | RegExp)[] = []): boolean {
   return names.some(name =>
     patterns.some(pattern =>
       minimatch(name, pattern) && !negPatterns.some(negPattern =>
@@ -178,4 +175,22 @@ export function match(names: string[], patterns: (string | RegExp)[], negPattern
       )
     )
   );
+}
+
+/**
+ * Returns true if some of the names match all of one of the patterns array
+ * e.g.: [a, b, c] match the first pattern of [[a, b], [a, d]], but [a, b, c] doesn't match [[a, d], [b, e]]
+ */
+export function matchAllOfAny(names: string[], patternsArray: string[][]): boolean {
+  return patternsArray
+    // is one of the patterns array 100% present?
+    .some((patterns: string[]) => patterns
+      // for this array of patterns, are they all matching one of the current names?
+      .map(pattern => names
+        // is this name matching one of the current label
+        .some(name => minimatch(name, pattern))
+      )
+      // are they all matching or is at least one of them not a match
+      .reduce((previous: boolean, current: boolean) => previous && current)
+    );
 }

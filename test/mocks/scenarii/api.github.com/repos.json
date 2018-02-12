@@ -2,7 +2,7 @@
   {
     "scope": "https://api.github.com:443",
     "method": "get",
-    "path": "/repos/octokit-fixture-org/hello-world/contents/.github%2Fangular-robot.yml",
+    "path": "/repos/ocombe/test/contents/.github%2Fangular-robot.yml",
     "body": "",
     "status": 200,
     "response": {
@@ -10,15 +10,15 @@
       "path": ".github",
       "sha": "93a078d1c3f76aa1ca11def8f882a06df1d4a01b",
       "size": 13,
-      "url": "https://api.github.com/repos/octokit-fixture-org/hello-world/contents/.github/angular-robot.yml?ref=master",
-      "html_url": "https://github.com/octokit-fixture-org/hello-world/blob/master/.github/angular-robot.yml",
-      "git_url": "https://api.github.com/repos/octokit-fixture-org/hello-world/git/blobs/93a078d1c3f76aa1ca11def8f882a06df1d4a01b",
-      "download_url": "https://raw.githubusercontent.com/octokit-fixture-org/hello-world/master/.github/angular-robot.yml",
+      "url": "https://api.github.com/repos/ocombe/test/contents/.github/angular-robot.yml?ref=master",
+      "html_url": "https://github.com/ocombe/test/blob/master/.github/angular-robot.yml",
+      "git_url": "https://api.github.com/repos/ocombe/test/git/blobs/93a078d1c3f76aa1ca11def8f882a06df1d4a01b",
+      "download_url": "https://raw.githubusercontent.com/ocombe/test/master/.github/angular-robot.yml",
       "type": "file",
       "_links": {
-        "self": "https://api.github.com/repos/octokit-fixture-org/hello-world/contents/.github/angular-robot.yml?ref=master",
-        "git": "https://api.github.com/repos/octokit-fixture-org/hello-world/git/blobs/93a078d1c3f76aa1ca11def8f882a06df1d4a01b",
-        "html": "https://github.com/octokit-fixture-org/hello-world/blob/master/.github/angular-robot.yml"
+        "self": "https://api.github.com/repos/ocombe/test/contents/.github/angular-robot.yml?ref=master",
+        "git": "https://api.github.com/repos/ocombe/test/git/blobs/93a078d1c3f76aa1ca11def8f882a06df1d4a01b",
+        "html": "https://github.com/ocombe/test/blob/master/.github/angular-robot.yml"
       },
       "content": ""
     },

@@ -1,7 +1,7 @@
 import * as Github from "github";
 import * as probot from "probot-ts";
 import {appConfig, MergeConfig} from "../default";
-import {addComment, getGhLabels, getLabelsNames, match, matchLabel} from "./common";
+import {addComment, getGhLabels, matchAny, getLabelsNames} from "./common";
 import {Task} from "./task";
 
 export const CONFIG_FILE = "angular-robot.yml";
@@ -81,7 +81,7 @@ export class MergeTask extends Task {
       updateG3Status = true;
     }
 
-    if(matchLabel(newLabel, config.checks.requiredLabels) || matchLabel(newLabel, config.checks.forbiddenLabels)) {
+    if(matchAny([newLabel], config.checks.requiredLabels) || matchAny([newLabel], config.checks.forbiddenLabels)) {
       updateStatus = true;
     }
 
@@ -105,7 +105,7 @@ export class MergeTask extends Task {
     const labels = await getGhLabels(context.github, owner, repo, pr.number);
     await doc.set({labels}, {merge: true});
 
-    if(matchLabel(removedLabel, config.checks.requiredLabels) || matchLabel(removedLabel, config.checks.forbiddenLabels)) {
+    if(matchAny([removedLabel], config.checks.requiredLabels) || matchAny([removedLabel], config.checks.forbiddenLabels)) {
       this.updateStatus(context, true, false, labels).catch(err => {
         throw err;
       });
@@ -368,7 +368,7 @@ export class MergeTask extends Task {
     if(updateG3Status) {
       // checking if we need to add g3 status
       const files: Github.File[] = (await context.github.pullRequests.getFiles({owner, repo, number: pr.number})).data;
-      if(match(files.map(file => file.filename), config.g3Status.include, config.g3Status.exclude)) {
+      if(matchAny(files.map(file => file.filename), config.g3Status.include, config.g3Status.exclude)) {
         // only update g3 status if a commit was just pushed, or there was no g3 status
         if(context.payload.action === "synchronize" || !statuses.some(status => status.context === config.g3Status.context)) {
           const status = (await context.github.repos.createStatus({
