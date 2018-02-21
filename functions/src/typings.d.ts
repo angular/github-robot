@@ -376,26 +376,58 @@ declare module "github" {
       sha: string;
       user: User;
     };
+    requested_reviewers: User[];
+    requested_teams: any[]; // need to check how the "team" json structure is
+    mergeable: boolean|null;
+  }
+
+  export const enum FILE_STATUS {
+    Added = 'added',
+    Modified = 'modified',
+    Deleted = 'deleted'
   }
 
   export interface File {
     sha: string;
     filename: string;
-    status: 'added' | 'modified' | 'deleted';
+    status: FILE_STATUS;
     additions: number;
     deletions: number;
     changes: number;
     patch: string;
   }
 
+  export const enum STATUS_STATE {
+    Pending = 'pending',
+    Success = 'success',
+    Failure = 'failure',
+    Error = 'error'
+  }
+
   export interface Status {
     url: string;
     id: number;
-    state: 'pending' | 'success' | 'failure' | 'error';
+    state: STATUS_STATE;
     description: string | null;
     target_url: string | null;
     context: string;
     created_at: string;
     updated_at: string;
+  }
+
+  export const enum REVIEW_STATE {
+    Pending = 'PENDING',
+    Approved = 'APPROVED',
+    ChangesRequest = 'CHANGES_REQUESTED',
+    Commented = 'COMMENTED',
+    Dismissed = 'DISMISSED'
+  }
+
+  export interface Review {
+    id: number;
+    user: User;
+    body: string;
+    state: REVIEW_STATE;
+    submitted_at: string;
   }
 }

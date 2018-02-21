@@ -1,7 +1,7 @@
 import * as Github from "github";
 import * as probot from "probot-ts";
 import {appConfig, MergeConfig} from "../default";
-import {addComment, getGhLabels, matchAny, getLabelsNames} from "./common";
+import {addComment, getGhLabels, getLabelsNames, matchAny} from "./common";
 import {Task} from "./task";
 
 export const CONFIG_FILE = "angular-robot.yml";
@@ -21,10 +21,10 @@ export class MergeTask extends Task {
     this.robot.on([
       'status',
       'pull_request.synchronize',
-      // not tracking PR reviews for now, we can use pullapprove status for that
-      // 'pull_request.review_requested',
-      // 'pull_request_review.submitted',
-      // 'pull_request_review.dismissed'
+      'pull_request.review_requested',
+      'pull_request.review_request_removed',
+      'pull_request_review.submitted',
+      'pull_request_review.dismissed'
     ], (context: probot.Context) => this.updateStatus(context));
     // PR created or updated
     this.robot.on([
@@ -141,7 +141,7 @@ export class MergeTask extends Task {
   /**
    * Based on the repo config, returns the list of checks that failed for this PR
    */
-  private async getChecksStatus(context: probot.Context, pr: any, config: MergeConfig, labels: Github.Label[] = [], statuses?: Github.Status[]): Promise<ChecksStatus> {
+  private async getChecksStatus(context: probot.Context, pr: Github.PullRequest, config: MergeConfig, labels: Github.Label[] = [], statuses?: Github.Status[]): Promise<ChecksStatus> {
     const checksStatus: ChecksStatus = {
       pending: [],
       failure: []
@@ -193,11 +193,11 @@ export class MergeTask extends Task {
     statuses = statuses || await this.getStatuses(context, pr.head.sha);
     statuses.forEach(status => {
       switch(status.state) {
-        case 'failure':
-        case 'error':
+        case Github.STATUS_STATE.Failure:
+        case Github.STATUS_STATE.Error:
           checksStatus.failure.push(`status "${status.context}" is failing`);
           break;
-        case 'pending':
+        case Github.STATUS_STATE.Pending:
           checksStatus.pending.push(`status "${status.context}" is pending`);
           break;
       }
@@ -212,7 +212,59 @@ export class MergeTask extends Task {
       });
     }
 
+    // check if there is any review pending or that requested changes
+    // pr.requested_reviewers == users that have been requested but haven't reviewed yet
+    const nbPendingReviews = pr.requested_reviewers.length + (await this.getPendingReviews(context, pr)).length;
+    if(nbPendingReviews > 0) {
+      checksStatus.pending.push(`${nbPendingReviews} pending code review${nbPendingReviews > 1 ? 's' : ''}`);
+    }
+
     return checksStatus;
+  }
+
+  /**
+   * Returns the "non approved" reviews (pending or changes requested)
+   * (we only take into account the final review for each user)
+   */
+  async getPendingReviews(context: probot.Context, pr: Github.PullRequest): Promise<Github.Review[]> {
+    const {owner, repo} = context.repo();
+    const reviews: Github.Review[] = (await context.github.pullRequests.getReviews({
+      owner,
+      repo,
+      number: pr.number
+    })).data;
+
+    const users: { [key: string]: Github.Review[] } = {};
+    const requestedReviewUsers = pr.requested_reviewers.map(user => user.id);
+
+    // ignore comments because they can be done after a review was approved / refused
+    reviews.filter(review => review.state !== Github.REVIEW_STATE.Commented)
+      .forEach(review => {
+        const reviewUser = review.user.id;
+        // ignore reviews by people listed as requested reviewers because they obviously still need to review the PR
+        if(!requestedReviewUsers.includes(reviewUser)) {
+          if(!users[reviewUser]) {
+            users[reviewUser] = [];
+          }
+          users[reviewUser].push(review);
+        }
+      });
+
+    // for each user that reviewed this PR, we get the latest review
+    const finalReviews: Github.Review[] = [];
+    Object.keys(users).forEach(user => {
+      finalReviews.push(users[user].reduce((res: Github.Review, currentValue: Github.Review) => {
+        if(!res || new Date(currentValue.submitted_at) >= new Date(res.submitted_at)) {
+          return currentValue;
+        }
+        return res;
+      }));
+    });
+
+    // we only keep the reviews that are pending / requested changes
+    const nonApprovedReviews = finalReviews.filter(review => review.state === Github.REVIEW_STATE.Pending || review.state === Github.REVIEW_STATE.ChangesRequest);
+
+    return nonApprovedReviews;
   }
 
   /**
@@ -376,7 +428,7 @@ export class MergeTask extends Task {
             repo,
             sha: sha,
             context: config.g3Status.context,
-            state: 'pending',
+            state: Github.STATUS_STATE.Pending,
             description: config.g3Status.pendingDesc
           })).data;
           statuses.push(status);
@@ -388,7 +440,7 @@ export class MergeTask extends Task {
           repo,
           sha: pr.head.sha,
           context: config.g3Status.context,
-          state: 'success',
+          state: Github.STATUS_STATE.Success,
           description: config.g3Status.successDesc
         })).data;
         statuses.push(status);
@@ -402,19 +454,19 @@ export class MergeTask extends Task {
         repo,
         sha: sha,
         context: config.status.context,
-        state: 'success'
+        state: Github.STATUS_STATE.Success
       };
 
       const failedChecks = await this.getChecksStatus(context, pr, config, labels, statuses);
 
       if(failedChecks.failure.length > 0) {
-        statusParams.state = 'failure';
+        statusParams.state = Github.STATUS_STATE.Failure;
         statusParams.description = failedChecks.failure.concat(failedChecks.pending).join(', ');
       } else if(failedChecks.pending.length > 0) {
-        statusParams.state = 'pending';
+        statusParams.state = Github.STATUS_STATE.Pending;
         statusParams.description = failedChecks.pending.join(', ');
       } else {
-        statusParams.state = 'success';
+        statusParams.state = Github.STATUS_STATE.Success;
         statusParams.description = config.status.successText;
       }
 
