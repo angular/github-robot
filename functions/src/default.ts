@@ -66,7 +66,11 @@ If you can't get the PR to a green state due to flakes or broken master, please 
   },
 
   triage: {
+    // number of the milestone to apply when the issue has not been triaged yet
+    needsTriageMilestone: 83,
+    // number of the milestone to apply when the issue is triaged
     defaultMilestone: 82,
+    // arrays of labels that determine if an issue is triaged
     triagedLabels: [["type: bug", "severity*", "freq*", "comp: *"], ["type: feature", "comp: *"]]
   }
 };
@@ -103,6 +107,7 @@ export interface MergeConfig {
 }
 
 export interface TriageConfig {
+  needsTriageMilestone: number;
   defaultMilestone: number;
   triagedLabels: string[][];
 }

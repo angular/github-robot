@@ -39,15 +39,17 @@ export class TriageTask extends Task {
 
           issues.forEach(async (issue: Github.Issue) => {
             // PRs are issues for github, but we don't want them here
-            if(!issue.pull_request && (!issue.milestone || issue.milestone.number === config.defaultMilestone)) {
+            if(!issue.pull_request && (!issue.milestone || issue.milestone.number === config.defaultMilestone || issue.milestone.number === config.needsTriageMilestone)) {
               const isTriaged = this.isTriaged(config.triagedLabels, issue.labels.map((label: Github.Label) => label.name));
-              if(!issue.milestone) {
-                if(isTriaged) {
+              if(isTriaged) {
+                if(!issue.milestone || issue.milestone.number !== config.defaultMilestone) {
                   await this.setMilestone(config.defaultMilestone, context.github, owner, repo, issue);
                 }
-              } else if(!isTriaged) {
-                // if it's not triaged, remove the milestone
-                await this.setMilestone(null, context.github, owner, repo, issue);
+              } else {
+                // if it's not triaged, set the "needsTriage" milestone
+                if(!issue.milestone || issue.milestone.number !== config.needsTriageMilestone) {
+                  await this.setMilestone(config.needsTriageMilestone, context.github, owner, repo, issue);
+                }
               }
             }
           });
@@ -61,18 +63,20 @@ export class TriageTask extends Task {
   async checkTriage(context: probot.Context): Promise<any> {
     const issue = context.payload.issue;
     const config = await this.getConfig(context);
-    if(!issue.milestone || issue.milestone.number === config.defaultMilestone) {
+    if(!issue.milestone || issue.milestone.number === config.defaultMilestone || issue.milestone.number === config.needsTriageMilestone) {
       const {owner, repo} = context.repo();
       // getting labels from Github because we might be adding multiple labels at once
       const labels = await getGhLabels(context.github, owner, repo, issue.number);
       const isTriaged = this.isTriaged(config.triagedLabels, getLabelsNames(labels));
-      if(!issue.milestone) {
-        if(isTriaged) {
+      if(isTriaged) {
+        if(!issue.milestone || issue.milestone.number !== config.defaultMilestone) {
           await this.setMilestone(config.defaultMilestone, context.github, owner, repo, issue);
         }
-      } else if(!isTriaged) {
-        // if it's not triaged, remove the milestone
-        await this.setMilestone(null, context.github, owner, repo, issue);
+      } else {
+        // if it's not triaged, set the "needsTriage" milestone
+        if(!issue.milestone || issue.milestone.number !== config.needsTriageMilestone) {
+          await this.setMilestone(config.needsTriageMilestone, context.github, owner, repo, issue);
+        }
       }
     }
   }
@@ -102,6 +106,7 @@ export class TriageTask extends Task {
     }
     const config = {...appConfig.triage, ...repositoryConfig.triage};
     config.defaultMilestone = parseInt(config.defaultMilestone, 10);
+    config.needsTriageMilestone = parseInt(config.needsTriageMilestone, 10);
     return config;
   }
 }
