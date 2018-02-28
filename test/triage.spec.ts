@@ -58,7 +58,7 @@ describe('triage', () => {
       isTriaged = triageTask.isTriaged(config.triagedLabels, ['comp: common', 'type: bug']);
       expect(isTriaged).toBeFalsy();
 
-      isTriaged = triageTask.isTriaged(config.triagedLabels, ['comp: common', 'type: bug', 'freq3: high', 'severity3: broken']);
+      isTriaged = triageTask.isTriaged(config.triagedLabels, ['comp: common/http', 'type: bug/fix', 'freq1: low', 'severity3: broken']);
       expect(isTriaged).toBeTruthy();
     });
   });

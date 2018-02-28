@@ -85,10 +85,16 @@ triage:
   # arrays of labels that determine if an issue is triaged
   triagedLabels:
     -
-      - "type: bug"
+      - "type: bug/fix"
       - "severity*"
       - "freq*"
       - "comp: *"
     -
       - "type: feature"
+      - "comp: *"
+    -
+      - "type: refactor"
+      - "comp: *"
+    -
+      - "type: RFC / Discussion / question"
       - "comp: *"

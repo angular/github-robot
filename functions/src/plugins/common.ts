@@ -170,6 +170,22 @@ interface Repository {
 export function matchAny(names: string[], patterns: (string | RegExp)[], negPatterns: (string | RegExp)[] = []): boolean {
   return names.some(name =>
     patterns.some(pattern =>
+      !!name.match(new RegExp(pattern)) && !negPatterns.some(negPattern =>
+        !!name.match(new RegExp(negPattern))
+      )
+    )
+  );
+}
+
+
+/**
+ * Same as matchAny, but for files, takes paths into account
+ * Returns true if any of the names match any of the patterns
+ * It ignores any pattern match that is also matching a negPattern
+ */
+export function matchAnyFile(names: string[], patterns: (string | RegExp)[], negPatterns: (string | RegExp)[] = []): boolean {
+  return names.some(name =>
+    patterns.some(pattern =>
       minimatch(name, pattern) && !negPatterns.some(negPattern =>
         minimatch(name, negPattern)
       )
@@ -188,7 +204,8 @@ export function matchAllOfAny(names: string[], patternsArray: string[][]): boole
       // for this array of patterns, are they all matching one of the current names?
       .map(pattern => names
         // is this name matching one of the current label
-        .some(name => minimatch(name, pattern))
+        // we replace "/" by "*" because we are matching labels not files
+        .some(name => !!name.match(new RegExp(pattern)))
       )
       // are they all matching or is at least one of them not a match
       .reduce((previous: boolean, current: boolean) => previous && current)

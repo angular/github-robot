@@ -71,7 +71,7 @@ If you can't get the PR to a green state due to flakes or broken master, please 
     // number of the milestone to apply when the issue is triaged
     defaultMilestone: 82,
     // arrays of labels that determine if an issue is triaged
-    triagedLabels: [["type: bug", "severity*", "freq*", "comp: *"], ["type: feature", "comp: *"]]
+    triagedLabels: [["type: bug/fix", "severity*", "freq*", "comp: *"], ["type: feature", "comp: *"], ["type: refactor", "comp: *"], ["type: RFC / Discussion / question", "comp: *"]]
   }
 };
 

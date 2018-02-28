@@ -1,7 +1,7 @@
 import * as Github from "github";
 import * as probot from "probot-ts";
 import {appConfig, MergeConfig} from "../default";
-import {addComment, getGhLabels, getLabelsNames, matchAny} from "./common";
+import {addComment, getGhLabels, getLabelsNames, matchAny, matchAnyFile} from "./common";
 import {Task} from "./task";
 
 export const CONFIG_FILE = "angular-robot.yml";
@@ -420,7 +420,7 @@ export class MergeTask extends Task {
     if(updateG3Status) {
       // checking if we need to add g3 status
       const files: Github.File[] = (await context.github.pullRequests.getFiles({owner, repo, number: pr.number})).data;
-      if(matchAny(files.map(file => file.filename), config.g3Status.include, config.g3Status.exclude)) {
+      if(matchAnyFile(files.map(file => file.filename), config.g3Status.include, config.g3Status.exclude)) {
         // only update g3 status if a commit was just pushed, or there was no g3 status
         if(context.payload.action === "synchronize" || !statuses.some(status => status.context === config.g3Status.context)) {
           const status = (await context.github.repos.createStatus({
