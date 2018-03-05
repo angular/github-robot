@@ -14,7 +14,8 @@ export class TriageTask extends Task {
     this.robot.on([
       'issues.labeled',
       'issues.unlabeled',
-      'issues.milestoned'
+      'issues.milestoned',
+      'issues.opened'
     ], (context: probot.Context) => this.checkTriage(context));
   }
 
