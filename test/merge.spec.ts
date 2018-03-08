@@ -21,6 +21,7 @@ describe('merge', () => {
     mockGithub('get-installation-repositories');
     mockGithub('repo-pull-requests');
     mockGithub('repo-pull-request');
+    mockGithub('pr-reviews');
 
     // create the mock Firebase Firestore
     store = new MockFirestore();
@@ -82,6 +83,16 @@ describe('merge', () => {
       expect(storeData.docs.length).toBeGreaterThan(0);
       // our data set in mocks/scenarii/api.github.com/repo-pull-request.json returns a PR whose number value is 1
       expect(storeData.docs[0].data()['number']).toEqual(1);
+    });
+  });
+
+  describe('reviews', () => {
+    it('should be able to get the accurate number of pending reviews', async () => {
+      // const event = require('./fixtures/pr-comments.json');
+      const event = require('./fixtures/pull_request_review.submitted.json');
+      const context = new Context(event, github);
+      const pendingReviews = await mergeTask.getPendingReviews(context, context.payload.pull_request);
+      expect(pendingReviews.length).toEqual(0);
     });
   });
 });

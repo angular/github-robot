@@ -381,12 +381,6 @@ declare module "github" {
     mergeable: boolean|null;
   }
 
-  export const enum FILE_STATUS {
-    Added = 'added',
-    Modified = 'modified',
-    Deleted = 'deleted'
-  }
-
   export interface File {
     sha: string;
     filename: string;
@@ -395,13 +389,6 @@ declare module "github" {
     deletions: number;
     changes: number;
     patch: string;
-  }
-
-  export const enum STATUS_STATE {
-    Pending = 'pending',
-    Success = 'success',
-    Failure = 'failure',
-    Error = 'error'
   }
 
   export interface Status {
@@ -415,14 +402,6 @@ declare module "github" {
     updated_at: string;
   }
 
-  export const enum REVIEW_STATE {
-    Pending = 'PENDING',
-    Approved = 'APPROVED',
-    ChangesRequest = 'CHANGES_REQUESTED',
-    Commented = 'COMMENTED',
-    Dismissed = 'DISMISSED'
-  }
-
   export interface Review {
     id: number;
     user: User;
@@ -430,4 +409,25 @@ declare module "github" {
     state: REVIEW_STATE;
     submitted_at: string;
   }
+}
+
+export const enum FILE_STATUS {
+  Added = 'added',
+  Modified = 'modified',
+  Deleted = 'deleted'
+}
+
+export const enum STATUS_STATE {
+  Pending = 'pending',
+  Success = 'success',
+  Failure = 'failure',
+  Error = 'error'
+}
+
+export const enum REVIEW_STATE {
+  Pending = 'PENDING',
+  Approved = 'APPROVED',
+  ChangesRequest = 'CHANGES_REQUESTED',
+  Commented = 'COMMENTED',
+  Dismissed = 'DISMISSED'
 }

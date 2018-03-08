@@ -3,6 +3,7 @@ import * as probot from "probot-ts";
 import {appConfig, MergeConfig} from "../default";
 import {addComment, getGhLabels, getLabelsNames, matchAny, matchAnyFile} from "./common";
 import {Task} from "./task";
+import {REVIEW_STATE, STATUS_STATE} from "../typings";
 
 export const CONFIG_FILE = "angular-robot.yml";
 
@@ -193,11 +194,11 @@ export class MergeTask extends Task {
     statuses = statuses || await this.getStatuses(context, pr.head.sha);
     statuses.forEach(status => {
       switch(status.state) {
-        case Github.STATUS_STATE.Failure:
-        case Github.STATUS_STATE.Error:
+        case STATUS_STATE.Failure:
+        case STATUS_STATE.Error:
           checksStatus.failure.push(`status "${status.context}" is failing`);
           break;
-        case Github.STATUS_STATE.Pending:
+        case STATUS_STATE.Pending:
           checksStatus.pending.push(`status "${status.context}" is pending`);
           break;
       }
@@ -234,26 +235,26 @@ export class MergeTask extends Task {
       number: pr.number
     })).data;
 
-    const users: { [key: string]: Github.Review[] } = {};
+    const usersReviews: { [key: string]: Github.Review[] } = {};
     const requestedReviewUsers = pr.requested_reviewers.map(user => user.id);
 
     // ignore comments because they can be done after a review was approved / refused
-    reviews.filter(review => review.state !== Github.REVIEW_STATE.Commented)
+    reviews.filter(review => review.state !== REVIEW_STATE.Commented)
       .forEach(review => {
         const reviewUser = review.user.id;
         // ignore reviews by people listed as requested reviewers because they obviously still need to review the PR
         if(!requestedReviewUsers.includes(reviewUser)) {
-          if(!users[reviewUser]) {
-            users[reviewUser] = [];
+          if(!usersReviews[reviewUser]) {
+            usersReviews[reviewUser] = [];
           }
-          users[reviewUser].push(review);
+          usersReviews[reviewUser].push(review);
         }
       });
 
     // for each user that reviewed this PR, we get the latest review
     const finalReviews: Github.Review[] = [];
-    Object.keys(users).forEach(user => {
-      finalReviews.push(users[user].reduce((res: Github.Review, currentValue: Github.Review) => {
+    Object.keys(usersReviews).forEach(user => {
+      finalReviews.push(usersReviews[user].reduce((res: Github.Review, currentValue: Github.Review) => {
         if(!res || new Date(currentValue.submitted_at) >= new Date(res.submitted_at)) {
           return currentValue;
         }
@@ -262,7 +263,7 @@ export class MergeTask extends Task {
     });
 
     // we only keep the reviews that are pending / requested changes
-    const nonApprovedReviews = finalReviews.filter(review => review.state === Github.REVIEW_STATE.Pending || review.state === Github.REVIEW_STATE.ChangesRequest);
+    const nonApprovedReviews = finalReviews.filter(review => review.state === REVIEW_STATE.Pending || review.state === REVIEW_STATE.ChangesRequest);
 
     return nonApprovedReviews;
   }
@@ -428,7 +429,7 @@ export class MergeTask extends Task {
             repo,
             sha: sha,
             context: config.g3Status.context,
-            state: Github.STATUS_STATE.Pending,
+            state: STATUS_STATE.Pending,
             description: config.g3Status.pendingDesc
           })).data;
           statuses.push(status);
@@ -440,7 +441,7 @@ export class MergeTask extends Task {
           repo,
           sha: pr.head.sha,
           context: config.g3Status.context,
-          state: Github.STATUS_STATE.Success,
+          state: STATUS_STATE.Success,
           description: config.g3Status.successDesc
         })).data;
         statuses.push(status);
@@ -454,19 +455,19 @@ export class MergeTask extends Task {
         repo,
         sha: sha,
         context: config.status.context,
-        state: Github.STATUS_STATE.Success
+        state: STATUS_STATE.Success
       };
 
       const failedChecks = await this.getChecksStatus(context, pr, config, labels, statuses);
 
       if(failedChecks.failure.length > 0) {
-        statusParams.state = Github.STATUS_STATE.Failure;
+        statusParams.state = STATUS_STATE.Failure;
         statusParams.description = failedChecks.failure.concat(failedChecks.pending).join(', ');
       } else if(failedChecks.pending.length > 0) {
-        statusParams.state = Github.STATUS_STATE.Pending;
+        statusParams.state = STATUS_STATE.Pending;
         statusParams.description = failedChecks.pending.join(', ');
       } else {
-        statusParams.state = Github.STATUS_STATE.Success;
+        statusParams.state = STATUS_STATE.Success;
         statusParams.description = config.status.successText;
       }
 
