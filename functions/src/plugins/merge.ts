@@ -25,7 +25,8 @@ export class MergeTask extends Task {
       'pull_request.review_requested',
       'pull_request.review_request_removed',
       'pull_request_review.submitted',
-      'pull_request_review.dismissed'
+      'pull_request_review.dismissed',
+      'pull_request.edited' // editing a PR can change the base branch (not just text content)
     ], (context: probot.Context) => this.updateStatus(context));
     // PR created or updated
     this.robot.on([
@@ -157,7 +158,7 @@ export class MergeTask extends Task {
         pr = await this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id);
       }
       // Check if there is a conflict with the base branch
-      if(pr.mergeable !== null && !pr.mergeable) {
+      if(pr.mergeable === false) {
         checksStatus.failure.push(`conflicts with base branch "${pr.base.ref}"`);
       }
     }
