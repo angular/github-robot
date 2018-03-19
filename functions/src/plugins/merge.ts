@@ -157,7 +157,7 @@ export class MergeTask extends Task {
         pr = await this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id);
       }
       // Check if there is a conflict with the base branch
-      if(!pr.mergeable) {
+      if(pr.mergeable !== null && !pr.mergeable) {
         checksStatus.failure.push(`conflicts with base branch "${pr.base.ref}"`);
       }
     }
