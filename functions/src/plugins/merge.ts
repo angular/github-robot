@@ -237,13 +237,17 @@ export class MergeTask extends Task {
     })).data;
 
     const usersReviews: { [key: string]: Github.Review[] } = {};
+    // the list of requested reviewers only contains people that have been requested for review but has not
+    // given the review yet. Once he does, he disappears from this list, and we need to check the reviews
     const requestedReviewUsers = pr.requested_reviewers.map(user => user.id);
 
     // ignore comments because they can be done after a review was approved / refused
+    // also anyone can add comments, it doesn't mean that it's someone who is actually reviewing the PR
     reviews.filter(review => review.state !== REVIEW_STATE.Commented)
       .forEach(review => {
         const reviewUser = review.user.id;
-        // ignore reviews by people listed as requested reviewers because they obviously still need to review the PR
+        // you can ask someone to give another review, if the code has changed since they reviewed it
+        // meaning that we need to ignore old reviews by people listed as requested reviewers
         if(!requestedReviewUsers.includes(reviewUser)) {
           if(!usersReviews[reviewUser]) {
             usersReviews[reviewUser] = [];
