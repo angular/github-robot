@@ -435,7 +435,8 @@ export class MergeTask extends Task {
             sha: sha,
             context: config.g3Status.context,
             state: STATUS_STATE.Pending,
-            description: config.g3Status.pendingDesc
+            description: config.g3Status.pendingDesc.replace("{{PRNumber}}", pr.number),
+            target_url: config.g3Status.url
           })).data;
           statuses.push(status);
           this.robot.log(`Updated g3 status to pending for the PR ${url}`);

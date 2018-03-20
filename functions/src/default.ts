@@ -18,8 +18,9 @@ export const appConfig: AppConfig = {
     g3Status: {
       disabled: false,
       context: "google3",
-      pendingDesc: "Googler: test this change in google3 http://go/angular-g3sync",
+      pendingDesc: "Googler: run g3sync presubmit {{PRNumber}}",
       successDesc: "Does not affect google3",
+      url: "http://go/angular-g3sync",
       include: [
         "BUILD.bazel",
         "LICENSE",
@@ -92,6 +93,7 @@ export interface MergeConfig {
     context: string;
     pendingDesc: string;
     successDesc: string;
+    url: string;
     include: string[];
     exclude: string[];
   };
