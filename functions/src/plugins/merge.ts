@@ -48,13 +48,12 @@ export class MergeTask extends Task {
     const newLabel = context.payload.label.name;
     const pr: Github.PullRequest = context.payload.pull_request;
     const config = await this.getConfig(context);
-    const doc = this.pullRequests.doc(pr.id.toString());
     const {owner, repo} = context.repo();
     // we need the list of labels from Github because we might be adding multiple labels at once
     // and we could overwrite some labels because of a race condition
     const labels = await getGhLabels(context.github, owner, repo, pr.number);
-    // update the DB
-    await doc.set({labels}, {merge: true}).catch(err => {
+    pr.labels = labels;
+    this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id, pr).catch(err => {
       throw err;
     });
 
@@ -101,11 +100,13 @@ export class MergeTask extends Task {
     const {owner, repo} = context.repo();
     const removedLabel = context.payload.label.name;
     const pr = context.payload.pull_request;
-    const doc = this.pullRequests.doc(pr.id.toString());
     // we need the list of labels from Github because we might be adding multiple labels at once
     // and we could overwrite some labels because of a race condition
     const labels = await getGhLabels(context.github, owner, repo, pr.number);
-    await doc.set({labels}, {merge: true});
+    pr.labels = labels;
+    this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id, pr).catch(err => {
+      throw err;
+    });
 
     if(matchAny([removedLabel], config.checks.requiredLabels) || matchAny([removedLabel], config.checks.forbiddenLabels)) {
       this.updateStatus(context, true, false, labels).catch(err => {
@@ -371,6 +372,9 @@ export class MergeTask extends Task {
       case 'pull_request_review':
         sha = context.payload.pull_request.head.sha;
         pr = context.payload.pull_request;
+        this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id, pr).catch(err => {
+          throw err;
+        });
         if(!labels) {
           labels = await this.getLabels(context);
         }
