@@ -11,37 +11,95 @@ export function getAllResults(github: probot.EnhancedGitHubClient, request): Pro
 }
 
 class Stream {
+  constructor(private store: FirebaseFirestore.Firestore) {}
+
   write(data: any) {
     let log = console.log;
-    try {
-      data = JSON.parse(data);
-      switch(data.level) {
-        case 60: // fatal
-        case 50: // error
-          log = console.error;
+    let level = 'info';
+    switch(data.level) {
+      case 60: // fatal
+        log = console.error;
+        level = 'fatal';
+        break;
+      case 50: // error
+        log = console.error;
+        level = 'error';
+        break;
+      case 40: // warn
+        log = console.warn;
+        level = 'warn';
+        break;
+      case 30: // info
+        level = 'info';
+        log = console.info;
+        break;
+      case 20: // debug
+        level = 'debug';
+        log = console.log;
+        break;
+      case 10: // trace
+        level = 'trace';
+        log = console.log;
+        break;
+    }
+
+    let event = '';
+    let extraData = '';
+    const context: probot.Context = data.context;
+    if(context) {
+      event = context.event;
+      const payload = data.context.payload;
+
+      let path = '';
+      switch(event) {
+        case 'pull_request':
+          path = payload.pull_request.html_url;
           break;
-        case 40: // warn
-          log = console.warn;
+        case 'pull_request_review':
+          path = payload.review.html_url;
           break;
-        case 30: // info
-        case 20: // debug
-        case 10: // trace
-          log = console.info;
+        case 'issues':
+          path = payload.issue.html_url;
+          break;
+        case 'push':
+          path = payload.compare;
+          break;
+        case 'status':
+          path = payload.commit.html_url;
+          break;
+        case 'installation':
+          path = payload.installation.html_url;
+          break;
+        case 'installation_repositories':
+          path = payload.installation.html_url;
           break;
       }
-    } catch(e) {
+
+      if(payload.action) {
+        event += `.${payload.action}`;
+      }
+      event = `[${event}]`;
+
+      extraData = ` [${context.id}|${path}]`;
+      if(context.id) {
+        this.store.collection('events').doc(context.id).set(context.payload).catch(err => {
+          throw err;
+        });
+      }
     }
-    log(typeof data === 'object' ? `${data.name}: ${data.msg}` : data);
+
+    log(`[${level}]${event} ${typeof data === 'object' ? data.msg : data}${extraData}`);
   }
 }
 
 /**
  * Stream Probot logs to console for Firebase
  */
-export const consoleStream = {
+export const consoleStream = (store) => ({
+  type: "raw",
   level: "debug",
-  stream: new Stream()
-};
+  stream: new Stream(store)
+});
 
 export interface Tasks {
   commonTask: CommonTask;

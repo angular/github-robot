@@ -1,5 +1,5 @@
 {
-  "event": "issue",
+  "event": "issues",
   "payload": {
     "action": "milestoned",
     "issue": {

@@ -11,12 +11,12 @@ export class TriageTask extends Task {
     super(robot, db);
 
     // TODO(ocombe): add a debounce for labeled events per issue
-    this.robot.on([
+    this.dispatch([
       'issues.labeled',
       'issues.unlabeled',
       'issues.milestoned',
       'issues.opened'
-    ], (context: probot.Context) => this.checkTriage(context));
+    ], this.checkTriage.bind(this));
   }
 
   async manualInit(): Promise<any> {
@@ -57,7 +57,7 @@ export class TriageTask extends Task {
         }));
       }));
     } else {
-      this.robot.log.error(`Manual init is disabled: the value of allowInit is set to false in the admin config database`);
+      this.logError(`Manual init is disabled: the value of allowInit is set to false in the admin config database`);
     }
   }
 
@@ -84,9 +84,9 @@ export class TriageTask extends Task {
 
   setMilestone(milestoneNumber: number|null, github: probot.EnhancedGitHubClient, owner: string, repo: string, issue: Github.Issue): Promise<any> {
     if(milestoneNumber) {
-      this.robot.log(`Adding milestone ${milestoneNumber} to issue ${issue.html_url}`);
+      this.log(`Adding milestone ${milestoneNumber} to issue ${issue.html_url}`);
     } else {
-      this.robot.log(`Removing milestone from issue ${issue.html_url}`);
+      this.log(`Removing milestone from issue ${issue.html_url}`);
     }
     return github.issues.edit({owner, repo, number: issue.number, milestone: milestoneNumber}).catch(err => {
       throw err;

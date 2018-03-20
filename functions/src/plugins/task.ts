@@ -24,4 +24,32 @@ export class Task {
     });
     return (await doc.get()).data();
   }
+
+  // wrapper for this.robot.on
+  dispatch(events: string|string[], callback: (context: probot.Context) => any) {
+    this.robot.on(events, (context: probot.Context) => {
+      this.log({context}, "Event received");
+      return callback(context);
+    });
+  }
+
+  log(...content: any[]) {
+    this.robot.log.info(...content);
+  }
+
+  logInfo(...content: any[]) {
+    this.log(...content);
+  }
+
+  logError(...content: any[]) {
+    this.robot.log.error(...content);
+  }
+
+  logWarn(...content: any[]) {
+    this.robot.log.warn(...content);
+  }
+
+  logDebug(...content: any[]) {
+    this.robot.log.debug(...content);
+  }
 }

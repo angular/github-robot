@@ -24,8 +24,10 @@ if(probotConfig) {
 const store: FirebaseFirestore.Firestore = firestore();
 // Create the bot using Firebase's probot config (see Readme.md)
 bot = probot(probotConfig);
+// disable probot logging
+bot.logger.streams.splice(0, 1);
 // Use node console as the output stream
-bot.logger.addStream(consoleStream);
+bot.logger.addStream(consoleStream(store));
 // Load the merge task to monitor PRs
 bot.load(robot => {
   tasks = registerTasks(robot, store);
@@ -36,11 +38,12 @@ bot.load(robot => {
  */
 exports.bot = https.onRequest(async (request: Request, response: Response) => {
   const event = request.get('x-github-event') || request.get('X-GitHub-Event');
-  console.log(`Received event ${event}${request.body.action ? ('.' + request.body.action) : ''}`);
+  const id = request.get('x-github-delivery') || request.get('X-GitHub-Delivery');
   if(event) {
     try {
       await bot.receive({
-        event: event,
+        event,
+        id,
         payload: request.body
       });
       response.send({

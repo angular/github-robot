@@ -13,13 +13,13 @@ export class MergeTask extends Task {
     super(robot, db);
 
     // Pushs to the repository to check for merge conflicts
-    this.robot.on('push', (context: probot.Context) => this.onPush(context));
+    this.dispatch('push', this.onPush.bind(this));
     // PR receives a new label
-    this.robot.on('pull_request.labeled', (context: probot.Context) => this.onLabeled(context));
+    this.dispatch('pull_request.labeled', this.onLabeled.bind(this));
     // PR looses a label
-    this.robot.on('pull_request.unlabeled', (context: probot.Context) => this.onUnlabeled(context));
+    this.dispatch('pull_request.unlabeled', this.onUnlabeled.bind(this));
     // PR updated or received a new status update from another app
-    this.robot.on([
+    this.dispatch([
       'status',
       'pull_request.synchronize',
       'pull_request.review_requested',
@@ -27,17 +27,17 @@ export class MergeTask extends Task {
       'pull_request_review.submitted',
       'pull_request_review.dismissed',
       'pull_request.edited' // editing a PR can change the base branch (not just text content)
-    ], (context: probot.Context) => this.updateStatus(context));
+    ], this.updateStatus.bind(this));
     // PR created or updated
-    this.robot.on([
+    this.dispatch([
       'pull_request.synchronize',
       'pull_request.opened'
-    ], (context: probot.Context) => this.onSynchronize(context));
+    ], this.onSynchronize.bind(this));
     // PR closed or reopened (but content not changed)
-    this.robot.on([
+    this.dispatch([
       'pull_request.closed',
       'pull_request.reopened'
-    ], (context: probot.Context) => this.onUpdate(context));
+    ], this.onUpdate.bind(this));
   }
 
   /**
@@ -62,7 +62,7 @@ export class MergeTask extends Task {
     let updateG3Status = false;
 
     if(newLabel === config.mergeLabel) {
-      this.robot.log(`Checking merge label for the PR ${pr.html_url}`);
+      this.logDebug({context}, `Checking merge label`);
 
       const checks = await this.getChecksStatus(context, pr, config, labels);
 
@@ -285,7 +285,7 @@ export class MergeTask extends Task {
       ...pr,
       synchronized_at: new Date()
     });
-    this.robot.log(`Updated synchronized date for the PR ${pr.id} (${pr.html_url})`);
+    this.logDebug({context}, `Updated synchronized date`);
   }
 
   /**
@@ -297,7 +297,7 @@ export class MergeTask extends Task {
     const {owner, repo} = context.repo();
 
     await this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id, pr);
-    this.robot.log(`Updated the PR ${pr.id} (${pr.html_url})`);
+    this.logDebug({context}, `Updated PR data`);
   }
 
   /**
@@ -329,7 +329,7 @@ export class MergeTask extends Task {
       if(pr.mergeable === false) {
         // get the comments since the last time the PR was synchronized
         if((pr.conflict_comment_at && pr.synchronized_at && pr.conflict_comment_at >= pr.synchronized_at) || (!pr.synchronized_at && pr.conflict_comment_at)) {
-          this.robot.log(`The PR ${pr.html_url} already contains a merge conflict comment since the last synchronized date, skipping it`);
+          this.logDebug({context}, `This PR already contains a merge conflict comment since the last synchronized date, skipping it`);
           return;
         }
 
@@ -343,7 +343,7 @@ export class MergeTask extends Task {
           this.pullRequests.doc(pr.id.toString()).set({conflict_comment_at: new Date()}, {merge: true}).catch(err => {
             throw err;
           });
-          this.robot.log(`Added comment to the PR ${pr.html_url}: conflict with the base branch "${pr.base.ref}"`);
+          this.log({context}, `Added comment: conflict with the base branch "${pr.base.ref}"`);
         }
       }
     });
@@ -363,30 +363,28 @@ export class MergeTask extends Task {
     if(config.status.disabled) {
       return;
     }
-    let sha, url, pr;
+    let sha, pr;
     const {owner, repo} = context.repo();
 
     switch(context.event) {
       case 'pull_request':
       case 'pull_request_review':
         sha = context.payload.pull_request.head.sha;
-        url = context.payload.pull_request.html_url;
         pr = context.payload.pull_request;
         if(!labels) {
           labels = await this.getLabels(context);
         }
-        this.robot.log(`Update status from event ${context.event} (action: ${context.payload.action}) for PR ${url}`);
         break;
       case 'status':
         // ignore status update events that are coming from this bot
         if(context.payload.context === config.status.context) {
-          this.robot.log(`Update status coming from this bot, ignored`);
+          this.logDebug({context}, `Update status coming from this bot, ignored`);
           return;
         }
         // ignore status events for commits coming directly from the default branch (most likely using github edit)
         // because they are not coming from a PR (e.g. travis runs for all commits and triggers a status update)
         if(context.payload.branches.name === context.payload.repository.default_branch) {
-          this.robot.log(`Update status coming directly from the default branch (${context.payload.branches.name}, ignored`);
+          this.logDebug({context}, `Update status coming directly from the default branch (${context.payload.branches.name}), ignored`);
           return;
         }
         sha = context.payload.sha;
@@ -408,14 +406,12 @@ export class MergeTask extends Task {
         // either init has not finished yet and we don't have this PR in the DB, or it's a status update for a commit
         // made directly on a branch without a PR (e.g. travis runs for all commits and triggers a status update)
         if(!pr) {
-          this.robot.log(`Update status for unknown PR, ignored. Head sha == ${sha}, repository == ${context.payload.repository.id}`);
+          this.logWarn({context}, `Update status for unknown PR, ignored. Head sha == ${sha}, repository == ${context.payload.repository.id}`);
           return;
         }
         if(!labels) {
           labels = pr.labels || await getGhLabels(context.github, owner, repo, pr.number);
         }
-        url = pr.html_url;
-        this.robot.log(`Update status from event ${context.event} (context: ${context.payload.context}) for PR ${url}`);
         break;
       default:
         throw new Error(`Unhandled event ${context.event} in updateStatus`);
@@ -439,7 +435,7 @@ export class MergeTask extends Task {
             target_url: config.g3Status.url
           })).data;
           statuses.push(status);
-          this.robot.log(`Updated g3 status to pending for the PR ${url}`);
+          this.log({context}, `Updated g3 status to pending`);
         }
       } else {
         const status = (await context.github.repos.createStatus({
@@ -451,7 +447,7 @@ export class MergeTask extends Task {
           description: config.g3Status.successDesc
         })).data;
         statuses.push(status);
-        this.robot.log(`Updated g3 status to success for the PR ${url}`);
+        this.log({context}, `Updated g3 status to success`);
       }
     }
 
@@ -479,6 +475,7 @@ export class MergeTask extends Task {
 
       // Capitalize first letter
       statusParams.description = statusParams.description.replace(statusParams.description[0], statusParams.description[0].toUpperCase());
+      const desc = statusParams.description;
 
       // TODO(ocombe): add a link to a dynamic page with the complete status & some description of what's required
       if(statusParams.description.length > 140) {
@@ -486,7 +483,7 @@ export class MergeTask extends Task {
       }
 
       await context.github.repos.createStatus(statusParams);
-      this.robot.log(`Updated status to "${statusParams.state}" for the PR ${url}`);
+      this.log({context}, `Updated status to "${statusParams.state}": ${desc}`);
     }
   }
 

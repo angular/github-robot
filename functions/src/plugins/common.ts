@@ -8,10 +8,10 @@ export class CommonTask extends Task {
   constructor(robot: probot.Robot, db: FirebaseFirestore.Firestore) {
     super(robot, db);
     // App installations on a new repository
-    this.robot.on([
+    this.dispatch([
       'installation.created',
       'installation_repositories.added'
-    ], (context: probot.Context) => this.installInit(context));
+    ], this.installInit.bind(this));
   }
 
   /**
