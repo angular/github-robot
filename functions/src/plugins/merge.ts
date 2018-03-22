@@ -412,6 +412,9 @@ export class MergeTask extends Task {
         if(!pr) {
           this.logWarn({context}, `Update status for unknown PR, ignored. Head sha == ${sha}, repository == ${context.payload.repository.id}`);
           return;
+        } else {
+          // make sure that we have updated data
+          pr = await this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id);
         }
         if(!labels) {
           labels = pr.labels || await getGhLabels(context.github, owner, repo, pr.number);
