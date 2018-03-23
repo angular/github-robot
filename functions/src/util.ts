@@ -1,17 +1,19 @@
-import * as probot from "probot-ts";
+import {Context, Robot} from "probot-ts";
 import {CommonTask} from "./plugins/common";
 import {MergeTask} from "./plugins/merge";
 import {TriageTask} from "./plugins/triage";
+import {OctokitWithPagination} from "probot-ts/lib/github";
 
 /**
  * Get all results in case of paginated Github request
  */
-export function getAllResults(github: probot.EnhancedGitHubClient, request): Promise<any[]> {
-  return github.paginate(request, page => page.data);
+export function getAllResults(github: OctokitWithPagination, request): Promise<any[]> {
+  return github.paginate(request, page => page.data) as any as Promise<any[]>;
 }
 
 class Stream {
-  constructor(private store: FirebaseFirestore.Firestore) {}
+  constructor(private store: FirebaseFirestore.Firestore) {
+  }
 
   write(data: any) {
     let log = console.log;
@@ -45,7 +47,7 @@ class Stream {
 
     let event = '';
     let extraData = '';
-    const context: probot.Context = data.context;
+    const context: Context = data.context;
     if(context) {
       event = context.event;
       const payload = data.context.payload;
@@ -107,7 +109,7 @@ export interface Tasks {
   triageTask: TriageTask;
 }
 
-export function registerTasks(robot: probot.Robot, store: FirebaseFirestore.Firestore): Tasks {
+export function registerTasks(robot: Robot, store: FirebaseFirestore.Firestore): Tasks {
   return {
     commonTask: new CommonTask(robot, store),
     mergeTask: new MergeTask(robot, store),

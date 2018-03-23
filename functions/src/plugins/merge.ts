@@ -1,5 +1,5 @@
-import * as Github from "github";
-import * as probot from "probot-ts";
+import * as Github from '@octokit/rest';
+import {Context, Robot} from "probot-ts";
 import {appConfig, MergeConfig} from "../default";
 import {addComment, getGhLabels, getLabelsNames, matchAny, matchAnyFile} from "./common";
 import {Task} from "./task";
@@ -9,7 +9,7 @@ export const CONFIG_FILE = "angular-robot.yml";
 
 // TODO(ocombe): create Typescript interfaces for each payload & DB data
 export class MergeTask extends Task {
-  constructor(robot: probot.Robot, db: FirebaseFirestore.Firestore) {
+  constructor(robot: Robot, db: FirebaseFirestore.Firestore) {
     super(robot, db);
 
     // Pushs to the repository to check for merge conflicts
@@ -44,7 +44,7 @@ export class MergeTask extends Task {
    * Checks whether the label can be added or not, and removes it if necessary. It also updates Firebase.
    * Triggered by event
    */
-  async onLabeled(context: probot.Context): Promise<void> {
+  async onLabeled(context: Context): Promise<void> {
     const newLabel = context.payload.label.name;
     const pr: Github.PullRequest = context.payload.pull_request;
     const config = await this.getConfig(context);
@@ -95,7 +95,7 @@ export class MergeTask extends Task {
    * Checks what label was removed and updates the PR status if necessary. It also updates Firebase.
    * Triggered by event
    */
-  async onUnlabeled(context: probot.Context): Promise<void> {
+  async onUnlabeled(context: Context): Promise<void> {
     const config = await this.getConfig(context);
     const {owner, repo} = context.repo();
     const removedLabel = context.payload.label.name;
@@ -118,7 +118,7 @@ export class MergeTask extends Task {
   /**
    * Gets the list of labels from a PR
    */
-  private async getLabels(context: probot.Context, pr?: any): Promise<Github.Label[]> {
+  private async getLabels(context: Context, pr?: any): Promise<Github.Label[]> {
     const {owner, repo} = context.repo();
     pr = pr || context.payload.pull_request;
     const doc = this.pullRequests.doc(pr.id.toString());
@@ -144,7 +144,7 @@ export class MergeTask extends Task {
   /**
    * Based on the repo config, returns the list of checks that failed for this PR
    */
-  private async getChecksStatus(context: probot.Context, pr: Github.PullRequest, config: MergeConfig, labels: Github.Label[] = [], statuses?: Github.Status[]): Promise<ChecksStatus> {
+  private async getChecksStatus(context: Context, pr: Github.PullRequest, config: MergeConfig, labels: Github.Label[] = [], statuses?: Github.Status[]): Promise<ChecksStatus> {
     const checksStatus: ChecksStatus = {
       pending: [],
       failure: []
@@ -229,7 +229,7 @@ export class MergeTask extends Task {
    * Returns the "non approved" reviews (pending or changes requested)
    * (we only take into account the final review for each user)
    */
-  async getPendingReviews(context: probot.Context, pr: Github.PullRequest): Promise<Github.Review[]> {
+  async getPendingReviews(context: Context, pr: Github.PullRequest): Promise<Github.Review[]> {
     const {owner, repo} = context.repo();
     const reviews: Github.Review[] = (await context.github.pullRequests.getReviews({
       owner,
@@ -278,7 +278,7 @@ export class MergeTask extends Task {
    * Updates the database when the PR is synchronized (new commit or commit force pushed)
    * Triggered by event
    */
-  async onSynchronize(context: probot.Context): Promise<void> {
+  async onSynchronize(context: Context): Promise<void> {
     const pr = context.payload.pull_request;
     const {owner, repo} = context.repo();
 
@@ -293,7 +293,7 @@ export class MergeTask extends Task {
    * Updates Firebase data when the PR is updated
    * Triggered by event
    */
-  async onUpdate(context: probot.Context): Promise<void> {
+  async onUpdate(context: Context): Promise<void> {
     const pr = context.payload.pull_request;
     const {owner, repo} = context.repo();
 
@@ -306,7 +306,7 @@ export class MergeTask extends Task {
    * Triggered by event
    */
   // todo(OCOMBE): change it to use database trigger
-  async onPush(context: probot.Context): Promise<void> {
+  async onPush(context: Context): Promise<void> {
     const config = await this.getConfig(context);
     if(!config.checks.noConflict) {
       return;
@@ -353,7 +353,7 @@ export class MergeTask extends Task {
   /**
    * Updates the status of a PR
    */
-  private async updateStatus(context: probot.Context, updateStatus = true, updateG3Status = false, labels?: Github.Label[]): Promise<void> {
+  private async updateStatus(context: Context, updateStatus = true, updateG3Status = false, labels?: Github.Label[]): Promise<void> {
     if(context.payload.action === "synchronize") {
       updateG3Status = true;
     }
@@ -498,7 +498,7 @@ export class MergeTask extends Task {
    * Get all external statuses except for the one added by this bot
    */
   // TODO(ocombe): use Firebase instead
-  private async getStatuses(context: probot.Context, ref: string): Promise<Github.Status[]> {
+  private async getStatuses(context: Context, ref: string): Promise<Github.Status[]> {
     const {owner, repo} = context.repo();
     const config = await this.getConfig(context);
 
@@ -514,7 +514,7 @@ export class MergeTask extends Task {
   /**
    * Gets the config for the merge plugin from Github or uses default if necessary
    */
-  async getConfig(context: probot.Context): Promise<MergeConfig> {
+  async getConfig(context: Context): Promise<MergeConfig> {
     let repositoryConfig = await context.config(CONFIG_FILE);
     if(!repositoryConfig || !repositoryConfig.merge) {
       repositoryConfig = {merge: {}};

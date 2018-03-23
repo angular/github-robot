@@ -1,12 +1,12 @@
 import {config, firestore as database, https} from 'firebase-functions';
 import {Request, Response} from "express";
-import * as probot from "probot-ts";
+import {createProbot, Options} from "probot-ts";
 import {consoleStream, registerTasks, Tasks} from "./util";
 import {credential, firestore, initializeApp} from "firebase-admin";
+import {Probot} from "./typings";
 
-let bot;
 let tasks: Tasks;
-let probotConfig = config().probot;
+let probotConfig: Options = config().probot;
 
 // Check if we are in Firebase or in development
 if(probotConfig) {
@@ -23,7 +23,7 @@ if(probotConfig) {
 
 const store: FirebaseFirestore.Firestore = firestore();
 // Create the bot using Firebase's probot config (see Readme.md)
-bot = probot(probotConfig);
+const bot: Probot = createProbot(probotConfig);
 // disable probot logging
 bot.logger.streams.splice(0, 1);
 // Use node console as the output stream
@@ -44,7 +44,10 @@ exports.bot = https.onRequest(async (request: Request, response: Response) => {
       await bot.receive({
         event,
         id,
-        payload: request.body
+        payload: request.body,
+        protocol: 'https',
+        host: request.hostname,
+        url: request.url
       });
       response.send({
         statusCode: 200,

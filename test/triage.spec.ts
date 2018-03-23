@@ -1,15 +1,13 @@
-import * as probot from "probot-ts";
-import * as Context from "probot-ts/lib/context";
-import * as EnhancedGitHubClient from "probot-ts/lib/github";
-import * as logger from "probot-ts/lib/logger";
+import {Context, createRobot, Robot} from "probot-ts";
+import {EnhancedGitHubClient, OctokitWithPagination} from "probot-ts/lib/github";
 import {TriageTask} from "../functions/src/plugins/triage";
 import {appConfig} from "../functions/src/default";
 import {MockFirestore} from './mocks/firestore';
 import {mockGithub} from "./mocks/github";
 
 describe('triage', () => {
-  let robot: probot;
-  let github: probot.github;
+  let robot: Robot;
+  let github: OctokitWithPagination;
   let triageTask: TriageTask;
   let store: FirebaseFirestore.Firestore;
 
@@ -19,13 +17,14 @@ describe('triage', () => {
     // create the mock Firebase Firestore
     store = new MockFirestore();
 
-    // Mock out the GitHub API
-    github = new EnhancedGitHubClient({
-      logger: logger
-    });
-
     // Create a new Robot to run our plugin
-    robot = probot.createRobot();
+    robot = createRobot();
+
+    // Mock out the GitHub API
+    github = EnhancedGitHubClient({
+      debug: true,
+      logger: robot.log
+    });
 
     // Mock out GitHub App authentication and return our mock client
     robot.auth = () => Promise.resolve(github);

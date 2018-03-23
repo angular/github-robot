@@ -2,7 +2,7 @@
   {
     "scope": "https://api.github.com:443",
     "method": "get",
-    "path": "/repos/ocombe/test/contents/.github%2Fangular-robot.yml",
+    "path": "/repos/ocombe/test/contents/.github/angular-robot.yml",
     "body": "",
     "status": 200,
     "response": {

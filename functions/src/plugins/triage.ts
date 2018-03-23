@@ -1,13 +1,13 @@
-import * as probot from "probot-ts";
+import {Context, Robot} from "probot-ts";
+import {OctokitWithPagination} from "probot-ts/lib/github";
 import {Task} from "./task";
 import {CONFIG_FILE} from "./merge";
 import {AdminConfig, appConfig, TriageConfig} from "../default";
 import {getGhLabels, getLabelsNames, matchAllOfAny} from "./common";
-import * as Context from "probot-ts/lib/context";
-import * as Github from "github";
+import * as Github from '@octokit/rest';
 
 export class TriageTask extends Task {
-  constructor(robot: probot.Robot, db: FirebaseFirestore.Firestore) {
+  constructor(robot: Robot, db: FirebaseFirestore.Firestore) {
     super(robot, db);
 
     // TODO(ocombe): add a debounce for labeled events per issue
@@ -25,10 +25,10 @@ export class TriageTask extends Task {
       const github = await this.robot.auth();
       const installations = await github.paginate(github.apps.getInstallations({}), pages => pages.data);
       await Promise.all(installations.map(async installation => {
-        const authGithub: probot.EnhancedGitHubClient = await this.robot.auth(installation.id);
+        const authGithub: OctokitWithPagination = await this.robot.auth(installation.id);
         const repositories = await authGithub.apps.getInstallationRepositories({});
         await Promise.all(repositories.data.repositories.map(async (repository: Github.Repository) => {
-          const context: probot.Context = new Context({payload: {repository}}, authGithub);
+          const context: Context = new Context({payload: {repository}}, authGithub);
           const config = await this.getConfig(context);
           const {owner, repo} = context.repo();
           const issues = await authGithub.paginate(authGithub.issues.getForRepo({
@@ -36,7 +36,7 @@ export class TriageTask extends Task {
             repo,
             state: 'open',
             per_page: 100
-          }), page => page.data);
+          }), page => page.data) as any as any[];
 
           issues.forEach(async (issue: Github.Issue) => {
             // PRs are issues for github, but we don't want them here
@@ -61,7 +61,7 @@ export class TriageTask extends Task {
     }
   }
 
-  async checkTriage(context: probot.Context): Promise<any> {
+  async checkTriage(context: Context): Promise<any> {
     const issue = context.payload.issue;
     const config = await this.getConfig(context);
     if(!issue.milestone || issue.milestone.number === config.defaultMilestone || issue.milestone.number === config.needsTriageMilestone) {
@@ -82,7 +82,7 @@ export class TriageTask extends Task {
     }
   }
 
-  setMilestone(milestoneNumber: number|null, github: probot.EnhancedGitHubClient, owner: string, repo: string, issue: Github.Issue): Promise<any> {
+  setMilestone(milestoneNumber: number | null, github: OctokitWithPagination, owner: string, repo: string, issue: Github.Issue): Promise<any> {
     if(milestoneNumber) {
       this.log(`Adding milestone ${milestoneNumber} to issue ${issue.html_url}`);
     } else {
@@ -100,7 +100,7 @@ export class TriageTask extends Task {
   /**
    * Gets the config for the merge plugin from Github or uses default if necessary
    */
-  async getConfig(context: probot.Context): Promise<TriageConfig> {
+  async getConfig(context: Context): Promise<TriageConfig> {
     let repositoryConfig = await context.config(CONFIG_FILE);
     if(!repositoryConfig || !repositoryConfig.triage) {
       repositoryConfig = {triage: {}};
