@@ -84,7 +84,7 @@
     "triple-equals": true,
 
     // Warn when using deprecated APIs.
-    "deprecation": true,
+    "deprecation": false,
 
     // -- Light Warnigns --
     // These rules are intended to help developers use better style. Simpler code has fewer bugs. These would be "info"

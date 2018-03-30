@@ -28,9 +28,7 @@ merge:
     # list of patterns to check for the files changed by the PR
     # this list must be manually kept in sync with google3/third_party/javascript/angular2/copy.bara.sky
     include:
-      - "BUILD.bazel"
       - "LICENSE"
-      - "WORKSPACE"
       - "modules/**"
       - "packages/**"
     # list of patterns to ignore for the files changed by the PR
@@ -38,9 +36,13 @@ merge:
       - "packages/language-service/**"
       - "**/.gitignore"
       - "**/.gitkeep"
+      - "**/tsconfig-build.json"
+      - "**/tsconfig.json"
+      - "**/rollup.config.js"
+      - "**/BUILD.bazel"
+      - "packages/**/test/**"
 
   # comment that will be added to a PR when there is a conflict, leave empty or set to false to disable
-  # {{PRAuthor}} will be replaced by the value of the PR author name
   mergeConflictComment: "Hi @{{PRAuthor}}! This PR has merge conflicts due to recent upstream merges.
 \nPlease help to unblock it by resolving these conflicts. Thanks!"
 
@@ -59,6 +61,9 @@ merge:
     # list of labels that a PR shouldn't have, checked after the required labels with a regexp
     forbiddenLabels:
       - "PR target: TBD"
+      - "PR action: cleanup"
+      - "PR action: review"
+      - "PR state: blocked"
       - "cla: no"
 
     # list of PR statuses that need to be successful
@@ -84,8 +89,12 @@ triage:
   needsTriageMilestone: 83,
   # number of the milestone to apply when the issue is triaged
   defaultMilestone: 82,
-  # arrays of labels that determine if an issue is triaged
-  triagedLabels:
+  # arrays of labels that determine if an issue has been triaged by the caretaker
+  l1TriageLabels:
+    -
+      - "comp: *"
+  # arrays of labels that determine if an issue has been fully triaged
+  l2TriageLabels:
     -
       - "type: bug/fix"
       - "severity*"

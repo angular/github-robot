@@ -22,9 +22,7 @@ export const appConfig: AppConfig = {
       successDesc: "Does not affect google3",
       url: "http://go/angular-g3sync",
       include: [
-        "BUILD.bazel",
         "LICENSE",
-        "WORKSPACE",
         "modules/**",
         "packages/**",
       ],
@@ -32,6 +30,11 @@ export const appConfig: AppConfig = {
         "packages/language-service/**",
         "**/.gitignore",
         "**/.gitkeep",
+        "**/tsconfig-build.json",
+        "**/tsconfig.json",
+        "**/rollup.config.js",
+        "**/BUILD.bazel",
+        "packages/**/test/**",
       ]
     },
 
@@ -50,7 +53,7 @@ Please help to unblock it by resolving these conflicts. Thanks!`,
       // list of labels that a PR needs to have, checked with a regexp (e.g. "PR target:" will work for the label "PR target: master")
       requiredLabels: ["PR target: *", "cla: yes"],
       // list of labels that a PR shouldn't have, checked after the required labels with a regexp
-      forbiddenLabels: ["PR target: TBD", "cla: no"],
+      forbiddenLabels: ["PR target: TBD", "PR action: cleanup", "PR action: review", "PR state: blocked", "cla: no"],
       // list of PR statuses that need to be successful
       requiredStatuses: ["continuous-integration/travis-ci/pr", "code-review/pullapprove", "ci/circleci: build", "ci/circleci: lint"],
     },
@@ -71,8 +74,10 @@ If you can't get the PR to a green state due to flakes or broken master, please 
     needsTriageMilestone: 83,
     // number of the milestone to apply when the issue is triaged
     defaultMilestone: 82,
-    // arrays of labels that determine if an issue is triaged
-    triagedLabels: [["type: bug/fix", "severity*", "freq*", "comp: *"], ["type: feature", "comp: *"], ["type: refactor", "comp: *"], ["type: RFC / Discussion / question", "comp: *"]]
+    // arrays of labels that determine if an issue has been triaged by the caretaker
+    l1TriageLabels: [["comp: *"]],
+    // arrays of labels that determine if an issue has been fully triaged
+    l2TriageLabels: [["type: bug/fix", "severity*", "freq*", "comp: *"], ["type: feature", "comp: *"], ["type: refactor", "comp: *"], ["type: RFC / Discussion / question", "comp: *"]]
   }
 };
 
@@ -111,7 +116,10 @@ export interface MergeConfig {
 export interface TriageConfig {
   needsTriageMilestone: number;
   defaultMilestone: number;
-  triagedLabels: string[][];
+  l1TriageLabels: string[][];
+  l2TriageLabels: string[][];
+  /** @deprecated use l2TriageLabels instead */
+  triagedLabels?: string[][];
 }
 
 export interface AdminConfig {
