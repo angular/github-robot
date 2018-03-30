@@ -3,7 +3,7 @@ import {EnhancedGitHubClient, OctokitWithPagination} from "probot-ts/lib/github"
 import {MergeTask} from "../functions/src/plugins/merge";
 import {appConfig} from "../functions/src/default";
 import {MockFirestore} from './mocks/firestore';
-import {mockGithub} from "./mocks/github";
+import {mockGithub, mockGraphQL} from "./mocks/github";
 import {CommonTask} from "../functions/src/plugins/common";
 
 describe('merge', () => {
@@ -19,7 +19,6 @@ describe('merge', () => {
     mockGithub('get-installation-repositories');
     mockGithub('repo-pull-requests');
     mockGithub('repo-pull-request');
-    mockGithub('pr-reviews');
 
     // create the mock Firebase Firestore
     store = new MockFirestore();
@@ -87,11 +86,50 @@ describe('merge', () => {
 
   describe('reviews', () => {
     it('should be able to get the accurate number of pending reviews', async () => {
+      mockGraphQL({
+        "repository": {
+          "pullRequest": {
+            "number": 19,
+            "state": "OPEN",
+            "reviews": {
+              "nodes": [
+                {
+                  "authorAssociation": "COLLABORATOR",
+                  "author": {
+                    "userId": "MDQ6VXNlcjM3MTc1ODEz"
+                  },
+                  "state": "APPROVED",
+                  "createdAt": "2018-03-20T16:12:02Z"
+                },
+                {
+                  "authorAssociation": "COLLABORATOR",
+                  "author": {
+                    "userId": "MDQ6VXNlcjM3MTc1ODEz"
+                  },
+                  "state": "APPROVED",
+                  "createdAt": "2018-03-26T12:42:49Z"
+                },
+                {
+                  "authorAssociation": "COLLABORATOR",
+                  "author": {
+                    "userId": "MDQ6VXNlcjM3MTc1ODEz"
+                  },
+                  "state": "APPROVED",
+                  "createdAt": "2018-03-26T14:02:37Z"
+                }
+              ]
+            },
+            "reviewRequests": {
+              "nodes": []
+            }
+          }
+        }
+      });
       // const event = require('./fixtures/pr-comments.json');
       const event = require('./fixtures/pull_request_review.submitted.json');
       const context = new Context(event, github);
       const pendingReviews = await mergeTask.getPendingReviews(context, context.payload.pull_request);
-      expect(pendingReviews.length).toEqual(0);
+      expect(pendingReviews).toEqual(0);
     });
   });
 });

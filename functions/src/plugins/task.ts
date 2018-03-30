@@ -53,4 +53,34 @@ export class Task {
   logDebug(...content: any[]) {
     this.robot.log.debug(...content);
   }
+
+  /**
+   * Returns the GraphQL node_id for a resource
+   * @param resource the resource for which you want to get the node_id (eg: issue, or pull_request)
+   * @returns {Promise<any>}
+   */
+  async node(context: Context, resource: any) {
+    // GraphQL query to get Node id for any resource, which is needed for mutations
+    const getResource = `
+    query getResource($url: URI!) {
+      resource(url: $url) {
+        ... on Node {
+          id
+        }
+      }
+    }
+  `;
+
+    return context.github.query(getResource, {url: resource.html_url});
+  }
+
+  async queryPR<T>(context: Context, query: string, params: { [key: string]: any, owner: string, repo: string, number: number }): Promise<T> {
+    return (await context.github.query(`query($owner: String!, $repo: String!, $number: Int!) {
+      repository(owner: $owner, name: $repo) {
+        pullRequest(number: $number) {
+          ${query}
+        }
+      }
+    }`, params)).repository.pullRequest;
+  }
 }

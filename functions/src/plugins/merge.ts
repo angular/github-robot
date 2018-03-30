@@ -217,7 +217,7 @@ export class MergeTask extends Task {
 
     // check if there is any review pending or that requested changes
     // pr.requested_reviewers == users that have been requested but haven't reviewed yet
-    const nbPendingReviews = pr.requested_reviewers.length + (await this.getPendingReviews(context, pr)).length;
+    const nbPendingReviews = await this.getPendingReviews(context, pr);
     if(nbPendingReviews > 0) {
       checksStatus.pending.push(`${nbPendingReviews} pending code review${nbPendingReviews > 1 ? 's' : ''}`);
     }
@@ -226,52 +226,71 @@ export class MergeTask extends Task {
   }
 
   /**
-   * Returns the "non approved" reviews (pending or changes requested)
+   * Returns the number of "non approved" reviews (requested, pending or changes requested)
    * (we only take into account the final review for each user)
    */
-  async getPendingReviews(context: Context, pr: Github.PullRequest): Promise<Github.Review[]> {
+  async getPendingReviews(context: Context, pr: Github.PullRequest): Promise<number> {
     const {owner, repo} = context.repo();
-    const reviews: Github.Review[] = (await context.github.pullRequests.getReviews({
+    // we only want reviews with state: PENDING, APPROVED, CHANGES_REQUESTED, DISMISSED
+    // we ignore comments because they can be done after a review was approved / refused
+    // also anyone can add comments, it doesn't mean that it's someone who is actually reviewing the PR
+    const query = `
+      reviews(last: 50, states: [PENDING, APPROVED, CHANGES_REQUESTED, DISMISSED]) {
+        nodes {
+          authorAssociation
+          author {
+            ... on User {
+              userId: id
+            }
+          }
+          state
+          createdAt
+        }
+      }
+      reviewRequests(last: 10) {
+        nodes {
+          requestedReviewer {
+            ... on User {
+              userId: id
+            }
+            ... on Team {
+              teamId: id
+            }
+          }
+        }
+      }
+    `;
+
+    const prData = await this.queryPR<ReviewQuery>(context, query, {
       owner,
       repo,
       number: pr.number
-    })).data;
+    });
 
-    const usersReviews: { [key: string]: Github.Review[] } = {};
-    // the list of requested reviewers only contains people that have been requested for review but has not
+    const reviews = prData.reviews.nodes
+      // order by latest review first
+      .sort((review1, review2) => new Date(review2.createdAt).getTime() - new Date(review1.createdAt).getTime());
+
+    // the list of requested reviewers only contains people that have been requested for review but have not
     // given the review yet. Once he does, he disappears from this list, and we need to check the reviews
-    const requestedReviewUsers = pr.requested_reviewers.map(user => user.id);
-
-    // ignore comments because they can be done after a review was approved / refused
-    // also anyone can add comments, it doesn't mean that it's someone who is actually reviewing the PR
-    reviews.filter(review => review.state !== REVIEW_STATE.Commented)
-      .forEach(review => {
-        const reviewUser = review.user.id;
-        // you can ask someone to give another review, if the code has changed since they reviewed it
-        // meaning that we need to ignore old reviews by people listed as requested reviewers
-        if(!requestedReviewUsers.includes(reviewUser)) {
-          if(!usersReviews[reviewUser]) {
-            usersReviews[reviewUser] = [];
-          }
-          usersReviews[reviewUser].push(review);
-        }
-      });
+    const reviewRequests = prData.reviewRequests.nodes.length;
+    const usersReviews = [];
+    // for each user that reviewed this PR, we get the latest review
+    const finalReviews = [];
 
     // for each user that reviewed this PR, we get the latest review
-    const finalReviews: Github.Review[] = [];
-    Object.keys(usersReviews).forEach(user => {
-      finalReviews.push(usersReviews[user].reduce((res: Github.Review, currentValue: Github.Review) => {
-        if(!res || new Date(currentValue.submitted_at) >= new Date(res.submitted_at)) {
-          return currentValue;
-        }
-        return res;
-      }));
+    reviews.forEach(review => {
+      const reviewUser = review.author.userId;
+      if(!usersReviews.includes(reviewUser)) {
+        usersReviews.push(reviewUser);
+        finalReviews.push(review);
+      }
     });
 
     // we only keep the reviews that are pending / requested changes
     const nonApprovedReviews = finalReviews.filter(review => review.state === REVIEW_STATE.Pending || review.state === REVIEW_STATE.ChangesRequest);
 
-    return nonApprovedReviews;
+    return reviewRequests + nonApprovedReviews.length;
   }
 
   /**
@@ -526,4 +545,29 @@ export class MergeTask extends Task {
 interface ChecksStatus {
   pending: string[];
   failure: string[];
+}
+
+interface ReviewQuery {
+  reviews: {
+    nodes: {
+      authorAssociation: string;
+      author: {
+        userId: string;
+      }
+      state: REVIEW_STATE
+      createdAt: string;
+    }[];
+  };
+
+  reviewRequests: {
+    nodes: {
+      requestedReviewer: {
+        userId: string;
+        teamId?: undefined;
+      } | {
+        userId?: undefined;
+        teamId: string;
+      }
+    }[];
+  };
 }

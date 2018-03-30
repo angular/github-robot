@@ -1,4 +1,5 @@
 import {define, emitter, loadDefs, NockDefinition} from 'nock';
+const nock = require('nock');
 
 function get(name: string): NockDefinition[] {
   return loadDefs(`${__dirname}/scenarii/api.github.com/${name}.json`);
@@ -16,6 +17,14 @@ export function mockGithub(name: string) {
     delete fixture.headers;
   });
   define(fixtures);
+}
+
+export function mockGraphQL(response: {[key: string]: any}) {
+  nock('https://api.github.com:443', {"encodedQueryParams": true})
+    .post('/graphql')
+    .reply(200, {
+      "data": response
+    });
 }
 
 emitter.on('no match', function(req, options, body) {
