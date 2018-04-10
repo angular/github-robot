@@ -48,16 +48,16 @@ describe('triage', () => {
       const context = new Context(event, github);
       const config = await triageTask.getConfig(context);
 
-      let isTriaged = triageTask.isTriaged(config.triagedLabels, ['comp: aio']);
+      let isTriaged = triageTask.isTriaged(config.l2TriageLabels, ['comp: aio']);
       expect(isTriaged).toBeFalsy();
 
-      isTriaged = triageTask.isTriaged(config.triagedLabels, ['comp: aio', 'type: feature']);
+      isTriaged = triageTask.isTriaged(config.l2TriageLabels, ['comp: aio', 'type: feature']);
       expect(isTriaged).toBeTruthy();
 
-      isTriaged = triageTask.isTriaged(config.triagedLabels, ['comp: common', 'type: bug']);
+      isTriaged = triageTask.isTriaged(config.l2TriageLabels, ['comp: common', 'type: bug']);
       expect(isTriaged).toBeFalsy();
 
-      isTriaged = triageTask.isTriaged(config.triagedLabels, ['comp: common/http', 'type: bug/fix', 'freq1: low', 'severity3: broken']);
+      isTriaged = triageTask.isTriaged(config.l2TriageLabels, ['comp: common/http', 'type: bug/fix', 'freq1: low', 'severity3: broken']);
       expect(isTriaged).toBeTruthy();
     });
   });

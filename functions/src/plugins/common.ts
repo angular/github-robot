@@ -4,6 +4,7 @@ import * as minimatch from "minimatch";
 import {AdminConfig} from "../default";
 import {Task} from "./task";
 import {OctokitWithPagination} from "probot-ts/lib/github";
+import * as firebase from "firebase";
 
 export class CommonTask extends Task {
   constructor(robot: Robot, db: FirebaseFirestore.Firestore) {
@@ -48,7 +49,8 @@ export class CommonTask extends Task {
    * Init a single repository
    * Triggered by Firebase when there is an insertion into the Firebase collection "repositories"
    */
-  async triggeredInit(repository: Repository & { installationId: number }): Promise<void> {
+  async triggeredInit(data: firebase.firestore.DocumentData): Promise<void> {
+    const repository = data as Repository & { installationId: number };
     const authGithub = await this.robot.auth(repository.installationId);
     return this.init(authGithub, [repository]);
   }

@@ -4,6 +4,10 @@ class WriteResult implements FirebaseFirestore.WriteResult {
   constructor() {
     this.writeTime = new Date().toISOString();
   }
+
+  isEqual(other: FirebaseFirestore.WriteResult): boolean {
+    throw new Error("Method not implemented.");
+  }
 }
 
 class DocumentSnapshot implements FirebaseFirestore.DocumentSnapshot {
@@ -27,6 +31,10 @@ class DocumentSnapshot implements FirebaseFirestore.DocumentSnapshot {
   }
 
   get(fieldPath: string | FirebaseFirestore.FieldPath) {
+    throw new Error("Method not implemented.");
+  }
+
+  isEqual(other: FirebaseFirestore.DocumentSnapshot): boolean {
     throw new Error("Method not implemented.");
   }
 }
@@ -72,7 +80,36 @@ class DocumentReference implements FirebaseFirestore.DocumentReference {
     return Promise.resolve(new DocumentSnapshot(this._data));
   }
 
-  onSnapshot(onNext: (snapshot: FirebaseFirestore.DocumentSnapshot) => void, onError?: (error: Error) => void): () => void {
+  onSnapshot(onNext: (snapshot: DocumentSnapshot) => void, onError?: (error: Error) => void): () => void {
+    throw new Error("Method not implemented.");
+  }
+
+  isEqual(other: DocumentReference): boolean {
+    throw new Error("Method not implemented.");
+  }
+}
+
+class QueryDocumentSnapshot implements FirebaseFirestore.QueryDocumentSnapshot {
+  createTime: string;
+  updateTime: string;
+
+  constructor(private doc: FirebaseFirestore.DocumentSnapshot) {
+  }
+
+  data(): FirebaseFirestore.DocumentData {
+    return this.doc.data();
+  }
+
+  exists: boolean;
+  ref: FirebaseFirestore.DocumentReference;
+  id: string;
+  readTime: string;
+
+  get(fieldPath: string | FirebaseFirestore.FieldPath) {
+    return this.data();
+  }
+
+  isEqual(other: FirebaseFirestore.DocumentSnapshot): boolean {
     throw new Error("Method not implemented.");
   }
 }
@@ -80,18 +117,22 @@ class DocumentReference implements FirebaseFirestore.DocumentReference {
 class QuerySnapshot implements FirebaseFirestore.QuerySnapshot {
   query: FirebaseFirestore.Query;
   docChanges: FirebaseFirestore.DocumentChange[];
-  docs: FirebaseFirestore.DocumentSnapshot[];
+  docs: QueryDocumentSnapshot[];
   size: number;
   empty: boolean;
   readTime: string;
 
-  constructor(query: Query, docs: FirebaseFirestore.DocumentSnapshot[]) {
+  constructor(query: Query, docs: QueryDocumentSnapshot[]) {
     this.query = query;
     this.docs = docs;
   }
 
-  forEach(callback: (result: FirebaseFirestore.DocumentSnapshot) => void, thisArg?: any): void {
+  forEach(callback: (result: QueryDocumentSnapshot) => void, thisArg?: any): void {
     this.docs.forEach(callback);
+  }
+
+  isEqual(other: FirebaseFirestore.QuerySnapshot): boolean {
+    throw new Error("Method not implemented.");
   }
 }
 
@@ -149,6 +190,10 @@ class Query implements FirebaseFirestore.Query {
   }
 
   onSnapshot(onNext: (snapshot: FirebaseFirestore.QuerySnapshot) => void, onError?: (error: Error) => void): () => void {
+    throw new Error("Method not implemented.");
+  }
+
+  isEqual(other: FirebaseFirestore.Query): boolean {
     throw new Error("Method not implemented.");
   }
 }
@@ -216,11 +261,14 @@ class Collection implements FirebaseFirestore.CollectionReference {
   }
 
   async get(): Promise<FirebaseFirestore.QuerySnapshot> {
-    const docs = await Promise.all(
+    const snapshots: QueryDocumentSnapshot[] = await Promise.all(
       Array.from(this._documents.values())
-        .map(async (doc: FirebaseFirestore.DocumentReference) => await doc.get())
+        .map(async (doc: FirebaseFirestore.DocumentReference) => {
+          return new QueryDocumentSnapshot(await doc.get());
+        })
     );
-    return Promise.resolve(new QuerySnapshot(new Query(this.firestore, this), docs));
+
+    return Promise.resolve(new QuerySnapshot(new Query(this.firestore, this), snapshots));
   }
 
   stream(): NodeJS.ReadableStream {
@@ -228,6 +276,10 @@ class Collection implements FirebaseFirestore.CollectionReference {
   }
 
   onSnapshot(onNext: (snapshot: FirebaseFirestore.QuerySnapshot) => void, onError?: (error: Error) => void): () => void {
+    throw new Error("Method not implemented.");
+  }
+
+  isEqual(other: FirebaseFirestore.CollectionReference): boolean {
     throw new Error("Method not implemented.");
   }
 }

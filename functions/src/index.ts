@@ -1,17 +1,19 @@
-import {config, firestore as database, https} from 'firebase-functions';
+import {firestore as database, https} from 'firebase-functions';
 import {Request, Response} from "express";
 import {createProbot, Options} from "probot-ts";
 import {consoleStream, registerTasks, Tasks} from "./util";
 import {credential, firestore, initializeApp} from "firebase-admin";
 import {Probot} from "./typings";
+import {DocumentSnapshot} from "firebase-functions/lib/providers/firestore";
+import {EventContext} from "firebase-functions/lib/cloud-functions";
 
 let tasks: Tasks;
-let probotConfig: Options = config().probot;
-
+const firebaseConfig = JSON.parse(process.env.FIREBASE_CONFIG);
+let probotConfig: Options = firebaseConfig.probot;
 // Check if we are in Firebase or in development
 if(probotConfig) {
   // Init Firebase
-  initializeApp(config().firebase);
+  initializeApp();
 } else {
   // Use dev config
   probotConfig = require('../private/env.json');
@@ -108,8 +110,8 @@ exports.initIssues = https.onRequest(async (request: Request, response: Response
 /**
  * Init the PRs of a repository, triggered by an insertion in the "repositories" table
  */
-exports.initRepoPRs = database.document('repositories/{id}').onCreate(event => {
-  const data = event.data.data();
+exports.initRepoPRs = database.document('repositories/{id}').onCreate((snapshot: DocumentSnapshot, context: EventContext) => {
+  const data = snapshot.data();
   return tasks.commonTask.triggeredInit(data).catch(err => {
     console.error(err);
   });
