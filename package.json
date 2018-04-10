@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "minimatch": "^3.0.4",
-    "probot-ts": "^6.1.0-ts"
+    "probot": "7.0.0-typescript.2"
   },
   "devDependencies": {
     "@types/core-js": "0.9.46",

@@ -1,10 +1,10 @@
-import {Context, Robot} from "probot-ts";
-import {OctokitWithPagination} from "probot-ts/lib/github";
+import {Context, Robot} from "probot";
 import {Task} from "./task";
 import {CONFIG_FILE} from "./merge";
-import {AdminConfig, appConfig, TriageConfig} from "../default";
+import {AdminConfig, AppConfig, appConfig, TriageConfig} from "../default";
 import {getGhLabels, getLabelsNames, matchAllOfAny} from "./common";
 import * as Github from '@octokit/rest';
+import {GitHubApi} from "../typings";
 
 export class TriageTask extends Task {
   constructor(robot: Robot, db: FirebaseFirestore.Firestore) {
@@ -25,10 +25,10 @@ export class TriageTask extends Task {
       const github = await this.robot.auth();
       const installations = await github.paginate(github.apps.getInstallations({}), pages => pages.data);
       await Promise.all(installations.map(async installation => {
-        const authGithub: OctokitWithPagination = await this.robot.auth(installation.id);
+        const authGithub = await this.robot.auth(installation.id) as GitHubApi;
         const repositories = await authGithub.apps.getInstallationRepositories({});
         await Promise.all(repositories.data.repositories.map(async (repository: Github.Repository) => {
-          const context: Context = new Context({payload: {repository}}, authGithub);
+          const context = new Context({payload: {repository}}, authGithub, this.robot.log);
           const config = await this.getConfig(context);
           const {owner, repo} = context.repo();
           const issues = await authGithub.paginate(authGithub.issues.getForRepo({
@@ -69,7 +69,7 @@ export class TriageTask extends Task {
   }
 
   async checkTriage(context: Context): Promise<any> {
-    const issue = context.payload.issue;
+    const issue: any = context.payload.issue;
     const config = await this.getConfig(context);
     const {owner, repo} = context.repo();
     // getting labels from Github because we might be adding multiple labels at once
@@ -94,7 +94,7 @@ export class TriageTask extends Task {
     }
   }
 
-  setMilestone(milestoneNumber: number | null, github: OctokitWithPagination, owner: string, repo: string, issue: Github.Issue): Promise<any> {
+  setMilestone(milestoneNumber: number | null, github: Github, owner: string, repo: string, issue: Github.Issue): Promise<any> {
     if(milestoneNumber) {
       this.log(`Adding milestone ${milestoneNumber} to issue ${issue.html_url}`);
     } else {
@@ -113,13 +113,10 @@ export class TriageTask extends Task {
    * Gets the config for the merge plugin from Github or uses default if necessary
    */
   async getConfig(context: Context): Promise<TriageConfig> {
-    let repositoryConfig = await context.config(CONFIG_FILE);
-    if(!repositoryConfig || !repositoryConfig.triage) {
-      repositoryConfig = {triage: {}};
-    }
-    const config = {...appConfig.triage, ...repositoryConfig.triage};
-    config.defaultMilestone = parseInt(config.defaultMilestone, 10);
-    config.needsTriageMilestone = parseInt(config.needsTriageMilestone, 10);
+    const repositoryConfig = await context.config<AppConfig>(CONFIG_FILE, appConfig);
+    const config = repositoryConfig.triage;
+    config.defaultMilestone = parseInt(<any>config.defaultMilestone, 10);
+    config.needsTriageMilestone = parseInt(<any>config.needsTriageMilestone, 10);
     return config;
   }
 }

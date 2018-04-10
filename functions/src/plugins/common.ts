@@ -1,9 +1,9 @@
-import {Context, Robot} from "probot-ts";
+import {Context, Robot} from "probot";
 import * as Github from '@octokit/rest';
 import * as minimatch from "minimatch";
 import {AdminConfig} from "../default";
 import {Task} from "./task";
-import {OctokitWithPagination} from "probot-ts/lib/github";
+import {OctokitWithPagination} from "probot/lib/github";
 import * as firebase from "firebase";
 
 export class CommonTask extends Task {
@@ -51,7 +51,7 @@ export class CommonTask extends Task {
    */
   async triggeredInit(data: firebase.firestore.DocumentData): Promise<void> {
     const repository = data as Repository & { installationId: number };
-    const authGithub = await this.robot.auth(repository.installationId);
+    const authGithub = await this.robot.auth(repository.installationId.toString());
     return this.init(authGithub, [repository]);
   }
 

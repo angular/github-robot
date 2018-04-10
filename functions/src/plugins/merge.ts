@@ -1,6 +1,6 @@
 import * as Github from '@octokit/rest';
-import {Context, Robot} from "probot-ts";
-import {appConfig, MergeConfig} from "../default";
+import {Context, Robot} from "probot";
+import {AppConfig, appConfig, MergeConfig} from "../default";
 import {addComment, getGhLabels, getLabelsNames, matchAny, matchAnyFile} from "./common";
 import {Task} from "./task";
 import {REVIEW_STATE, STATUS_STATE} from "../typings";
@@ -46,7 +46,7 @@ export class MergeTask extends Task {
    */
   async onLabeled(context: Context): Promise<void> {
     const newLabel = context.payload.label.name;
-    const pr: Github.PullRequest = context.payload.pull_request;
+    const pr = context.payload.pull_request;
     const config = await this.getConfig(context);
     const {owner, repo} = context.repo();
     // we need the list of labels from Github because we might be adding multiple labels at once
@@ -534,11 +534,8 @@ export class MergeTask extends Task {
    * Gets the config for the merge plugin from Github or uses default if necessary
    */
   async getConfig(context: Context): Promise<MergeConfig> {
-    let repositoryConfig = await context.config(CONFIG_FILE);
-    if(!repositoryConfig || !repositoryConfig.merge) {
-      repositoryConfig = {merge: {}};
-    }
-    return {...appConfig.merge, ...repositoryConfig.merge};
+    const repositoryConfig = await context.config<AppConfig>(CONFIG_FILE, appConfig);
+    return repositoryConfig.merge;
   }
 }
 

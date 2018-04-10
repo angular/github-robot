@@ -1,9 +1,8 @@
 import {firestore as database, https} from 'firebase-functions';
 import {Request, Response} from "express";
-import {createProbot, Options} from "probot-ts";
+import {createProbot, Options} from "probot";
 import {consoleStream, registerTasks, Tasks} from "./util";
 import {credential, firestore, initializeApp} from "firebase-admin";
-import {Probot} from "./typings";
 import {DocumentSnapshot} from "firebase-functions/lib/providers/firestore";
 import {EventContext} from "firebase-functions/lib/cloud-functions";
 
@@ -25,7 +24,7 @@ if(probotConfig) {
 
 const store: FirebaseFirestore.Firestore = firestore();
 // Create the bot using Firebase's probot config (see Readme.md)
-const bot: Probot = createProbot(probotConfig);
+const bot = createProbot(probotConfig);
 // disable probot logging
 bot.logger.streams.splice(0, 1);
 // Use node console as the output stream

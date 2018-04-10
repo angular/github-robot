@@ -1,5 +1,5 @@
-import {Context, Robot} from "probot-ts";
-import {OctokitWithPagination} from "probot-ts/lib/github";
+import {Context, Robot} from "probot";
+import {OctokitWithPagination} from "probot/lib/github";
 
 export class Task {
   repositories: FirebaseFirestore.CollectionReference;
@@ -28,7 +28,7 @@ export class Task {
 
   // wrapper for this.robot.on
   dispatch(events: string | string[], callback: (context: Context) => any) {
-    this.robot.on(events, (context: Context) => {
+    this.robot.on(events, (context: any) => {
       this.log({context}, "Event received");
       return callback(context);
     });

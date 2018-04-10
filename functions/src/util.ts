@@ -1,8 +1,8 @@
-import {Context, Robot} from "probot-ts";
+import {Robot} from "probot";
 import {CommonTask} from "./plugins/common";
 import {MergeTask} from "./plugins/merge";
 import {TriageTask} from "./plugins/triage";
-import {OctokitWithPagination} from "probot-ts/lib/github";
+import {OctokitWithPagination} from "probot/lib/github";
 
 /**
  * Get all results in case of paginated Github request
@@ -47,7 +47,7 @@ class Stream {
 
     let event = '';
     let extraData = '';
-    const context: Context = data.context;
+    const context = data.context;
     if(context) {
       event = context.event;
       const payload = data.context.payload;

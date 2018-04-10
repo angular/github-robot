@@ -1044,12 +1044,6 @@ bl@^1.0.0:
   dependencies:
     readable-stream "^2.0.5"
 
-bl@~1.1.2:
-  version "1.1.2"
-  resolved "https://registry.yarnpkg.com/bl/-/bl-1.1.2.tgz#fdca871a99713aa00d19e3bbba41c44787a65398"
-  dependencies:
-    readable-stream "~2.0.5"
-
 block-stream@*:
   version "0.0.9"
   resolved "https://registry.yarnpkg.com/block-stream/-/block-stream-0.0.9.tgz#13ebfe778a03205cfe03751481ebb4b3300c126a"
@@ -1197,7 +1191,7 @@ buffer-crc32@^0.2.1:
   version "0.2.13"
   resolved "https://registry.yarnpkg.com/buffer-crc32/-/buffer-crc32-0.2.13.tgz#0d333e3f00eac50aa1454abd30ef8c2a5d9a7242"
 
-buffer-equal-constant-time@1.0.1, buffer-equal-constant-time@^1.0.1, buffer-equal-constant-time@~1.0.1:
+buffer-equal-constant-time@1.0.1, buffer-equal-constant-time@^1.0.1:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/buffer-equal-constant-time/-/buffer-equal-constant-time-1.0.1.tgz#f8e71132f7ffe6e01a5c9697a4c6f3e48d5cc819"
 
@@ -2296,11 +2290,9 @@ expect@^22.4.3:
     jest-message-util "^22.4.3"
     jest-regex-util "^22.4.3"
 
-express-async-errors@2.1.1:
-  version "2.1.1"
-  resolved "https://registry.yarnpkg.com/express-async-errors/-/express-async-errors-2.1.1.tgz#0d3ba5a5af8747ec6e45093f8bf064364b3c37a1"
-  dependencies:
-    express "^4.16.2"
+express-async-errors@^2.1.0:
+  version "2.1.2"
+  resolved "https://registry.yarnpkg.com/express-async-errors/-/express-async-errors-2.1.2.tgz#a5692a0763904109f27d9649b4f827cf89100f53"
 
 express@4.16.2, express@^4.16.2:
   version "4.16.2"
@@ -2831,13 +2823,6 @@ getpass@^0.1.1:
   resolved "https://registry.yarnpkg.com/getpass/-/getpass-0.1.7.tgz#5eff8e3e684d569ae4cb2b1282604e8ba62149fa"
   dependencies:
     assert-plus "^1.0.0"
-
-github-webhook-handler@^0.7.0:
-  version "0.7.0"
-  resolved "https://registry.yarnpkg.com/github-webhook-handler/-/github-webhook-handler-0.7.0.tgz#300f0d5b5a5c4d8d8be518a4e701a5a1c807c7e6"
-  dependencies:
-    bl "~1.1.2"
-    buffer-equal-constant-time "~1.0.1"
 
 github@*:
   version "12.0.6"
@@ -5626,9 +5611,9 @@ private@^0.1.7:
   version "0.1.8"
   resolved "https://registry.yarnpkg.com/private/-/private-0.1.8.tgz#2381edb3689f7a53d653190060fcf822d2f368ff"
 
-probot-ts@^6.1.0-ts:
-  version "6.1.0-ts"
-  resolved "https://registry.yarnpkg.com/probot-ts/-/probot-ts-6.1.0-ts.tgz#eb6f3856fb9c9b8d9ece18ffbbb5247ff7ad4006"
+probot@7.0.0-typescript.2:
+  version "7.0.0-typescript.2"
+  resolved "https://registry.yarnpkg.com/probot/-/probot-7.0.0-typescript.2.tgz#f359416251bb13be010d61fd04ecf2abf94509ed"
   dependencies:
     "@octokit/rest" "15.2.4"
     "@octokit/webhooks" "^3.1.1"
@@ -5640,8 +5625,7 @@ probot-ts@^6.1.0-ts:
     commander "^2.11.0"
     dotenv "~5.0.0"
     express "^4.16.2"
-    express-async-errors "2.1.1"
-    github-webhook-handler "^0.7.0"
+    express-async-errors "^2.1.0"
     hbs "^4.0.1"
     js-yaml "^3.9.1"
     jsonwebtoken "^8.1.0"
@@ -5886,7 +5870,7 @@ readable-stream@~1.0.32:
     isarray "0.0.1"
     string_decoder "~0.10.x"
 
-readable-stream@~2.0.0, readable-stream@~2.0.5:
+readable-stream@~2.0.0:
   version "2.0.6"
   resolved "https://registry.yarnpkg.com/readable-stream/-/readable-stream-2.0.6.tgz#8f90341e68a53ccc928788dacfcd11b36eb9b78e"
   dependencies:

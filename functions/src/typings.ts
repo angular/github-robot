@@ -1,13 +1,131 @@
-// Type definitions for probot v3.0.0 (WIP)
-// Project: github.com/probot/probot
-// Definitions by: sirMerr <github.com/sirMerr>
-// Definitions: DefinitelyTyped/DefinitelyTyped
-/// <reference types="express" />
+import {Logger} from "probot";
+import {LoggerWithTarget} from "probot/lib/wrap-logger";
+import {OctokitWithPagination, Variables} from "probot/lib/github";
+import {Issue, PullRequest, Repository} from "@octokit/rest";
 
-import {Application} from "express";
-import {WebhookEvent} from "probot-ts/lib/robot";
-import {Logger, Robot} from "probot-ts";
-import {Plugin} from "probot-ts/lib";
+// override this for now until the types are fixed
+declare module "probot/lib/wrap-logger" {
+
+  interface LoggerWithTarget extends Logger {
+    (str: string): void;
+
+    target: Logger;
+    child: (attrs: ChildArgs) => LoggerWithTarget;
+    trace: Logger;
+    debug: Logger;
+    info: Logger;
+    warn: Logger;
+    error: Logger;
+    fatal: Logger;
+  }
+}
+
+export interface GitHubApi extends OctokitWithPagination {
+  query: (string, variables: Variables, headers?: any) => any;
+}
+
+export interface Payload {
+  [x: string]: any;
+  repository: Repository;
+  issue: Issue;
+  pull_request: PullRequest;
+  sender: {
+    type: string;
+  };
+  action: string;
+  installation: {
+    id: string;
+  };
+}
+
+declare module "probot" {
+  export class Context {
+    id: string;
+    github: GitHubApi;
+    log: LoggerWithTarget;
+    payload: Payload;
+    event: string;
+
+    constructor(event: any, github: GitHubApi, log: LoggerWithTarget);
+
+    /**
+     * Return the `owner` and `repo` params for making API requests against a
+     * repository.
+     *
+     * @param {object} [object] - Params to be merged with the repo params.
+     *
+     * @example
+     *
+     * const params = context.repo({path: '.github/config.yml'})
+     * // Returns: {owner: 'username', repo: 'reponame', path: '.github/config.yml'}
+     *
+     */
+    repo<T>(object?: T): {
+      owner: string;
+      repo: string;
+    } & T;
+
+    /**
+     * Return the `owner`, `repo`, and `number` params for making API requests
+     * against an issue or pull request. The object passed in will be merged with
+     * the repo params.
+     *
+     * @example
+     *
+     * const params = context.issue({body: 'Hello World!'})
+     * // Returns: {owner: 'username', repo: 'reponame', number: 123, body: 'Hello World!'}
+     *
+     * @param {object} [object] - Params to be merged with the issue params.
+     */
+    issue<T>(object?: T): {
+      number: number;
+    } & {
+      owner: string;
+      repo: string;
+    } & T;
+
+    /**
+     * Returns a boolean if the actor on the event was a bot.
+     * @type {boolean}
+     */
+    readonly isBot: boolean;
+
+    /**
+     * Reads the app configuration from the given YAML file in the `.github`
+     * directory of the repository.
+     *
+     * @example <caption>Contents of <code>.github/config.yml</code>.</caption>
+     *
+     * close: true
+     * comment: Check the specs on the rotary girder.
+     *
+     * @example <caption>App that reads from <code>.github/config.yml</code>.</caption>
+     *
+     * // Load config from .github/config.yml in the repository
+     * const config = await context.config('config.yml')
+     *
+     * if (config.close) {
+     *   context.github.issues.comment(context.issue({body: config.comment}))
+     *   context.github.issues.edit(context.issue({state: 'closed'}))
+     * }
+     *
+     * @example <caption>Using a <code>defaultConfig</code> object.</caption>
+     *
+     * // Load config from .github/config.yml in the repository and combine with default config
+     * const config = await context.config('config.yml', {comment: 'Make sure to check all the specs.'})
+     *
+     * if (config.close) {
+     *   context.github.issues.comment(context.issue({body: config.comment}));
+     *   context.github.issues.edit(context.issue({state: 'closed'}))
+     * }
+     *
+     * @param {string} fileName - Name of the YAML file in the `.github` directory
+     * @param {object} [defaultConfig] - An object of default config options
+     * @return {Promise<Object>} - Configuration object read from the file
+     */
+    config<T>(fileName: string, defaultConfig: T): Promise<T | null>;
+  }
+}
 
 declare module "@octokit/rest" {
   export interface Label {
@@ -107,7 +225,7 @@ declare module "@octokit/rest" {
     };
     requested_reviewers: User[];
     requested_teams: any[]; // need to check how the "team" json structure is
-    mergeable: boolean|null;
+    mergeable: boolean | null;
   }
 
   export interface File {
@@ -159,14 +277,4 @@ export const enum REVIEW_STATE {
   ChangesRequest = 'CHANGES_REQUESTED',
   Commented = 'COMMENTED',
   Dismissed = 'DISMISSED'
-}
-
-export interface Probot {
-  server: Application;
-  webhook: any;
-  receive: (event: WebhookEvent) => Promise<any[]>;
-  logger: Logger;
-  load: (plugin: string | Plugin) => Robot;
-  setup: (apps: Array<string | Plugin>) => void;
-  start: () => void;
 }

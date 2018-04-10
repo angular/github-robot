@@ -1,7 +1,6 @@
-import {createProbot} from "probot-ts";
+import {createProbot} from "probot";
 import {credential, firestore, initializeApp} from "firebase-admin";
 import {consoleStream, registerTasks} from "./util";
-import {Probot} from './typings';
 
 console.warn(`Starting dev mode`);
 
@@ -14,7 +13,7 @@ initializeApp({
 const store: FirebaseFirestore.Firestore = firestore();
 
 // Probot setup
-const bot: Probot = createProbot(config);
+const bot = createProbot(config);
 
 // disable probot logging
 bot.logger.streams.splice(0, 1);
