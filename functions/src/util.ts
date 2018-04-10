@@ -90,7 +90,7 @@ class Stream {
       }
     }
 
-    log(`[${level}]${event} ${typeof data === 'object' ? data.msg : data}${extraData}`);
+    log(`[${level}]${event} ${typeof data === 'object' ? (data.err && data.err.stack ? data.err.stack : data.msg) : data}${extraData}`);
   }
 }
 
