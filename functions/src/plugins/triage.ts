@@ -71,6 +71,9 @@ export class TriageTask extends Task {
   async checkTriage(context: Context): Promise<any> {
     const issue: any = context.payload.issue;
     const config = await this.getConfig(context);
+    if (config.disabled) {
+      return;
+    }
     const {owner, repo} = context.repo();
     // getting labels from Github because we might be adding multiple labels at once
     const labels = await getGhLabels(context.github, owner, repo, issue.number);
