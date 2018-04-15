@@ -69,7 +69,9 @@ Please help to unblock it by resolving these conflicts. Thanks!`,
 If you can't get the PR to a green state due to flakes or broken master, please try rebasing to master and/or restarting the CI job. If that fails and you believe that the issue is not due to your change, please contact the caretaker and ask for help.`
   },
 
-  triage: {
+  triage: {    
+    // set to true to disable
+    disabled: false,
     // number of the milestone to apply when the issue has not been triaged yet
     needsTriageMilestone: 83,
     // number of the milestone to apply when the issue is triaged
@@ -114,6 +116,7 @@ export interface MergeConfig {
 }
 
 export interface TriageConfig {
+  disabled: boolean;
   needsTriageMilestone: number;
   defaultMilestone: number;
   l1TriageLabels: string[][];

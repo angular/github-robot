@@ -85,6 +85,8 @@ merge:
 
 # options for the triage plugin
 triage:
+  # set to true to disable
+  disabled: false
   # number of the milestone to apply when the issue has not been triaged yet
   needsTriageMilestone: 83,
   # number of the milestone to apply when the issue is triaged
