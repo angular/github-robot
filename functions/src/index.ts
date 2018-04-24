@@ -1,4 +1,4 @@
-import {firestore as database, https} from 'firebase-functions';
+import {config, firestore as database, https} from 'firebase-functions';
 import {Request, Response} from "express";
 import {createProbot, Options} from "probot";
 import {consoleStream, registerTasks, Tasks} from "./util";
@@ -7,8 +7,7 @@ import {DocumentSnapshot} from "firebase-functions/lib/providers/firestore";
 import {EventContext} from "firebase-functions/lib/cloud-functions";
 
 let tasks: Tasks;
-const firebaseConfig = JSON.parse(process.env.FIREBASE_CONFIG);
-let probotConfig: Options = firebaseConfig.probot;
+let probotConfig: Options = config().probot;
 // Check if we are in Firebase or in development
 if(probotConfig) {
   // Init Firebase
