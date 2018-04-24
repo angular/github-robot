@@ -19,7 +19,7 @@ See [docs/deploy.md](docs/deploy.md) if you would like to run your own instance.
 
 ### Adding the bot:
 1. Create `.github/angular-robot.yml` based on the following template
-2. [Configure the Github App](https://github.com/apps/wheatley)
+2. [Configure the Github App](https://github.com/apps/ngbot)
 3. It will start scanning for opened issues and pull requests to monitor
 
 A [`.github/angular-robot.yml`](test/fixtures/angular-robot.yml) file is required to enable the plugin. The file can be empty, or it can override any of these default settings.
