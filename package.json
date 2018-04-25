@@ -11,7 +11,7 @@
     "build:dev": "tsc -p functions -w",
     "lint": "tslint -p tslint.json",
     "watch:functions": "tsc -p functions -w",
-    "start:watch": "nodemon --watch ./functions/dist --watch ./functions/private functions/dist/dev.js ",
+    "start:watch": "nodemon --watch ./functions/dist --watch ./functions/private --inspect functions/dist/dev.js ",
     "start:dev": "concurrently \"npm run build:dev\" \"npm run start:watch\"",
     "test": "jest --coverage",
     "test:dev": "jest --coverage --watch",
@@ -23,9 +23,11 @@
   },
   "dependencies": {
     "minimatch": "^3.0.4",
-    "probot": "7.0.0-typescript.2"
+    "probot": "7.0.0-typescript.2",
+    "request": "^2.85.0"
   },
   "devDependencies": {
+    "@types/request": "^2.47.0",
     "@types/core-js": "0.9.46",
     "@types/express": "4.11.1",
     "@types/github": "7.1.0",

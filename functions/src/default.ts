@@ -2,6 +2,15 @@
  * this is the default config that will be used if you don't set the options in your own angular-robot.yml file
  */
 export const appConfig: AppConfig = {
+  size: {
+    disabled: false,
+    maxSizeIncrease: 1000,
+    status: {
+      disabled: false,
+      context: "ci/angular: size",
+    },
+  },
+
   merge: {
     // the status will be added to your pull requests
     status: {
@@ -86,6 +95,7 @@ If you can't get the PR to a green state due to flakes or broken master, please 
 export interface AppConfig {
   merge: MergeConfig;
   triage: TriageConfig;
+  size: SizeConfig;
 }
 
 export interface MergeConfig {
@@ -123,6 +133,15 @@ export interface TriageConfig {
   l2TriageLabels: string[][];
   /** @deprecated use l2TriageLabels instead */
   triagedLabels?: string[][];
+}
+
+export interface SizeConfig {
+  disabled: boolean;
+  maxSizeIncrease: number;
+  status: {
+    disabled: boolean;
+    context: string;
+  };
 }
 
 export interface AdminConfig {

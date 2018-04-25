@@ -3,6 +3,9 @@ import {CommonTask} from "./plugins/common";
 import {MergeTask} from "./plugins/merge";
 import {TriageTask} from "./plugins/triage";
 import {OctokitWithPagination} from "probot/lib/github";
+import { SizeTask } from "./plugins/size";
+import { HttpClient } from "./http";
+import { database } from "firebase-admin";
 
 /**
  * Get all results in case of paginated Github request
@@ -107,12 +110,14 @@ export interface Tasks {
   commonTask: CommonTask;
   mergeTask: MergeTask;
   triageTask: TriageTask;
+  sizeTask: SizeTask;
 }
 
-export function registerTasks(robot: Robot, store: FirebaseFirestore.Firestore): Tasks {
+export function registerTasks(robot: Robot, store: FirebaseFirestore.Firestore, sizeStore: database.Database, http: HttpClient): Tasks {
   return {
     commonTask: new CommonTask(robot, store),
     mergeTask: new MergeTask(robot, store),
-    triageTask: new TriageTask(robot, store)
+    triageTask: new TriageTask(robot, store),
+    sizeTask: new SizeTask(robot, store, sizeStore, http),
   };
 }
