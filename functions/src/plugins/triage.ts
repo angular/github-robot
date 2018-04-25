@@ -30,6 +30,9 @@ export class TriageTask extends Task {
         await Promise.all(repositories.data.repositories.map(async (repository: Github.Repository) => {
           const context = new Context({payload: {repository}}, authGithub, this.robot.log);
           const config = await this.getConfig(context);
+          if (config.disabled) {
+            return;
+          }
           const {owner, repo} = context.repo();
           const issues = await authGithub.paginate(authGithub.issues.getForRepo({
             owner,
