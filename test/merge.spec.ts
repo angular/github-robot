@@ -1,10 +1,12 @@
-import {Context, createRobot, Robot} from "probot-ts";
-import {EnhancedGitHubClient, OctokitWithPagination} from "probot-ts/lib/github";
+import {Context, Robot} from "probot";
+import {createRobot} from "probot/lib/robot";
+import {EnhancedGitHubClient, OctokitWithPagination} from "probot/lib/github";
 import {MergeTask} from "../functions/src/plugins/merge";
 import {appConfig} from "../functions/src/default";
 import {MockFirestore} from './mocks/firestore';
 import {mockGithub, mockGraphQL} from "./mocks/github";
 import {CommonTask} from "../functions/src/plugins/common";
+import {GitHubApi} from "../functions/src/typings";
 
 describe('merge', () => {
   let robot: Robot;
@@ -24,7 +26,7 @@ describe('merge', () => {
     store = new MockFirestore();
 
     // Create a new Robot to run our plugin
-    robot = createRobot();
+    robot = createRobot(undefined);
 
     // Mock out the GitHub API
     github = EnhancedGitHubClient({
@@ -43,7 +45,7 @@ describe('merge', () => {
   describe('getConfig', () => {
     it('should return the default merge config', async () => {
       const event = require('./fixtures/issues.opened.json');
-      const context = new Context(event, github);
+      const context = new Context(event, github as GitHubApi, robot.log);
       const config = await mergeTask.getConfig(context);
       expect(config).toEqual(appConfig.merge);
     });
@@ -66,7 +68,7 @@ describe('merge', () => {
 
     it('should work on repository added', async () => {
       const event = require('./fixtures/installation_repositories.added.json');
-      const context = new Context(event, github);
+      const context = new Context(event, github as GitHubApi, robot.log);
       await commonTask.installInit(context);
       const storeData = await commonTask.repositories.get();
       expect(storeData.docs.length).toBeGreaterThan(0);
@@ -127,7 +129,7 @@ describe('merge', () => {
       });
       // const event = require('./fixtures/pr-comments.json');
       const event = require('./fixtures/pull_request_review.submitted.json');
-      const context = new Context(event, github);
+      const context = new Context(event, github as GitHubApi, robot.log);
       const pendingReviews = await mergeTask.getPendingReviews(context, context.payload.pull_request);
       expect(pendingReviews).toEqual(0);
     });
