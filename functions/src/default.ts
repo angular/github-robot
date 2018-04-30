@@ -50,6 +50,8 @@ Please help to unblock it by resolving these conflicts. Thanks!`,
     checks: {
       // whether the PR shouldn't have a conflict with the base branch
       noConflict: true,
+      // whether the PR should have all reviews completed.
+      requireReviews: true,
       // list of labels that a PR needs to have, checked with a regexp (e.g. "PR target:" will work for the label "PR target: master")
       requiredLabels: ["PR target: *", "cla: yes"],
       // list of labels that a PR shouldn't have, checked after the required labels with a regexp
@@ -108,6 +110,7 @@ export interface MergeConfig {
   mergeLabel: string;
   checks: {
     noConflict: boolean;
+    requireReviews: boolean;
     requiredLabels: string[];
     forbiddenLabels: string[];
     requiredStatuses: string[];
