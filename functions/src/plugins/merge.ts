@@ -217,9 +217,11 @@ export class MergeTask extends Task {
 
     // check if there is any review pending or that requested changes
     // pr.requested_reviewers == users that have been requested but haven't reviewed yet
-    const nbPendingReviews = await this.getPendingReviews(context, pr);
-    if(nbPendingReviews > 0) {
-      checksStatus.pending.push(`${nbPendingReviews} pending code review${nbPendingReviews > 1 ? 's' : ''}`);
+    if(config.checks.requireReviews) {
+      const nbPendingReviews = await this.getPendingReviews(context, pr);
+      if(nbPendingReviews > 0) {
+        checksStatus.pending.push(`${nbPendingReviews} pending code review${nbPendingReviews > 1 ? 's' : ''}`);
+      }
     }
 
     return checksStatus;
