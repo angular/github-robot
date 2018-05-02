@@ -34,8 +34,8 @@ export interface CircleCiBuildSummary {
 }
 
 export class SizeTask extends Task {
-  constructor(robot: Robot, notUsedDb: FirebaseFirestore.Firestore, private readonly rtDb: database.Database, private readonly http: HttpClient) {
-    super(robot, notUsedDb);
+  constructor(robot: Robot, firestore: FirebaseFirestore.Firestore, private readonly rtDb: database.Database, private readonly http: HttpClient) {
+    super(robot, firestore);
     this.dispatch([
       'status',
     ], this.checkSize.bind(this));
@@ -49,21 +49,21 @@ export class SizeTask extends Task {
     
     // TODO: make context configurable
     if((context.payload.state !== STATUS_STATE.Success) || !context.payload.context.startsWith('ci/circleci')) {
-      // do nothing since we only want succedded circleci events
+      // do nothing since we only want succeeded circleci events
       return;
     }
-    const pr = await this.findCurrentPr(context.payload.sha, context.payload.repository.id);
+    const pr = await this.findPrBySha(context.payload.sha, context.payload.repository.id);
     if(!pr) {
-      // this status dosen't have a PR therefore it's probably a commit to a branch
-      // so we want to store any chanegs from that commit
+      // this status doesn't have a PR therefore it's probably a commit to a branch
+      // so we want to store any changes from that commit
       this.storeArtifacts(context);
-      // dont continue
+      // don't continue
       return;
     }
 
     // set to pending since we are going to do a full run through
     // TODO: can we set pending sooner? like at the start of the PR
-    await this.setStatus(STATUS_STATE.Pending, 'Calculating artifact sizes', context, config);
+    await this.setStatus(STATUS_STATE.Pending, 'Calculating artifact sizes', config.status.context, context);
 
     const {owner, repo} = context.repo();
 
@@ -72,43 +72,49 @@ export class SizeTask extends Task {
 
     const targetBranchArtifacts = await this.getTargetBranchArtifacts(pr);
 
-    const largestIncrease = await this.findLagestIncrease(targetBranchArtifacts, newArtifacts);
+    const largestIncrease = await this.findLargestIncrease(targetBranchArtifacts, newArtifacts);
 
     const failure = this.isFailure(config, largestIncrease.increase);
 
     if(failure) {
       const desc = `${largestIncrease.artifact.fullPath} increased by ${largestIncrease.increase} bytes`; // TODO pretty up bytes 
-      await this.setStatus(STATUS_STATE.Failure, desc, context, config);
+      await this.setStatus(STATUS_STATE.Failure, desc, config.status.context, context);
+      return ;
     } else {
       if(largestIncrease.increase === 0) {
         const desc = `no size change`;
-        await this.setStatus(STATUS_STATE.Success, desc, context, config);      
-      } else if (largestIncrease.increase < 0) {
+        await this.setStatus(STATUS_STATE.Success, desc, config.status.context, context);
+        return ;
+    } else if (largestIncrease.increase < 0) {
         const desc = `${largestIncrease.artifact.fullPath} decreased by ${largestIncrease.increase} bytes`; // TODO pretty up bytes 
-        await this.setStatus(STATUS_STATE.Success, desc, context, config); 
+        await this.setStatus(STATUS_STATE.Success, desc,config.status.context, context);
+        return ;
       }
     }
   }
 
-  async findCurrentPr(sha: string, repositoryId: number) {
-    let pr;
-    const matches = (await this.pullRequests.where('head.sha', '==', sha)
-      .where('repository.id', '==', repositoryId)
-      .get());
-    matches.forEach(async doc => {
-      pr = doc.data();
-    });
-    return pr;
-  }
 
-  async storeArtifacts(context: Context) {
+  /**
+   * 
+   * Retrieves the artifacts from circleci of the context passed in, then saves them into firebase 
+   * 
+   * @param context Must be from a "Status" github event
+   */
+  async storeArtifacts(context: Context): Promise<void> {
     const {owner, repo} = context.repo();
     const buildNumber = await this.getBuildNumberFromCircleCIUrl(context.payload.target_url);
     const newArtifacts = await this.getCircleCIArtifacts(owner, repo, buildNumber);
     await this.upsertNewArtifacts(context, newArtifacts);
   }
 
-  async upsertNewArtifacts(context: Context, artifacts: BuildArtifact[]) {
+  /**
+   * 
+   * Insert or updates the artifacts for a status event
+   * 
+   * @param context Must be from a "Status" github event
+   * @param artifacts 
+   */
+  async upsertNewArtifacts(context: Context, artifacts: BuildArtifact[]): Promise<void> {
     // eg: aio/gzip7/inline
     // eg: ivy/gzip7/inline
     // projects within this repo 
@@ -150,6 +156,12 @@ export class SizeTask extends Task {
     }
   }
 
+  /**
+   * 
+   * Parses a circleci build url for the build number
+   * 
+   * @param url circleci build url, retrieved from target_event in a github "Status" event context
+   */
   getBuildNumberFromCircleCIUrl(url: string): number {
     const parts = url.split('/');
     if(parts[2] === 'circleci.com' && parts[3] === 'gh') {
@@ -159,33 +171,18 @@ export class SizeTask extends Task {
     }
   }
 
-  async setStatus(state: STATUS_STATE, desc: string, context: Context, config: SizeConfig): Promise<any> {
-    const {owner, repo} = context.repo();
-
-    const statusParams: Github.ReposCreateStatusParams = {
-      owner,
-      repo,
-      sha: context.payload.sha,
-      context: config.status.context,
-      state,
-      description: desc,
-    };
-
-    await context.github.repos.createStatus(statusParams);
-  }
-
   isFailure(config: SizeConfig, increase: number): boolean {
     return increase > config.maxSizeIncrease ;
   }
 
-  findLagestIncrease(oldArtifacts: BuildArtifact[], newArtifacts: BuildArtifact[]): BuildArtifactDiff {
+  findLargestIncrease(oldArtifacts: BuildArtifact[], newArtifacts: BuildArtifact[]): BuildArtifactDiff {
     let largestIncrease: BuildArtifact = null;
     let largestIncreaseSize = 0;
 
     for(const newArtifact of newArtifacts) {
       const targetArtifact = oldArtifacts.find(a => a.fullPath === newArtifact.fullPath);
       let increase = 0;
-      if (targetArtifact === null || targetArtifact === undefined) {
+      if (!targetArtifact) {
         increase = newArtifact.sizeBytes;
       } else {
         increase = newArtifact.sizeBytes - targetArtifact.sizeBytes;
@@ -202,7 +199,10 @@ export class SizeTask extends Task {
     };
   }
 
-  async getTargetBranchArtifacts(prPayload: any): Promise<BuildArtifact[]> {
+  /**
+   * Finds the target branch of a PR then retrieves the artifacts at the for the HEAD of that branch
+   */
+  async getTargetBranchArtifacts(prPayload: Github.PullRequest): Promise<BuildArtifact[]> {
     const targetBranch = prPayload.base;
 
     const payloadValue = await this.rtDb.ref('/payload').once('value');
@@ -241,6 +241,9 @@ export class SizeTask extends Task {
 
   }
 
+  /**
+   * Retrieves the build artifacts from circleci 
+   */
   async getCircleCIArtifacts(username: string, project: string, buildNumber: number): Promise<BuildArtifact[]> {
     const artifacts = await this.http.get<CircleCiArtifact[]>(`https://circleci.com/api/v1.1/project/github/${username}/${project}/${buildNumber}/artifacts`) as CircleCiArtifact[];
 
@@ -262,7 +265,6 @@ export class SizeTask extends Task {
    */
   async getConfig(context: Context): Promise<SizeConfig> {
     const repositoryConfig = await context.config<AppConfig>(CONFIG_FILE, appConfig);
-    const config = repositoryConfig.size;
-    return config;
+    return repositoryConfig.size;
   }
 }

@@ -9,7 +9,7 @@ import { SizeTask, BuildArtifact, CircleCiArtifact } from "../functions/src/plug
 import { MockHttpHost } from "./mocks/http";
 import { MockDatabaseHost } from "./mocks/database";
 
-describe('triage', () => {
+describe('size', () => {
   let robot: Robot;
   let github: OctokitWithPagination;
   let sizeTask: SizeTask;
@@ -51,7 +51,7 @@ describe('triage', () => {
     });
   });
 
-  describe('findLagestIncrease', () => {
+  describe('findLargestIncrease', () => {
     it('when the same name exists in both', () => {
       const olds: BuildArtifact[] = [
         {fullPath: 'one', size_bytes: 10},
@@ -76,7 +76,7 @@ describe('triage', () => {
         {fullPath: 'two', size_bytes: 30},
         {fullPath: 'three', size_bytes: 30},
       ];
-      const largest = sizeTask.findLagestIncrease(olds, news);
+      const largest = sizeTask.findLargestIncrease(olds, news);
       expect(largest.artifact.fullPath).toEqual('three');
       expect(largest.increase).toEqual(30);
     });
@@ -145,7 +145,7 @@ describe('triage', () => {
         {fullPath: 'aio/gzip7/inline.js', size_bytes: 1001},
         {fullPath: 'aio/gzip7/main.js', size_bytes: 1003}
       ];
-      await sizeTask.upsertNewArtifacts(context as any, artifacts);
+      await sizeTask.upsertNewArtifacts(context as any, artifacts); 
 
       expect(database.values.get('/payload/aio/master/123').gzip7.inline).toEqual(1001);
       expect(database.values.get('/payload/aio/master/123').gzip7.main).toEqual(1003);

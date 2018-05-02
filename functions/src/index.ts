@@ -40,6 +40,9 @@ if(probotConfig) {
 
 
 const store: FirebaseFirestore.Firestore = firestoreAdmin();
+// database here is needed for the size task
+// since the existing data was already stored in on to continue the historical tracking
+// we need to continue using it here
 const sizeStore = sizeApp.database();
 
 const httpClient = new HttpClient();
