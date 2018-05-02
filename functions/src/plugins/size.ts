@@ -86,6 +86,9 @@ export class SizeTask extends Task {
     } else if (largestIncrease.increase < 0) {
         const desc = `${largestIncrease.artifact.fullPath} decreased by ${largestIncrease.increase} bytes`; // TODO pretty up bytes 
         return await this.setStatus(STATUS_STATE.Success, desc,config.status.context, context);
+    } else if (largestIncrease.increase > 0) {
+        const desc = `${largestIncrease.artifact.fullPath} increased by ${largestIncrease.increase} bytes`; // TODO pretty up bytes 
+        return await this.setStatus(STATUS_STATE.Success, desc,config.status.context, context);
       }
     }
   }
