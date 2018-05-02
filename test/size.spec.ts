@@ -54,27 +54,27 @@ describe('size', () => {
   describe('findLargestIncrease', () => {
     it('when the same name exists in both', () => {
       const olds: BuildArtifact[] = [
-        {fullPath: 'one', size_bytes: 10},
-        {fullPath: 'two', size_bytes: 10},
+        {fullPath: 'one', sizeBytes: 10, contextPath: [], projectName: 'one',  },
+        {fullPath: 'two', sizeBytes: 10, contextPath: [], projectName: 'two', },
       ];
       const news: BuildArtifact[] = [
-        {fullPath: 'one', size_bytes: 20},
-        {fullPath: 'two', size_bytes: 30},
+        {fullPath: 'one', sizeBytes: 20, contextPath: [], projectName: 'one',  },
+        {fullPath: 'two', sizeBytes: 30, contextPath: [], projectName: 'two', },
       ];
-      const largest = sizeTask.findLagestIncrease(olds, news);
+      const largest = sizeTask.findLargestIncrease(olds, news);
       expect(largest.artifact.fullPath).toEqual('two');
       expect(largest.increase).toEqual(20);
     });
 
     it('when a new artifact is added', () => {
       const olds: BuildArtifact[] = [
-        {fullPath: 'one', size_bytes: 10},
-        {fullPath: 'two', size_bytes: 10},
+        {fullPath: 'one', sizeBytes: 10, contextPath: [], projectName: 'one', },
+        {fullPath: 'two', sizeBytes: 10, contextPath: [], projectName: 'two', },
       ];
       const news: BuildArtifact[] = [
-        {fullPath: 'one', size_bytes: 20},
-        {fullPath: 'two', size_bytes: 30},
-        {fullPath: 'three', size_bytes: 30},
+        {fullPath: 'one', sizeBytes: 20, contextPath: [], projectName: 'one', },
+        {fullPath: 'two', sizeBytes: 30, contextPath: [], projectName: 'two', },
+        {fullPath: 'three', sizeBytes: 30, contextPath: [], projectName: 'three', },
       ];
       const largest = sizeTask.findLargestIncrease(olds, news);
       expect(largest.artifact.fullPath).toEqual('three');
@@ -90,7 +90,7 @@ describe('size', () => {
       const buildNumber = 56;
 
       const artifactsEndpoint = `https://circleci.com/api/v1.1/project/github/${username}/${project}/${buildNumber}/artifacts`;
-      const artifactUrl = 'someurl.js';
+      const artifactUrl = 'someartifactname';
 
       mockHttp.registerEndpoint(artifactsEndpoint, [{  path: 'onepath',
         pretty_path: 'twopath',
@@ -98,11 +98,11 @@ describe('size', () => {
         url: artifactUrl
       }] as CircleCiArtifact[]);
 
-      mockHttp.registerEndpoint(artifactUrl, 'I am a js file, shhhh');
+      mockHttp.registerEndpoint(artifactUrl, { headers:{ 'content-length': 21}});
 
       const artifacts = await sizeTask.getCircleCIArtifacts(username, project, buildNumber);
       expect(artifacts[0]).toBeTruthy();
-      expect(artifacts[0].size_bytes).toEqual(21);
+      expect(artifacts[0].sizeBytes).toEqual(21);
       expect(mockHttp.getHits(artifactsEndpoint)).toEqual(1);
       expect(mockHttp.getHits(artifactUrl)).toEqual(1);
     });
@@ -115,8 +115,18 @@ describe('size', () => {
       payload: {
         sha: '123',
         branch: 'master',
-        commit_message: 'commitmsg'
-      }
+        commit_message: 'commitmsg',
+        commit: {
+          sha: '444',
+          commit: {
+            message: 'more size, more size!'
+          }
+        },
+        branches: [
+          {name: 'master'}
+        ]
+      },
+     
     };
     beforeEach(() => {
       database.values.clear();
@@ -124,40 +134,40 @@ describe('size', () => {
 
     it('should insert the value', async () => {
       const artifacts: BuildArtifact[] = [
-        {fullPath: 'aio/gzip7/inline.js', size_bytes: 1001}
+        {fullPath: 'aio/gzip7/inline', sizeBytes: 1001, contextPath: ['gzip7', 'inline'], projectName: 'aio'}
       ];
       await sizeTask.upsertNewArtifacts(context as any, artifacts);
-      expect(database.values.get('/payload/aio/master/123').gzip7.inline).toEqual(1001);
+      expect(database.values.get('/payload/aio/master/444').gzip7.inline).toEqual(1001);
     });
 
     it('should insert the value', async() => {
       const artifacts: BuildArtifact[] = [
-        {fullPath: 'aio/gzip7/inline.js', size_bytes: 1001},
-        {fullPath: 'aio/gzip7/main.js', size_bytes: 1003}
+        {fullPath: 'aio/gzip7/inline', sizeBytes: 1001, contextPath: ['gzip7', 'inline'], projectName: 'aio'},
+        {fullPath: 'aio/gzip7/main', sizeBytes: 1003, contextPath: ['gzip7', 'main'], projectName: 'aio'}
       ];
       await sizeTask.upsertNewArtifacts(context as any, artifacts);
-      expect(database.values.get('/payload/aio/master/123').gzip7.inline).toEqual(1001);
-      expect(database.values.get('/payload/aio/master/123').gzip7.main).toEqual(1003);
+      expect(database.values.get('/payload/aio/master/444').gzip7.inline).toEqual(1001);
+      expect(database.values.get('/payload/aio/master/444').gzip7.main).toEqual(1003);
     });
 
     it('should replace prior values the value', async () => {
       let artifacts: BuildArtifact[] = [
-        {fullPath: 'aio/gzip7/inline.js', size_bytes: 1001},
-        {fullPath: 'aio/gzip7/main.js', size_bytes: 1003}
+        {fullPath: 'aio/gzip7/inline', sizeBytes: 1001, contextPath: ['gzip7', 'inline'], projectName: 'aio'},
+        {fullPath: 'aio/gzip7/main', sizeBytes: 1003, contextPath: ['gzip7', 'main'], projectName: 'aio'}
       ];
       await sizeTask.upsertNewArtifacts(context as any, artifacts); 
 
-      expect(database.values.get('/payload/aio/master/123').gzip7.inline).toEqual(1001);
-      expect(database.values.get('/payload/aio/master/123').gzip7.main).toEqual(1003);
+      expect(database.values.get('/payload/aio/master/444').gzip7.inline).toEqual(1001);
+      expect(database.values.get('/payload/aio/master/444').gzip7.main).toEqual(1003);
 
       artifacts = [
-        {fullPath: 'aio/gzip7/inline.js', size_bytes: 1010},
-        {fullPath: 'aio/gzip7/main.js', size_bytes: 1020}
+        {fullPath: 'aio/gzip7/inline', sizeBytes: 1010, contextPath: ['gzip7', 'inline'], projectName: 'aio'},
+        {fullPath: 'aio/gzip7/main', sizeBytes: 1020, contextPath: ['gzip7', 'main'], projectName: 'aio'}
       ];
       await sizeTask.upsertNewArtifacts(context as any, artifacts);
 
-      expect(database.values.get('/payload/aio/master/123').gzip7.inline).toEqual(1010);
-      expect(database.values.get('/payload/aio/master/123').gzip7.main).toEqual(1020);
+      expect(database.values.get('/payload/aio/master/444').gzip7.inline).toEqual(1010);
+      expect(database.values.get('/payload/aio/master/444').gzip7.main).toEqual(1020);
     });
   });
 

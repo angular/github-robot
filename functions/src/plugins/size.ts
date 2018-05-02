@@ -149,7 +149,7 @@ export class SizeTask extends Task {
               lastNestedItemRef = lastNestedItemRef[path];
             });
             lastNestedItemRef = a.sizeBytes;
-          });     
+          });    
         // if one already exists for this sha, override it
         await ref.set(artifactsOutput);
       }
@@ -171,10 +171,16 @@ export class SizeTask extends Task {
     }
   }
 
+  /**
+   * determines if the increase is a failure based off the config values
+   */
   isFailure(config: SizeConfig, increase: number): boolean {
     return increase > config.maxSizeIncrease ;
   }
 
+  /**
+   * finds the largest increase of the new artifacts from old ones
+   */
   findLargestIncrease(oldArtifacts: BuildArtifact[], newArtifacts: BuildArtifact[]): BuildArtifactDiff {
     let largestIncrease: BuildArtifact = null;
     let largestIncreaseSize = 0;
