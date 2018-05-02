@@ -28,7 +28,9 @@ export class Task {
     return (await doc.get()).data();
   }
 
-
+/**
+ * Sets the status on the target PR
+ */
   async setStatus(state: STATUS_STATE, desc: string, statusContext: string, context: Context): Promise<void> {
     const {owner, repo} = context.repo();
 
@@ -45,7 +47,7 @@ export class Task {
   }
 
   /**
-   * 
+   * Finds a PR that's previously been processed by the bot
    */
   async findPrBySha(sha: string, repositoryId: number): Promise<PullRequest> {
     let pr: PullRequest;

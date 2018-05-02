@@ -78,17 +78,14 @@ export class SizeTask extends Task {
 
     if(failure) {
       const desc = `${largestIncrease.artifact.fullPath} increased by ${largestIncrease.increase} bytes`; // TODO pretty up bytes 
-      await this.setStatus(STATUS_STATE.Failure, desc, config.status.context, context);
-      return ;
+      return await this.setStatus(STATUS_STATE.Failure, desc, config.status.context, context);
     } else {
       if(largestIncrease.increase === 0) {
         const desc = `no size change`;
-        await this.setStatus(STATUS_STATE.Success, desc, config.status.context, context);
-        return ;
+        return await this.setStatus(STATUS_STATE.Success, desc, config.status.context, context);
     } else if (largestIncrease.increase < 0) {
         const desc = `${largestIncrease.artifact.fullPath} decreased by ${largestIncrease.increase} bytes`; // TODO pretty up bytes 
-        await this.setStatus(STATUS_STATE.Success, desc,config.status.context, context);
-        return ;
+        return await this.setStatus(STATUS_STATE.Success, desc,config.status.context, context);
       }
     }
   }
