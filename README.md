@@ -55,6 +55,6 @@ The triage plugin will triage issues. It will:
 ### Size plugin: 
 The size plugin will monitor build artifacts from circleci and determine if large chages have occured. It Will
 - retrieve artifacts from circleci and save them into the database
-- compare artfacts from PRs agasint ones stored in the database based on the artifact name to determine size increases
+- compare artifacts from PRs agasint ones stored in the database based on the artifact name to determine size increases
 - mark a PR as failed if the increase is larger than the amount configured (1000 bytes by default)
 - report the size of the largest increase or smallest decrease
