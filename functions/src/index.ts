@@ -9,7 +9,7 @@ import {HttpClient} from './http';
 
 let tasks: Tasks;
 let probotConfig: Options = config().probot;
-let sizeAppConfig: ServiceAccount = config().sizeApp;
+let sizeAppConfig: ServiceAccount = loadFirebaseConfig(config().sizeapp);
 let sizeApp: app.App;
 
 // Check if we are in Firebase or in development

@@ -130,11 +130,20 @@ function copyAttr(to: object, from: object, key: string, alt: string) {
   }
 }
 
-export function loadFirebaseConfig(url: string) {
-  const config = require(url);
+export function loadFirebaseConfig(params?: string|object) {
+  let config;
+  if(!params) {
+    return;
+  } else if(typeof params === 'string') {
+    config = require(params);
+  } else {
+    config = params;
+  }
   copyAttr(config, config, 'projectId', 'project_id');
+  copyAttr(config, config, 'privateKey', 'private_key');
   copyAttr(config, config, 'clientId', 'client_id');
   copyAttr(config, config, 'clientSecret', 'client_secret');
+  copyAttr(config, config, 'clientEmail', 'client_email');
   copyAttr(config, config, 'refreshToken', 'refresh_token');
   return config;
 }
