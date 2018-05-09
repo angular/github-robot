@@ -1,5 +1,7 @@
 import {Context, Robot} from "probot";
 import {OctokitWithPagination} from "probot/lib/github";
+import { PullRequest, ReposCreateStatusParams } from "@octokit/rest";
+import { STATUS_STATE } from "../typings";
 
 export class Task {
   repositories: FirebaseFirestore.CollectionReference;
@@ -24,6 +26,38 @@ export class Task {
       throw err;
     });
     return (await doc.get()).data();
+  }
+
+/**
+ * Sets the status on the target PR
+ */
+  async setStatus(state: STATUS_STATE, desc: string, statusContext: string, context: Context): Promise<void> {
+    const {owner, repo} = context.repo();
+
+    const statusParams: ReposCreateStatusParams = {
+      owner,
+      repo,
+      sha: context.payload.sha,
+      context: statusContext,
+      state,
+      description: desc,
+    };
+
+    await context.github.repos.createStatus(statusParams);
+  }
+
+  /**
+   * Finds a PR that's previously been processed by the bot
+   */
+  async findPrBySha(sha: string, repositoryId: number): Promise<PullRequest> {
+    let pr: PullRequest;
+    const matches = (await this.pullRequests.where('head.sha', '==', sha)
+      .where('repository.id', '==', repositoryId)
+      .get());
+    matches.forEach(async doc => {
+      pr = doc.data() as any;
+    });
+    return pr;
   }
 
   // wrapper for this.robot.on

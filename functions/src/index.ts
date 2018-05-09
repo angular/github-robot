@@ -1,27 +1,52 @@
-import {config, firestore as database, https} from 'firebase-functions';
+import {config, firestore, https} from 'firebase-functions';
 import {Request, Response} from "express";
 import {createProbot, Options} from "probot";
 import {consoleStream, registerTasks, Tasks} from "./util";
-import {credential, firestore, initializeApp} from "firebase-admin";
+import {credential, firestore as firestoreAdmin, initializeApp, app, database} from "firebase-admin";
 import {DocumentSnapshot} from "firebase-functions/lib/providers/firestore";
 import {EventContext} from "firebase-functions/lib/cloud-functions";
+import { HttpClient } from './http';
 
 let tasks: Tasks;
 let probotConfig: Options = config().probot;
+
+let sizeApp: app.App;
+
+
 // Check if we are in Firebase or in development
 if(probotConfig) {
   // Init Firebase
   initializeApp();
+
+  sizeApp = initializeApp({
+    credential: credential.cert(probotConfig.sizeServiceAccount),
+    databaseURL: probotConfig.sizeDatabaseUrl,
+  }, 'sizeApp');
 } else {
   // Use dev config
-  probotConfig = require('../private/env.json');
+  probotConfig = require('../private/env.json');  
   const serviceAccount = require("../private/firebase-key.json");
+  
+  // default firebase account
   initializeApp({
     credential: credential.cert(serviceAccount)
   });
+  
+  sizeApp = initializeApp({
+    credential: credential.cert(serviceAccount),
+    databaseURL: probotConfig.sizeDatabaseUrl,
+  }, 'sizeApp');
 }
 
-const store: FirebaseFirestore.Firestore = firestore();
+
+const store: FirebaseFirestore.Firestore = firestoreAdmin();
+// database here is needed for the size task
+// since the existing data was already stored in on to continue the historical tracking
+// we need to continue using it here
+const sizeStore = sizeApp.database();
+
+const httpClient = new HttpClient();
+
 // Create the bot using Firebase's probot config (see Readme.md)
 const bot = createProbot(probotConfig);
 // disable probot logging
@@ -30,7 +55,7 @@ bot.logger.streams.splice(0, 1);
 bot.logger.addStream(consoleStream(store));
 // Load the merge task to monitor PRs
 bot.load(robot => {
-  tasks = registerTasks(robot, store);
+  tasks = registerTasks(robot, store, sizeStore, httpClient);
 });
 
 /**
@@ -104,11 +129,10 @@ exports.initIssues = https.onRequest(async (request: Request, response: Response
     response.sendStatus(500);
   }
 });
-
 /**
  * Init the PRs of a repository, triggered by an insertion in the "repositories" table
  */
-exports.initRepoPRs = database.document('repositories/{id}').onCreate((snapshot: DocumentSnapshot, context: EventContext) => {
+exports.initRepoPRs = firestore.document('repositories/{id}').onCreate((snapshot: DocumentSnapshot, context: EventContext) => {
   const data = snapshot.data();
   return tasks.commonTask.triggeredInit(data).catch(err => {
     console.error(err);

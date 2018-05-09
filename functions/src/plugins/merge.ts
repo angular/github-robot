@@ -413,15 +413,11 @@ export class MergeTask extends Task {
           return;
         }
         sha = context.payload.sha;
-        let matches = (await this.pullRequests.where('head.sha', '==', sha)
-          .where('repository.id', '==', context.payload.repository.id)
-          .get());
-        matches.forEach(async doc => {
-          pr = doc.data();
-        });
+        pr = await this.findPrBySha(sha, context.payload.repository.id);
+
         if(!pr) {
           // the repository data was previously stored as a simple id, checking if this PR still has old data
-          matches = (await this.pullRequests.where('head.sha', '==', sha)
+          const matches = (await this.pullRequests.where('head.sha', '==', sha)
             .where('repository', '==', context.payload.repository.id)
             .get());
           matches.forEach(async doc => {
