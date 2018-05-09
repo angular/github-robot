@@ -1,12 +1,11 @@
 import {Context, Robot} from "probot";
 import {Task} from "./task";
 import {AppConfig, appConfig, SizeConfig} from "../default";
-import {getGhLabels, getLabelsNames, matchAllOfAny} from "./common";
 import * as Github from '@octokit/rest';
 import {STATUS_STATE} from "../typings";
-import { HttpClient } from "../http";
-import { Response } from "request";
-import { database } from "firebase-admin";
+import {HttpClient} from "../http";
+import {Response} from "request";
+import {database} from "firebase-admin";
 
 export const CONFIG_FILE = "angular-robot.yml";
 
@@ -28,10 +27,6 @@ export interface BuildArtifactDiff {
   artifact: BuildArtifact;
   increase: number;
 }
-export interface CircleCiBuildSummary {
-  vcs_revision: string;
-  build_num: number;
-}
 
 export class SizeTask extends Task {
   constructor(robot: Robot, firestore: FirebaseFirestore.Firestore, private readonly rtDb: database.Database, private readonly http: HttpClient) {
@@ -43,22 +38,23 @@ export class SizeTask extends Task {
 
   async checkSize(context: Context): Promise<any> {
     const config = await this.getConfig(context);
-    if (config.disabled) {
+
+    if(config.disabled) {
       return;
     }
-    
+
     // TODO: make context configurable
     if((context.payload.state !== STATUS_STATE.Success) || !context.payload.context.startsWith('ci/circleci')) {
       // do nothing since we only want succeeded circleci events
       return;
     }
+
     const pr = await this.findPrBySha(context.payload.sha, context.payload.repository.id);
+
     if(!pr) {
       // this status doesn't have a PR therefore it's probably a commit to a branch
       // so we want to store any changes from that commit
-      this.storeArtifacts(context);
-      // don't continue
-      return;
+      return this.storeArtifacts(context);
     }
 
     // set to pending since we are going to do a full run through
@@ -66,14 +62,10 @@ export class SizeTask extends Task {
     await this.setStatus(STATUS_STATE.Pending, 'Calculating artifact sizes', config.status.context, context);
 
     const {owner, repo} = context.repo();
-
     const buildNumber = this.getBuildNumberFromCircleCIUrl(context.payload.target_url);
     const newArtifacts = await this.getCircleCIArtifacts(owner, repo, buildNumber);
-
     const targetBranchArtifacts = await this.getTargetBranchArtifacts(pr);
-
     const largestIncrease = await this.findLargestIncrease(targetBranchArtifacts, newArtifacts);
-
     const failure = this.isFailure(config, largestIncrease.increase);
 
     if(failure) {
@@ -83,36 +75,36 @@ export class SizeTask extends Task {
       if(largestIncrease.increase === 0) {
         const desc = `no size change`;
         return await this.setStatus(STATUS_STATE.Success, desc, config.status.context, context);
-    } else if (largestIncrease.increase < 0) {
+      } else if(largestIncrease.increase < 0) {
         const desc = `${largestIncrease.artifact.fullPath} decreased by ${largestIncrease.increase} bytes`; // TODO pretty up bytes 
-        return await this.setStatus(STATUS_STATE.Success, desc,config.status.context, context);
-    } else if (largestIncrease.increase > 0) {
+        return await this.setStatus(STATUS_STATE.Success, desc, config.status.context, context);
+      } else if(largestIncrease.increase > 0) {
         const desc = `${largestIncrease.artifact.fullPath} increased by ${largestIncrease.increase} bytes`; // TODO pretty up bytes 
-        return await this.setStatus(STATUS_STATE.Success, desc,config.status.context, context);
+        return await this.setStatus(STATUS_STATE.Success, desc, config.status.context, context);
       }
     }
   }
 
 
   /**
-   * 
-   * Retrieves the artifacts from circleci of the context passed in, then saves them into firebase 
-   * 
+   *
+   * Retrieves the artifacts from circleci of the context passed in, then saves them into firebase
+   *
    * @param context Must be from a "Status" github event
    */
   async storeArtifacts(context: Context): Promise<void> {
     const {owner, repo} = context.repo();
     const buildNumber = await this.getBuildNumberFromCircleCIUrl(context.payload.target_url);
     const newArtifacts = await this.getCircleCIArtifacts(owner, repo, buildNumber);
-    await this.upsertNewArtifacts(context, newArtifacts);
+    return this.upsertNewArtifacts(context, newArtifacts);
   }
 
   /**
-   * 
+   *
    * Insert or updates the artifacts for a status event
-   * 
+   *
    * @param context Must be from a "Status" github event
-   * @param artifacts 
+   * @param artifacts
    */
   async upsertNewArtifacts(context: Context, artifacts: BuildArtifact[]): Promise<void> {
     // eg: aio/gzip7/inline
@@ -122,19 +114,18 @@ export class SizeTask extends Task {
 
     for(const project of projects) {
       for(const branch of context.payload.branches) {
-
-        const ref =  this.rtDb.ref(`/payload/${project}/${branch.name}/${context.payload.commit.sha}`);
+        const ref = this.rtDb.ref(`/payload/${project}/${branch.name}/${context.payload.commit.sha}`);
         const artifactsOutput = {
           change: 'application',
           message: context.payload.commit.commit.message,
           timestamp: new Date().getTime(),
         };
-  
+
         // only use the artifacts from this project
         artifacts.filter(a => a.projectName === project)
           .forEach(a => {
             // hold a ref to where we are in our tree walk
-            let lastNestedItemRef: object|number = artifactsOutput;
+            let lastNestedItemRef: object | number = artifactsOutput;
             // first item is the project name which we've used already 
             a.contextPath.forEach((path, i) => {
               // last item so assign it the bytes size
@@ -145,11 +136,12 @@ export class SizeTask extends Task {
               if(!lastNestedItemRef[path]) {
                 lastNestedItemRef[path] = {};
               }
-  
+
               lastNestedItemRef = lastNestedItemRef[path];
             });
             lastNestedItemRef = a.sizeBytes;
-          });    
+          });
+
         // if one already exists for this sha, override it
         await ref.set(artifactsOutput);
       }
@@ -157,13 +149,14 @@ export class SizeTask extends Task {
   }
 
   /**
-   * 
+   *
    * Parses a circleci build url for the build number
-   * 
+   *
    * @param url circleci build url, retrieved from target_event in a github "Status" event context
    */
   getBuildNumberFromCircleCIUrl(url: string): number {
     const parts = url.split('/');
+
     if(parts[2] === 'circleci.com' && parts[3] === 'gh') {
       return Number(parts[6].split('?')[0]);
     } else {
@@ -175,7 +168,7 @@ export class SizeTask extends Task {
    * determines if the increase is a failure based off the config values
    */
   isFailure(config: SizeConfig, increase: number): boolean {
-    return increase > config.maxSizeIncrease ;
+    return increase > config.maxSizeIncrease;
   }
 
   /**
@@ -188,20 +181,22 @@ export class SizeTask extends Task {
     for(const newArtifact of newArtifacts) {
       const targetArtifact = oldArtifacts.find(a => a.fullPath === newArtifact.fullPath);
       let increase = 0;
-      if (!targetArtifact) {
+
+      if(!targetArtifact) {
         increase = newArtifact.sizeBytes;
       } else {
         increase = newArtifact.sizeBytes - targetArtifact.sizeBytes;
       }
-      if (increase > largestIncreaseSize || largestIncrease === null) {
+
+      if(increase > largestIncreaseSize || largestIncrease === null) {
         largestIncreaseSize = increase;
         largestIncrease = newArtifact;
       }
     }
 
     return {
-     artifact: largestIncrease,
-     increase: largestIncreaseSize
+      artifact: largestIncrease,
+      increase: largestIncreaseSize
     };
   }
 
@@ -210,45 +205,46 @@ export class SizeTask extends Task {
    */
   async getTargetBranchArtifacts(prPayload: Github.PullRequest): Promise<BuildArtifact[]> {
     const targetBranch = prPayload.base;
-
     const payloadValue = await this.rtDb.ref('/payload').once('value');
     const projects = Object.keys(payloadValue.val());
-
     const artifacts: BuildArtifact[] = [];
-    for(const projectName of projects) {
 
+    for(const projectName of projects) {
       const ref = this.rtDb.ref(`/payload/${projectName}/${targetBranch.ref}/${targetBranch.sha}`);
       const snapshot = await ref.once('value');
       const value = snapshot.val();
-      delete value.change;
-      delete value.message;
-      delete value.timestamp;
 
-      // reconstruct the paths into artifacts
-      const reconstructArtifacts = (object: any, path: string) => {
-        Object.keys(object).forEach(k => {
-          if(typeof object[k] === 'object') {
-            reconstructArtifacts(object[k], path + '/' + k);
-          } else {
-            path = path + '/' + k;           
-            const pathParts = path.split('/').slice(1); 
-            artifacts.push({
-              sizeBytes: object[k],
-              fullPath: path ,
-              projectName: projectName,
-              contextPath: pathParts,
-            });
-          }
-        });
-      };
-      reconstructArtifacts(value, projectName);
+      if(value) {
+        delete value.change;
+        delete value.message;
+        delete value.timestamp;
+
+        // reconstruct the paths into artifacts
+        const reconstructArtifacts = (object: any, path: string) => {
+          Object.keys(object).forEach(k => {
+            if(typeof object[k] === 'object') {
+              reconstructArtifacts(object[k], path + '/' + k);
+            } else {
+              path = path + '/' + k;
+              const pathParts = path.split('/').slice(1);
+              artifacts.push({
+                sizeBytes: object[k],
+                fullPath: path,
+                projectName: projectName,
+                contextPath: pathParts,
+              });
+            }
+          });
+        };
+        reconstructArtifacts(value, projectName);
+      }
     }
-    return artifacts;
 
+    return artifacts;
   }
 
   /**
-   * Retrieves the build artifacts from circleci 
+   * Retrieves the build artifacts from circleci
    */
   async getCircleCIArtifacts(username: string, project: string, buildNumber: number): Promise<BuildArtifact[]> {
     const artifacts = await this.http.get<CircleCiArtifact[]>(`https://circleci.com/api/v1.1/project/github/${username}/${project}/${buildNumber}/artifacts`) as CircleCiArtifact[];
@@ -256,8 +252,9 @@ export class SizeTask extends Task {
     return Promise.all(artifacts.map(async artifact => {
       const content = await this.http.get<string>(artifact.url, {responseType: 'response'} as any) as Response;
       const pathParts = artifact.path.split('/');
+
       return {
-        fullPath: artifact.path, 
+        fullPath: artifact.path,
         projectName: pathParts[0],
         contextPath: pathParts.slice(1),
         sizeBytes: Number(content.headers["content-length"]),

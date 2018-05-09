@@ -121,3 +121,20 @@ export function registerTasks(robot: Robot, store: FirebaseFirestore.Firestore, 
     sizeTask: new SizeTask(robot, store, sizeStore, http),
   };
 }
+
+// copied from https://github.com/firebase/firebase-admin-node/blob/master/src/auth/credential.ts#L61
+function copyAttr(to: object, from: object, key: string, alt: string) {
+  const tmp = from[key] || from[alt];
+  if (typeof tmp !== 'undefined') {
+    to[key] = tmp;
+  }
+}
+
+export function loadFirebaseConfig(url: string) {
+  const config = require(url);
+  copyAttr(config, config, 'projectId', 'project_id');
+  copyAttr(config, config, 'clientId', 'client_id');
+  copyAttr(config, config, 'clientSecret', 'client_secret');
+  copyAttr(config, config, 'refreshToken', 'refresh_token');
+  return config;
+}

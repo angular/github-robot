@@ -1,7 +1,7 @@
 import {Context, Robot} from "probot";
 import {OctokitWithPagination} from "probot/lib/github";
-import { PullRequest, ReposCreateStatusParams } from "@octokit/rest";
-import { STATUS_STATE } from "../typings";
+import {PullRequest, ReposCreateStatusParams} from "@octokit/rest";
+import {STATUS_STATE} from "../typings";
 
 export class Task {
   repositories: FirebaseFirestore.CollectionReference;
@@ -28,9 +28,9 @@ export class Task {
     return (await doc.get()).data();
   }
 
-/**
- * Sets the status on the target PR
- */
+  /**
+   * Sets the status on the target PR
+   */
   async setStatus(state: STATUS_STATE, desc: string, statusContext: string, context: Context): Promise<void> {
     const {owner, repo} = context.repo();
 

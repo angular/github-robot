@@ -82,7 +82,7 @@ If you can't get the PR to a green state due to flakes or broken master, please 
 
   triage: {    
     // set to true to disable
-    disabled: false,
+    disabled: true,
     // number of the milestone to apply when the issue has not been triaged yet
     needsTriageMilestone: 83,
     // number of the milestone to apply when the issue is triaged

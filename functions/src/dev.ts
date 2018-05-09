@@ -1,24 +1,19 @@
-import {createProbot} from "probot";
-import {credential, firestore, initializeApp, database} from "firebase-admin";
-import {consoleStream, registerTasks} from "./util";
-import { HttpClient } from "./http";
+import {createProbot, Options} from "probot";
+import {credential, firestore, initializeApp, ServiceAccount} from "firebase-admin";
+import {consoleStream, loadFirebaseConfig, registerTasks} from "./util";
+import {HttpClient} from "./http";
 
 console.warn(`Starting dev mode`);
 
-const config = require('../private/env.json');
+const config: Options = require('../private/env.json');
+const sizeAppConfig: ServiceAccount = loadFirebaseConfig("../private/firebase-key.json");
 
-const serviceAccount = require("../private/firebase-key.json");
-// default firebase app
-initializeApp({
-  credential: credential.cert(serviceAccount)
+const sizeApp = initializeApp({
+  credential: credential.cert(sizeAppConfig),
+  databaseURL: `https://${sizeAppConfig.projectId}.firebaseio.com`,
 });
 
 const store: FirebaseFirestore.Firestore = firestore();
-
-const sizeApp = initializeApp({
-  credential: credential.cert(serviceAccount),
-  databaseURL: config.sizeDatabaseUrl,
-}, 'sizeApp');
 const sizeStore = sizeApp.database();
 
 const httpClient = new HttpClient();
