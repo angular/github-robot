@@ -1,4 +1,3 @@
-
 export class MockDatabaseHost {
   values = new Map<string, any>();
 
@@ -6,9 +5,10 @@ export class MockDatabaseHost {
     return {
       ref: (path: string) => {
         return {
-            set: (value: any) => {
+          set: (value: any) => {
             this.values.set(path, value);
-          }
+          },
+          then: (fct: Function) => fct(this.values.get(path))
         };
       }
     };

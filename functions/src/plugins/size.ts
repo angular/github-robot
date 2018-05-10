@@ -6,6 +6,7 @@ import {STATUS_STATE} from "../typings";
 import {HttpClient} from "../http";
 import {Response} from "request";
 import {database} from "firebase-admin";
+import {firebasePathEncode} from "../util";
 
 export const CONFIG_FILE = "angular-robot.yml";
 
@@ -99,6 +100,10 @@ export class SizeTask extends Task {
     return this.upsertNewArtifacts(context, newArtifacts);
   }
 
+  getRef(path: string): database.Reference {
+    return this.rtDb.ref(firebasePathEncode(path));
+  }
+
   /**
    *
    * Insert or updates the artifacts for a status event
@@ -109,12 +114,12 @@ export class SizeTask extends Task {
   async upsertNewArtifacts(context: Context, artifacts: BuildArtifact[]): Promise<void> {
     // eg: aio/gzip7/inline
     // eg: ivy/gzip7/inline
-    // projects within this repo 
+    // projects within this repo
     const projects = new Set(artifacts.map(a => a.projectName));
 
     for(const project of projects) {
       for(const branch of context.payload.branches) {
-        const ref = this.rtDb.ref(`/payload/${project}/${branch.name}/${context.payload.commit.sha}`);
+        const ref = this.getRef(`/payload/${project}/${branch.name}/${context.payload.commit.sha}`);
         const artifactsOutput = {
           change: 'application',
           message: context.payload.commit.commit.message,
@@ -210,7 +215,7 @@ export class SizeTask extends Task {
     const artifacts: BuildArtifact[] = [];
 
     for(const projectName of projects) {
-      const ref = this.rtDb.ref(`/payload/${projectName}/${targetBranch.ref}/${targetBranch.sha}`);
+      const ref = this.getRef(`/payload/${projectName}/${targetBranch.ref}/${targetBranch.sha}`);
       const snapshot = await ref.once('value');
       const value = snapshot.val();
 

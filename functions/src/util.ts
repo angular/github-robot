@@ -147,3 +147,16 @@ export function loadFirebaseConfig(params?: string|object) {
   copyAttr(config, config, 'refreshToken', 'refresh_token');
   return config;
 }
+
+/**
+ * Encode paths for Firebase
+ * Paths must be non-empty strings and can't contain ".", "#", "$", "[", or "]"
+ * We want to keep "/" because it has a specific meaning in database paths
+ */
+export function firebasePathEncode(s: string) {
+  return s.replace(/[\.#\$\[\]]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+}
+
+export function firebasePathDecode(s: string) {
+  return decodeURIComponent(s);
+}

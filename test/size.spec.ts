@@ -5,9 +5,9 @@ import {appConfig} from "../functions/src/default";
 import {MockFirestore} from './mocks/firestore';
 import {mockGithub} from "./mocks/github";
 import {GitHubApi} from "../functions/src/typings";
-import { SizeTask, BuildArtifact, CircleCiArtifact } from "../functions/src/plugins/size";
-import { MockHttpHost } from "./mocks/http";
-import { MockDatabaseHost } from "./mocks/database";
+import {BuildArtifact, CircleCiArtifact, SizeTask} from "../functions/src/plugins/size";
+import {MockHttpHost} from "./mocks/http";
+import {MockDatabaseHost} from "./mocks/database";
 
 describe('size', () => {
   let robot: Robot;
@@ -54,12 +54,12 @@ describe('size', () => {
   describe('findLargestIncrease', () => {
     it('when the same name exists in both', () => {
       const olds: BuildArtifact[] = [
-        {fullPath: 'one', sizeBytes: 10, contextPath: [], projectName: 'one',  },
-        {fullPath: 'two', sizeBytes: 10, contextPath: [], projectName: 'two', },
+        {fullPath: 'one', sizeBytes: 10, contextPath: [], projectName: 'one',},
+        {fullPath: 'two', sizeBytes: 10, contextPath: [], projectName: 'two',},
       ];
       const news: BuildArtifact[] = [
-        {fullPath: 'one', sizeBytes: 20, contextPath: [], projectName: 'one',  },
-        {fullPath: 'two', sizeBytes: 30, contextPath: [], projectName: 'two', },
+        {fullPath: 'one', sizeBytes: 20, contextPath: [], projectName: 'one',},
+        {fullPath: 'two', sizeBytes: 30, contextPath: [], projectName: 'two',},
       ];
       const largest = sizeTask.findLargestIncrease(olds, news);
       expect(largest.artifact.fullPath).toEqual('two');
@@ -68,13 +68,13 @@ describe('size', () => {
 
     it('when a new artifact is added', () => {
       const olds: BuildArtifact[] = [
-        {fullPath: 'one', sizeBytes: 10, contextPath: [], projectName: 'one', },
-        {fullPath: 'two', sizeBytes: 10, contextPath: [], projectName: 'two', },
+        {fullPath: 'one', sizeBytes: 10, contextPath: [], projectName: 'one',},
+        {fullPath: 'two', sizeBytes: 10, contextPath: [], projectName: 'two',},
       ];
       const news: BuildArtifact[] = [
-        {fullPath: 'one', sizeBytes: 20, contextPath: [], projectName: 'one', },
-        {fullPath: 'two', sizeBytes: 30, contextPath: [], projectName: 'two', },
-        {fullPath: 'three', sizeBytes: 30, contextPath: [], projectName: 'three', },
+        {fullPath: 'one', sizeBytes: 20, contextPath: [], projectName: 'one',},
+        {fullPath: 'two', sizeBytes: 30, contextPath: [], projectName: 'two',},
+        {fullPath: 'three', sizeBytes: 30, contextPath: [], projectName: 'three',},
       ];
       const largest = sizeTask.findLargestIncrease(olds, news);
       expect(largest.artifact.fullPath).toEqual('three');
@@ -92,13 +92,14 @@ describe('size', () => {
       const artifactsEndpoint = `https://circleci.com/api/v1.1/project/github/${username}/${project}/${buildNumber}/artifacts`;
       const artifactUrl = 'someartifactname';
 
-      mockHttp.registerEndpoint(artifactsEndpoint, [{  path: 'onepath',
+      mockHttp.registerEndpoint(artifactsEndpoint, [{
+        path: 'onepath',
         pretty_path: 'twopath',
         node_index: 3,
         url: artifactUrl
       }] as CircleCiArtifact[]);
 
-      mockHttp.registerEndpoint(artifactUrl, { headers:{ 'content-length': 21}});
+      mockHttp.registerEndpoint(artifactUrl, {headers: {'content-length': 21}});
 
       const artifacts = await sizeTask.getCircleCIArtifacts(username, project, buildNumber);
       expect(artifacts[0]).toBeTruthy();
@@ -126,8 +127,8 @@ describe('size', () => {
           {name: 'master'}
         ]
       },
-     
     };
+
     beforeEach(() => {
       database.values.clear();
     });
@@ -137,17 +138,52 @@ describe('size', () => {
         {fullPath: 'aio/gzip7/inline', sizeBytes: 1001, contextPath: ['gzip7', 'inline'], projectName: 'aio'}
       ];
       await sizeTask.upsertNewArtifacts(context as any, artifacts);
-      expect(database.values.get('/payload/aio/master/444').gzip7.inline).toEqual(1001);
+
+      const ref = await sizeTask.getRef('/payload/aio/master/444');
+      expect((ref as any).gzip7.inline).toEqual(1001);
     });
 
-    it('should insert the value', async() => {
+    it('should insert the value', async () => {
       const artifacts: BuildArtifact[] = [
         {fullPath: 'aio/gzip7/inline', sizeBytes: 1001, contextPath: ['gzip7', 'inline'], projectName: 'aio'},
         {fullPath: 'aio/gzip7/main', sizeBytes: 1003, contextPath: ['gzip7', 'main'], projectName: 'aio'}
       ];
       await sizeTask.upsertNewArtifacts(context as any, artifacts);
-      expect(database.values.get('/payload/aio/master/444').gzip7.inline).toEqual(1001);
-      expect(database.values.get('/payload/aio/master/444').gzip7.main).toEqual(1003);
+
+      let ref = await sizeTask.getRef('/payload/aio/master/444');
+      expect((ref as any).gzip7.inline).toEqual(1001);
+      ref = await sizeTask.getRef('/payload/aio/master/444');
+      expect((ref as any).gzip7.main).toEqual(1003);
+    });
+
+    it('should support forbidden characters', async () => {
+      const alternateContext = {
+        payload: {
+          sha: '123',
+          branch: '6.0.x',
+          commit_message: 'commitmsg',
+          commit: {
+            sha: '444',
+            commit: {
+              message: 'more size, more size!'
+            }
+          },
+          branches: [
+            {name: '6.0.x'}
+          ]
+        },
+
+      };
+      const artifacts: BuildArtifact[] = [
+        {fullPath: 'aio/gzip7/inline', sizeBytes: 1001, contextPath: ['gzip7', 'inline'], projectName: 'aio'},
+        {fullPath: 'aio/gzip7/main', sizeBytes: 1003, contextPath: ['gzip7', 'main'], projectName: 'aio'}
+      ];
+      await sizeTask.upsertNewArtifacts(alternateContext as any, artifacts);
+
+      let ref = await sizeTask.getRef('/payload/aio/6.0.x/444');
+      expect((ref as any).gzip7.inline).toEqual(1001);
+      ref = await sizeTask.getRef('/payload/aio/6.0.x/444');
+      expect((ref as any).gzip7.main).toEqual(1003);
     });
 
     it('should replace prior values the value', async () => {
@@ -155,10 +191,12 @@ describe('size', () => {
         {fullPath: 'aio/gzip7/inline', sizeBytes: 1001, contextPath: ['gzip7', 'inline'], projectName: 'aio'},
         {fullPath: 'aio/gzip7/main', sizeBytes: 1003, contextPath: ['gzip7', 'main'], projectName: 'aio'}
       ];
-      await sizeTask.upsertNewArtifacts(context as any, artifacts); 
+      await sizeTask.upsertNewArtifacts(context as any, artifacts);
 
-      expect(database.values.get('/payload/aio/master/444').gzip7.inline).toEqual(1001);
-      expect(database.values.get('/payload/aio/master/444').gzip7.main).toEqual(1003);
+      let ref = await sizeTask.getRef('/payload/aio/master/444');
+      expect((ref as any).gzip7.inline).toEqual(1001);
+      ref = await sizeTask.getRef('/payload/aio/master/444');
+      expect((ref as any).gzip7.main).toEqual(1003);
 
       artifacts = [
         {fullPath: 'aio/gzip7/inline', sizeBytes: 1010, contextPath: ['gzip7', 'inline'], projectName: 'aio'},
@@ -166,8 +204,10 @@ describe('size', () => {
       ];
       await sizeTask.upsertNewArtifacts(context as any, artifacts);
 
-      expect(database.values.get('/payload/aio/master/444').gzip7.inline).toEqual(1010);
-      expect(database.values.get('/payload/aio/master/444').gzip7.main).toEqual(1020);
+      ref = await sizeTask.getRef('/payload/aio/master/444');
+      expect((ref as any).gzip7.inline).toEqual(1010);
+      ref = await sizeTask.getRef('/payload/aio/master/444');
+      expect((ref as any).gzip7.main).toEqual(1020);
     });
   });
 
