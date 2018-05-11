@@ -5,6 +5,11 @@ export class MockDatabaseHost {
     return {
       ref: (path: string) => {
         return {
+          once: (_: string) => {
+            return Promise.resolve({
+              val: () => this.values.get(path)
+            });
+          },
           set: (value: any) => {
             this.values.set(path, value);
           },
