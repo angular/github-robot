@@ -57,6 +57,7 @@ export class SizeTask extends Task {
       // so we want to store any changes from that commit
       return this.storeArtifacts(context);
     }
+    this.logDebug(`[size] Processing PR: ${pr.title}`);
 
     // set to pending since we are going to do a full run through
     // TODO: can we set pending sooner? like at the start of the PR
@@ -94,7 +95,10 @@ export class SizeTask extends Task {
    * @param context Must be from a "Status" github event
    */
   async storeArtifacts(context: Context): Promise<void> {
+    this.logDebug(`[size] Storing artifacts for: ${context.payload.commit.sha}`);
+    
     const {owner, repo} = context.repo();
+
     const buildNumber = await this.getBuildNumberFromCircleCIUrl(context.payload.target_url);
     const newArtifacts = await this.getCircleCIArtifacts(owner, repo, buildNumber);
     return this.upsertNewArtifacts(context, newArtifacts);
@@ -112,11 +116,13 @@ export class SizeTask extends Task {
    * @param artifacts
    */
   async upsertNewArtifacts(context: Context, artifacts: BuildArtifact[]): Promise<void> {
+    this.logDebug(`[size] Storing artifacts for: ${context.payload.commit.sha}, on branches [${context.payload.branches.map(b => b.commit.url).join(', ')}]`);
+    
     // eg: aio/gzip7/inline
     // eg: ivy/gzip7/inline
     // projects within this repo
     const projects = new Set(artifacts.map(a => a.projectName));
-
+    
     for(const project of projects) {
       for(const branch of context.payload.branches) {
         const ref = this.getRef(`/payload/${project}/${branch.name}/${context.payload.commit.sha}`);
@@ -210,6 +216,8 @@ export class SizeTask extends Task {
    */
   async getTargetBranchArtifacts(prPayload: Github.PullRequest): Promise<BuildArtifact[]> {
     const targetBranch = prPayload.base;
+    this.logDebug(`[size] Fetching target branch artifacts for ${targetBranch.ref}/${targetBranch.sha}`);
+
     const payloadValue = await this.rtDb.ref('/payload').once('value');
     const projects = Object.keys(payloadValue.val());
     const artifacts: BuildArtifact[] = [];
@@ -252,11 +260,15 @@ export class SizeTask extends Task {
    * Retrieves the build artifacts from circleci
    */
   async getCircleCIArtifacts(username: string, project: string, buildNumber: number): Promise<BuildArtifact[]> {
-    const artifacts = await this.http.get<CircleCiArtifact[]>(`https://circleci.com/api/v1.1/project/github/${username}/${project}/${buildNumber}/artifacts`) as CircleCiArtifact[];
+    const artifactUrl = `https://circleci.com/api/v1.1/project/github/${username}/${project}/${buildNumber}/artifacts`;
+    this.logDebug(`[size] Fetching artifacts for ${artifactUrl}`);
+
+    const artifacts = await this.http.get<CircleCiArtifact[]>(artifactUrl) as CircleCiArtifact[];
 
     return Promise.all(artifacts.map(async artifact => {
       const content = await this.http.get<string>(artifact.url, {responseType: 'response'} as any) as Response;
       const pathParts = artifact.path.split('/');
+
 
       return {
         fullPath: artifact.path,
