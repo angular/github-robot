@@ -6,7 +6,7 @@ import {STATUS_STATE} from "../typings";
 import {HttpClient} from "../http";
 import {Response} from "request";
 import {database} from "firebase-admin";
-import {firebasePathEncode} from "../util";
+import { firebasePathDecode, firebasePathEncode} from "../util";
 
 export const CONFIG_FILE = "angular-robot.yml";
 
@@ -100,10 +100,6 @@ export class SizeTask extends Task {
     return this.upsertNewArtifacts(context, newArtifacts);
   }
 
-  getRef(path: string): database.Reference {
-    return this.rtDb.ref(firebasePathEncode(path));
-  }
-
   /**
    *
    * Insert or updates the artifacts for a status event
@@ -119,7 +115,7 @@ export class SizeTask extends Task {
 
     for(const project of projects) {
       for(const branch of context.payload.branches) {
-        const ref = this.getRef(`/payload/${project}/${branch.name}/${context.payload.commit.sha}`);
+        const ref = this.rtDb.ref(`/payload/${project}/${firebasePathEncode(branch.name)}/${context.payload.commit.sha}`);
         const artifactsOutput = {
           change: 'application',
           message: context.payload.commit.commit.message,
@@ -133,16 +129,17 @@ export class SizeTask extends Task {
             let lastNestedItemRef: object | number = artifactsOutput;
             // first item is the project name which we've used already 
             a.contextPath.forEach((path, i) => {
+              const encodedPath = firebasePathEncode(path);
               // last item so assign it the bytes size
               if(i === a.contextPath.length - 1) {
-                lastNestedItemRef[path] = a.sizeBytes;
+                lastNestedItemRef[encodedPath] = a.sizeBytes;
                 return;
               }
-              if(!lastNestedItemRef[path]) {
-                lastNestedItemRef[path] = {};
+              if(!lastNestedItemRef[encodedPath]) {
+                lastNestedItemRef[encodedPath] = {};
               }
 
-              lastNestedItemRef = lastNestedItemRef[path];
+              lastNestedItemRef = lastNestedItemRef[encodedPath];
             });
             lastNestedItemRef = a.sizeBytes;
           });
@@ -215,7 +212,7 @@ export class SizeTask extends Task {
     const artifacts: BuildArtifact[] = [];
 
     for(const projectName of projects) {
-      const ref = this.getRef(`/payload/${projectName}/${targetBranch.ref}/${targetBranch.sha}`);
+      const ref = this.rtDb.ref(`/payload/${projectName}/${firebasePathEncode(targetBranch.ref)}/${targetBranch.sha}`);
       const snapshot = await ref.once('value');
       const value = snapshot.val();
 
@@ -228,9 +225,9 @@ export class SizeTask extends Task {
         const reconstructArtifacts = (object: any, path: string) => {
           Object.keys(object).forEach(k => {
             if(typeof object[k] === 'object') {
-              reconstructArtifacts(object[k], path + '/' + k);
+              reconstructArtifacts(object[k], path + '/' + firebasePathDecode(k));
             } else {
-              path = path + '/' + k;
+              path = path + '/' + firebasePathDecode(k);
               const pathParts = path.split('/').slice(1);
               artifacts.push({
                 sizeBytes: object[k],

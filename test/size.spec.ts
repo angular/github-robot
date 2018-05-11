@@ -156,6 +156,16 @@ describe('size', () => {
       expect((ref as any).gzip7.main).toEqual(1003);
     });
 
+    it('should support forbidden characters in the context', async () => {
+      const artifacts: BuildArtifact[] = [
+        {fullPath: 'aio/gzip7/inline.br', sizeBytes: 1001, contextPath: ['gzip7', 'inline.br'], projectName: 'aio'}
+      ];
+      await sizeTask.upsertNewArtifacts(context as any, artifacts);
+
+      const ref = await sizeTask.getRef('/payload/aio/master/444');
+      expect((ref as any).gzip7.inline_br).toEqual(1001);
+    });
+
     it('should support forbidden characters', async () => {
       const alternateContext = {
         payload: {
@@ -180,9 +190,9 @@ describe('size', () => {
       ];
       await sizeTask.upsertNewArtifacts(alternateContext as any, artifacts);
 
-      let ref = await sizeTask.getRef('/payload/aio/6.0.x/444');
+      let ref = await sizeTask.getRef('/payload/aio/6_0_x/444');
       expect((ref as any).gzip7.inline).toEqual(1001);
-      ref = await sizeTask.getRef('/payload/aio/6.0.x/444');
+      ref = await sizeTask.getRef('/payload/aio/6_0_x/444');
       expect((ref as any).gzip7.main).toEqual(1003);
     });
 
@@ -208,6 +218,32 @@ describe('size', () => {
       expect((ref as any).gzip7.inline).toEqual(1010);
       ref = await sizeTask.getRef('/payload/aio/master/444');
       expect((ref as any).gzip7.main).toEqual(1020);
+    });
+  });
+
+  describe('getTargetBranchArtifacts', () => {
+    it('should reconstruct a simple artifact', async () => {
+      const prPayload = {base: {sha: '123', ref: 'master'}};
+      database.values.set('/payload', {aio: {}});
+      database.values.set('/payload/aio/master/123', {
+        gzip: {
+          main: 1000
+        }
+      });
+      const artifacts = await sizeTask.getTargetBranchArtifacts(prPayload as any);
+      expect(artifacts[0].sizeBytes).toEqual(1000);
+    });
+
+    it('should decode encoded context names', async () => {
+      const prPayload = {base: {sha: '123', ref: '6.0.x'}};
+      database.values.set('/payload', {aio: {}});
+      database.values.set('/payload/aio/6_0_x/123', {
+        gzip: {
+          inline_br: 1000
+        }
+      });
+      const artifacts = await sizeTask.getTargetBranchArtifacts(prPayload as any);
+      expect(artifacts[0].contextPath[1]).toEqual('inline.br');
     });
   });
 
