@@ -44,8 +44,8 @@ export class SizeTask extends Task {
       return;
     }
 
-    // TODO: make context configurable
-    if((context.payload.state !== STATUS_STATE.Success) || !context.payload.context.startsWith('ci/circleci')) {
+    // only check on PRs the status has that artifacts
+    if((context.payload.state !== STATUS_STATE.Success) || context.payload.context !== config.circleCiStatusName) {
       // do nothing since we only want succeeded circleci events
       return;
     }
