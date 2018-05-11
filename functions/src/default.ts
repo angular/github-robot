@@ -5,6 +5,7 @@ export const appConfig: AppConfig = {
   size: {
     disabled: false,
     maxSizeIncrease: 1000,
+    circleCiStatusName: 'ci/circleci: build',
     status: {
       disabled: false,
       context: "ci/angular: size",
@@ -141,6 +142,7 @@ export interface TriageConfig {
 export interface SizeConfig {
   disabled: boolean;
   maxSizeIncrease: number;
+  circleCiStatusName: string;
   status: {
     disabled: boolean;
     context: string;
