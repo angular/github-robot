@@ -22,7 +22,9 @@ export const appConfig: AppConfig = {
       // text to show when all checks pass
       successText: "All checks passed!",
       // text to show when some checks are failing
-      failureText: "The following checks are failing:"
+      failureText: "The following checks are failing:",
+      // whether failing states should be shown as pending.
+      showFailingAsPending: false,
     },
 
     g3Status: {
@@ -107,6 +109,7 @@ export interface MergeConfig {
     context: string;
     successText: string;
     failureText: string;
+    showFailingAsPending: boolean;
   };
   g3Status: {
     disabled: boolean;

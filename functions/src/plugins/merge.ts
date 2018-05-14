@@ -487,7 +487,7 @@ export class MergeTask extends Task {
       const failedChecks = await this.getChecksStatus(context, pr, config, labels, statuses);
 
       if(failedChecks.failure.length > 0) {
-        statusParams.state = STATUS_STATE.Failure;
+        statusParams.state = config.status.showFailingAsPending ? STATUS_STATE.Pending : STATUS_STATE.Failure;
         statusParams.description = failedChecks.failure.concat(failedChecks.pending).join(', ');
       } else if(failedChecks.pending.length > 0) {
         statusParams.state = STATUS_STATE.Pending;

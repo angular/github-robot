@@ -20,6 +20,9 @@ merge:
     successText: "All checks passed!"
     # text to show when some checks are failing
     failureText: "The following checks are failing:"
+    # whether failing states should be shown as pending.
+    showFailingAsPending: false
+    
 
   # the g3 status will be added to your pull requests if they include files that match the patterns
   g3Status:
