@@ -1,7 +1,7 @@
 import {config, firestore, https} from 'firebase-functions';
 import {Request, Response} from "express";
 import {createProbot, Options} from "probot";
-import {consoleStream, loadFirebaseConfig, registerTasks, Tasks} from "./util";
+import {consoleStream, loadFirebaseConfig, registerTasks, Tasks, getJwtToken} from "./util";
 import {app, credential, firestore as firestoreAdmin, initializeApp, ServiceAccount} from "firebase-admin";
 import {DocumentSnapshot} from "firebase-functions/lib/providers/firestore";
 import {EventContext} from "firebase-functions/lib/cloud-functions";
@@ -30,9 +30,8 @@ if(probotConfig) {
   probotConfig = require('../private/env.json');
   sizeAppConfig = loadFirebaseConfig("../private/firebase-key.json");
 
-  sizeApp = initializeApp({
+  initializeApp({
     credential: credential.cert(sizeAppConfig),
-    databaseURL: `https://${sizeAppConfig.projectId}.firebaseio.com`,
   });
 }
 
@@ -48,10 +47,6 @@ const bot = createProbot(probotConfig);
 bot.logger.streams.splice(0, 1);
 // Use node console as the output stream
 bot.logger.addStream(consoleStream(store));
-// Load the merge task to monitor PRs
-bot.load(robot => {
-  tasks = registerTasks(robot, store, sizeStore, httpClient);
-});
 
 /**
  * Relay Github events to the bot
@@ -134,3 +129,14 @@ exports.initRepoPRs = firestore.document('repositories/{id}').onCreate((snapshot
     console.error(err);
   });
 });
+
+async function start() {
+  const accessToken = await getJwtToken(sizeAppConfig.clientEmail, sizeAppConfig.privateKey);
+
+  // Load the merge task to monitor PRs
+  bot.load(robot => {
+    tasks = registerTasks(robot, store, httpClient, accessToken, `https://${sizeAppConfig.projectId}.firebaseio.com`);
+  });
+}
+
+start();
