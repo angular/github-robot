@@ -20,9 +20,9 @@ export class HttpClient {
       });
     });
   }
-  patch<T>(url, body): Promise<T> {
+  put<T>(url, body): Promise<T> {
     return new Promise((resolve, reject) => {
-      request.patch(url, {headers: {'Accept': 'application/json'}, body: JSON.stringify(body) }, (error, response, resBody) => {
+      request.put(url, {headers: {'Accept': 'application/json'}, body: JSON.stringify(body) }, (error, response, resBody) => {
         if(error) {
           reject(error);
         } else {

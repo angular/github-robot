@@ -149,7 +149,7 @@ export class SizeTask extends Task {
           lastNestedItemRef = a.sizeBytes;
         });
         
-        await this.http.patch<{}>(this.makeFirebaseDbUrl(`/payload/${project}/${firebasePathEncode(branch.name)}/${context.payload.commit.sha}`), artifactsOutput);
+        await this.http.put<{}>(this.makeFirebaseDbUrl(`/payload/${project}/${firebasePathEncode(branch.name)}/${context.payload.commit.sha}`), artifactsOutput);
       }
     }
   }
