@@ -215,7 +215,6 @@ export class SizeTask extends Task {
   async getTargetBranchArtifacts(prPayload: Github.PullRequest): Promise<BuildArtifact[]> {
     const targetBranch = prPayload.base;
     this.logDebug(`[size] Fetching target branch artifacts for ${targetBranch.ref}/${targetBranch.sha}`);
-
     
     const payloadValue = await this.http.get(await this.makeFirebaseDbUrl('/payload'));
     const projects = Object.keys(payloadValue);
