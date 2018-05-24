@@ -114,12 +114,12 @@ export interface Tasks {
   sizeTask: SizeTask;
 }
 
-export function registerTasks(robot: Robot, store: FirebaseFirestore.Firestore, http: HttpClient, accessToken: string, databaseUrl: string): Tasks {
+export function registerTasks(robot: Robot, store: FirebaseFirestore.Firestore, http: HttpClient, databaseUrl: string, accessToken: Promise<string>): Tasks {
   return {
     commonTask: new CommonTask(robot, store),
     mergeTask: new MergeTask(robot, store),
     triageTask: new TriageTask(robot, store),
-    sizeTask: new SizeTask(robot, store, http, accessToken, databaseUrl),
+    sizeTask: new SizeTask(robot, store, http, databaseUrl, accessToken),
   };
 }
 
@@ -178,9 +178,9 @@ export async function getJwtToken(clientEmail: string, privateKey: string): Prom
   return new Promise<string>((resolve, reject) => {
     jwtClient.authorize(function(error,  tokens) {
       if (error) {
-        // reject(error);
+        reject(error);
       } else if (tokens.access_token === null) {
-        // reject('Provided service account does not have permission to generate access tokens');
+        reject('Provided service account does not have permission to generate access tokens');
       } else {
         resolve(tokens.access_token);
       }

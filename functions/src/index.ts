@@ -48,6 +48,11 @@ bot.logger.streams.splice(0, 1);
 // Use node console as the output stream
 bot.logger.addStream(consoleStream(store));
 
+// Load the merge task to monitor PRs
+bot.load(robot => {
+  tasks = registerTasks(robot, store, httpClient, `https://${sizeAppConfig.projectId}.firebaseio.com`, getJwtToken(sizeAppConfig.clientEmail, sizeAppConfig.privateKey));
+});
+
 /**
  * Relay Github events to the bot
  */
@@ -129,14 +134,3 @@ exports.initRepoPRs = firestore.document('repositories/{id}').onCreate((snapshot
     console.error(err);
   });
 });
-
-async function start() {
-  const accessToken = await getJwtToken(sizeAppConfig.clientEmail, sizeAppConfig.privateKey);
-
-  // Load the merge task to monitor PRs
-  bot.load(robot => {
-    tasks = registerTasks(robot, store, httpClient, accessToken, `https://${sizeAppConfig.projectId}.firebaseio.com`);
-  });
-}
-
-start();

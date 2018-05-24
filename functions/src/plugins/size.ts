@@ -6,7 +6,7 @@ import {STATUS_STATE} from "../typings";
 import {HttpClient} from "../http";
 import {Response} from "request";
 import {database} from "firebase-admin";
-import { firebasePathDecode, firebasePathEncode} from "../util";
+import { firebasePathDecode, firebasePathEncode, getJwtToken} from "../util";
 
 export const CONFIG_FILE = "angular-robot.yml";
 
@@ -30,14 +30,17 @@ export interface BuildArtifactDiff {
 }
 
 export class SizeTask extends Task {
-  constructor(robot: Robot, firestore: FirebaseFirestore.Firestore, private readonly http: HttpClient, private readonly accessToken: string, private readonly databaseUrl: string) {
+  
+  constructor(robot: Robot, firestore: FirebaseFirestore.Firestore, private readonly http: HttpClient, private readonly databaseUrl: string, private readonly accessToken: Promise<string>) {
     super(robot, firestore);
+
     this.dispatch([
       'status',
     ], this.checkSize.bind(this));
   }
 
   async checkSize(context: Context): Promise<any> {
+    await this.accessToken;
     const config = await this.getConfig(context);
 
     if(config.disabled) {
@@ -149,7 +152,7 @@ export class SizeTask extends Task {
           lastNestedItemRef = a.sizeBytes;
         });
         
-        await this.http.put<{}>(this.makeFirebaseDbUrl(`/payload/${project}/${firebasePathEncode(branch.name)}/${context.payload.commit.sha}`), artifactsOutput);
+        await this.http.put<{}>(await this.makeFirebaseDbUrl(`/payload/${project}/${firebasePathEncode(branch.name)}/${context.payload.commit.sha}`), artifactsOutput);
       }
     }
   }
@@ -214,12 +217,12 @@ export class SizeTask extends Task {
     this.logDebug(`[size] Fetching target branch artifacts for ${targetBranch.ref}/${targetBranch.sha}`);
 
     
-    const payloadValue = await this.http.get(this.makeFirebaseDbUrl('/payload'));
+    const payloadValue = await this.http.get(await this.makeFirebaseDbUrl('/payload'));
     const projects = Object.keys(payloadValue);
     const artifacts: BuildArtifact[] = [];
 
     for(const projectName of projects) {
-      const value = await this.http.get<any>(this.makeFirebaseDbUrl(`/payload/${projectName}/${firebasePathEncode(targetBranch.ref)}/${targetBranch.sha}`));
+      const value = await this.http.get<any>(await this.makeFirebaseDbUrl(`/payload/${projectName}/${firebasePathEncode(targetBranch.ref)}/${targetBranch.sha}`));
 
       if(value) {
         delete value.change;
@@ -274,9 +277,10 @@ export class SizeTask extends Task {
 
   }
 
-  makeFirebaseDbUrl(url: string): string {
-    const finalUrl = `${this.databaseUrl}${url}.json?access_token=${this.accessToken}`;
-    this.logInfo(`[size] making Firebase url: ${finalUrl}`);
+  async makeFirebaseDbUrl(url: string): Promise<string> {
+    const accessToken = await this.accessToken;
+    const finalUrl = `${this.databaseUrl}${url}.json?access_token=${accessToken}`;
+    this.logDebug(`[size] making Firebase url: ${finalUrl}`);
     return finalUrl;
   }
 

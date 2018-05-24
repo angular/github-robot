@@ -2,7 +2,6 @@ import {createProbot, Options} from "probot";
 import {credential, firestore, initializeApp, ServiceAccount} from "firebase-admin";
 import {consoleStream, loadFirebaseConfig, registerTasks, getJwtToken} from "./util";
 import {HttpClient} from "./http";
-import * as google from 'googleapis';
 
 console.warn(`Starting dev mode`);
 
@@ -25,16 +24,12 @@ bot.logger.streams.splice(0, 1);
 // Use node console as the output stream
 bot.logger.addStream(consoleStream(store));
 
-async function start() {
-  const accessToken = await getJwtToken(sizeAppConfig.clientEmail, sizeAppConfig.privateKey);
 
-  // Load plugins
-  bot.setup([robot => {
-    registerTasks(robot, store, httpClient, accessToken, `https://${sizeAppConfig.projectId}.firebaseio.com`);
-  }]);
+// Load plugins
+bot.setup([robot => {
+  registerTasks(robot, store, httpClient, `https://${sizeAppConfig.projectId}.firebaseio.com`, getJwtToken(sizeAppConfig.clientEmail, sizeAppConfig.privateKey));
+}]);
 
-  // Start the bot
-  bot.start();
-}
+// Start the bot
+bot.start();
 
-start();

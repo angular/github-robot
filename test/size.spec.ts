@@ -38,7 +38,7 @@ describe('size', () => {
     mockHttp = new MockHttpHost();
 
     // create plugin
-    sizeTask = new SizeTask(robot, store, mockHttp.httpClient(), accessToken, dburl);
+    sizeTask = new SizeTask(robot, store, mockHttp.httpClient(), dburl, Promise.resolve('somekey'));
   });
 
   describe('getConfig', () => {
@@ -135,7 +135,7 @@ describe('size', () => {
       ];
       await sizeTask.upsertNewArtifacts(context as any, artifacts);
 
-      const value = mockHttp.getPostData(sizeTask.makeFirebaseDbUrl(`/payload/aio/${context.payload.branch}/${context.payload.commit.sha}`));
+      const value = mockHttp.getPostData(await sizeTask.makeFirebaseDbUrl(`/payload/aio/${context.payload.branch}/${context.payload.commit.sha}`));
       expect(value.gzip7.inline).toEqual(1001);
     });
 
@@ -146,7 +146,7 @@ describe('size', () => {
       ];
       await sizeTask.upsertNewArtifacts(context as any, artifacts);
 
-      const value = mockHttp.getPostData(sizeTask.makeFirebaseDbUrl(`/payload/aio/master/444`));
+      const value = mockHttp.getPostData(await sizeTask.makeFirebaseDbUrl(`/payload/aio/master/444`));
       expect(value.gzip7.inline).toEqual(1001);
       expect(value.gzip7.main).toEqual(1003);
     });
@@ -157,7 +157,7 @@ describe('size', () => {
       ];
       await sizeTask.upsertNewArtifacts(context as any, artifacts);
 
-      const value = mockHttp.getPostData(sizeTask.makeFirebaseDbUrl(`/payload/aio/master/444`));
+      const value = mockHttp.getPostData(await sizeTask.makeFirebaseDbUrl(`/payload/aio/master/444`));
       expect(value.gzip7.inline_br).toEqual(1001);
     });
 
@@ -185,7 +185,7 @@ describe('size', () => {
       ];
       await sizeTask.upsertNewArtifacts(alternateContext as any, artifacts);
 
-      const value = mockHttp.getPostData(sizeTask.makeFirebaseDbUrl(`/payload/aio/6_0_x/444`));
+      const value = mockHttp.getPostData(await sizeTask.makeFirebaseDbUrl(`/payload/aio/6_0_x/444`));
       expect(value.gzip7.inline).toEqual(1001);
       expect(value.gzip7.main).toEqual(1003);
     });
@@ -197,7 +197,7 @@ describe('size', () => {
       ];
       await sizeTask.upsertNewArtifacts(context as any, artifacts);
 
-      const value = mockHttp.getPostData(sizeTask.makeFirebaseDbUrl(`/payload/aio/master/444`));
+      const value = mockHttp.getPostData(await sizeTask.makeFirebaseDbUrl(`/payload/aio/master/444`));
       expect(value.gzip7.inline).toEqual(1001);
       expect(value.gzip7.main).toEqual(1003);
 
@@ -207,7 +207,7 @@ describe('size', () => {
       ];
       await sizeTask.upsertNewArtifacts(context as any, artifacts);
 
-      const value2 = mockHttp.getPostData(sizeTask.makeFirebaseDbUrl(`/payload/aio/master/444`));
+      const value2 = mockHttp.getPostData(await sizeTask.makeFirebaseDbUrl(`/payload/aio/master/444`));
 
       expect(value2.gzip7.inline).toEqual(1010);
       expect(value2.gzip7.main).toEqual(1020);
@@ -217,8 +217,8 @@ describe('size', () => {
   describe('getTargetBranchArtifacts', () => {
     it('should reconstruct a simple artifact', async () => {
       const prPayload = {base: {sha: '123', ref: 'master'}};
-      mockHttp.registerEndpoint(sizeTask.makeFirebaseDbUrl('/payload'), {aio: {}});
-      mockHttp.registerEndpoint(sizeTask.makeFirebaseDbUrl('/payload/aio/master/123'), {
+      mockHttp.registerEndpoint(await sizeTask.makeFirebaseDbUrl('/payload'), {aio: {}});
+      mockHttp.registerEndpoint(await sizeTask.makeFirebaseDbUrl('/payload/aio/master/123'), {
         gzip: {
           main: 1000
         }
@@ -229,8 +229,8 @@ describe('size', () => {
 
     it('should decode encoded context names', async () => {
       const prPayload = {base: {sha: '123', ref: '6.0.x'}};
-      mockHttp.registerEndpoint(sizeTask.makeFirebaseDbUrl('/payload'), {aio: {}});
-      mockHttp.registerEndpoint(sizeTask.makeFirebaseDbUrl('/payload/aio/6_0_x/123'), {
+      mockHttp.registerEndpoint(await sizeTask.makeFirebaseDbUrl('/payload'), {aio: {}});
+      mockHttp.registerEndpoint(await sizeTask.makeFirebaseDbUrl('/payload/aio/6_0_x/123'), {
         gzip: {
           inline_br: 1000
         }
