@@ -7,7 +7,6 @@ import {mockGithub} from "./mocks/github";
 import {GitHubApi} from "../functions/src/typings";
 import {BuildArtifact, CircleCiArtifact, SizeTask} from "../functions/src/plugins/size";
 import {MockHttpHost} from "./mocks/http";
-import {MockDatabaseHost} from "./mocks/database";
 
 describe('size', () => {
   let robot: Robot;
@@ -15,14 +14,14 @@ describe('size', () => {
   let sizeTask: SizeTask;
   let store: FirebaseFirestore.Firestore;
   let mockHttp: MockHttpHost;
-  let database: MockDatabaseHost;
+  const accessToken = '123';  
+  const dburl = 'somedburl';
 
   beforeEach(() => {
     mockGithub('repos');
 
     // create the mock Firebase Firestore
     store = new MockFirestore();
-    database = new MockDatabaseHost();
 
     // Create a new Robot to run our plugin
     robot = createRobot(undefined);
@@ -39,7 +38,7 @@ describe('size', () => {
     mockHttp = new MockHttpHost();
 
     // create plugin
-    sizeTask = new SizeTask(robot, store, database.database() as any, mockHttp.httpClient());
+    sizeTask = new SizeTask(robot, store, mockHttp.httpClient(), dburl, Promise.resolve('somekey'));
   });
 
   describe('getConfig', () => {
@@ -107,7 +106,6 @@ describe('size', () => {
       expect(mockHttp.getHits(artifactsEndpoint)).toEqual(1);
       expect(mockHttp.getHits(artifactUrl)).toEqual(1);
     });
-
   });
 
 
@@ -124,14 +122,12 @@ describe('size', () => {
           }
         },
         branches: [
-          {name: 'master'}
+          {name: 'master', commit: {url: 'some commit url'}}
         ]
       },
     };
 
-    beforeEach(() => {
-      database.values.clear();
-    });
+
 
     it('should insert the value', async () => {
       const artifacts: BuildArtifact[] = [
@@ -139,8 +135,8 @@ describe('size', () => {
       ];
       await sizeTask.upsertNewArtifacts(context as any, artifacts);
 
-      const ref = await sizeTask.getRef('/payload/aio/master/444');
-      expect((ref as any).gzip7.inline).toEqual(1001);
+      const value = mockHttp.getPostData(await sizeTask.makeFirebaseDbUrl(`/payload/aio/${context.payload.branch}/${context.payload.commit.sha}`));
+      expect(value.gzip7.inline).toEqual(1001);
     });
 
     it('should insert the value', async () => {
@@ -150,10 +146,9 @@ describe('size', () => {
       ];
       await sizeTask.upsertNewArtifacts(context as any, artifacts);
 
-      let ref = await sizeTask.getRef('/payload/aio/master/444');
-      expect((ref as any).gzip7.inline).toEqual(1001);
-      ref = await sizeTask.getRef('/payload/aio/master/444');
-      expect((ref as any).gzip7.main).toEqual(1003);
+      const value = mockHttp.getPostData(await sizeTask.makeFirebaseDbUrl(`/payload/aio/master/444`));
+      expect(value.gzip7.inline).toEqual(1001);
+      expect(value.gzip7.main).toEqual(1003);
     });
 
     it('should support forbidden characters in the context', async () => {
@@ -162,8 +157,8 @@ describe('size', () => {
       ];
       await sizeTask.upsertNewArtifacts(context as any, artifacts);
 
-      const ref = await sizeTask.getRef('/payload/aio/master/444');
-      expect((ref as any).gzip7.inline_br).toEqual(1001);
+      const value = mockHttp.getPostData(await sizeTask.makeFirebaseDbUrl(`/payload/aio/master/444`));
+      expect(value.gzip7.inline_br).toEqual(1001);
     });
 
     it('should support forbidden characters', async () => {
@@ -179,7 +174,7 @@ describe('size', () => {
             }
           },
           branches: [
-            {name: '6.0.x'}
+            {name: '6.0.x', commit: {url: 'someurl'}}
           ]
         },
 
@@ -190,10 +185,9 @@ describe('size', () => {
       ];
       await sizeTask.upsertNewArtifacts(alternateContext as any, artifacts);
 
-      let ref = await sizeTask.getRef('/payload/aio/6_0_x/444');
-      expect((ref as any).gzip7.inline).toEqual(1001);
-      ref = await sizeTask.getRef('/payload/aio/6_0_x/444');
-      expect((ref as any).gzip7.main).toEqual(1003);
+      const value = mockHttp.getPostData(await sizeTask.makeFirebaseDbUrl(`/payload/aio/6_0_x/444`));
+      expect(value.gzip7.inline).toEqual(1001);
+      expect(value.gzip7.main).toEqual(1003);
     });
 
     it('should replace prior values the value', async () => {
@@ -203,10 +197,9 @@ describe('size', () => {
       ];
       await sizeTask.upsertNewArtifacts(context as any, artifacts);
 
-      let ref = await sizeTask.getRef('/payload/aio/master/444');
-      expect((ref as any).gzip7.inline).toEqual(1001);
-      ref = await sizeTask.getRef('/payload/aio/master/444');
-      expect((ref as any).gzip7.main).toEqual(1003);
+      const value = mockHttp.getPostData(await sizeTask.makeFirebaseDbUrl(`/payload/aio/master/444`));
+      expect(value.gzip7.inline).toEqual(1001);
+      expect(value.gzip7.main).toEqual(1003);
 
       artifacts = [
         {fullPath: 'aio/gzip7/inline', sizeBytes: 1010, contextPath: ['gzip7', 'inline'], projectName: 'aio'},
@@ -214,18 +207,18 @@ describe('size', () => {
       ];
       await sizeTask.upsertNewArtifacts(context as any, artifacts);
 
-      ref = await sizeTask.getRef('/payload/aio/master/444');
-      expect((ref as any).gzip7.inline).toEqual(1010);
-      ref = await sizeTask.getRef('/payload/aio/master/444');
-      expect((ref as any).gzip7.main).toEqual(1020);
+      const value2 = mockHttp.getPostData(await sizeTask.makeFirebaseDbUrl(`/payload/aio/master/444`));
+
+      expect(value2.gzip7.inline).toEqual(1010);
+      expect(value2.gzip7.main).toEqual(1020);
     });
   });
 
   describe('getTargetBranchArtifacts', () => {
     it('should reconstruct a simple artifact', async () => {
       const prPayload = {base: {sha: '123', ref: 'master'}};
-      database.values.set('/payload', {aio: {}});
-      database.values.set('/payload/aio/master/123', {
+      mockHttp.registerEndpoint(await sizeTask.makeFirebaseDbUrl('/payload'), {aio: {}});
+      mockHttp.registerEndpoint(await sizeTask.makeFirebaseDbUrl('/payload/aio/master/123'), {
         gzip: {
           main: 1000
         }
@@ -236,8 +229,8 @@ describe('size', () => {
 
     it('should decode encoded context names', async () => {
       const prPayload = {base: {sha: '123', ref: '6.0.x'}};
-      database.values.set('/payload', {aio: {}});
-      database.values.set('/payload/aio/6_0_x/123', {
+      mockHttp.registerEndpoint(await sizeTask.makeFirebaseDbUrl('/payload'), {aio: {}});
+      mockHttp.registerEndpoint(await sizeTask.makeFirebaseDbUrl('/payload/aio/6_0_x/123'), {
         gzip: {
           inline_br: 1000
         }

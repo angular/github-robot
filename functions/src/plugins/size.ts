@@ -6,7 +6,7 @@ import {STATUS_STATE} from "../typings";
 import {HttpClient} from "../http";
 import {Response} from "request";
 import {database} from "firebase-admin";
-import { firebasePathDecode, firebasePathEncode} from "../util";
+import { firebasePathDecode, firebasePathEncode, getJwtToken} from "../util";
 
 export const CONFIG_FILE = "angular-robot.yml";
 
@@ -30,14 +30,17 @@ export interface BuildArtifactDiff {
 }
 
 export class SizeTask extends Task {
-  constructor(robot: Robot, firestore: FirebaseFirestore.Firestore, private readonly rtDb: database.Database, private readonly http: HttpClient) {
+  
+  constructor(robot: Robot, firestore: FirebaseFirestore.Firestore, private readonly http: HttpClient, private readonly databaseUrl: string, private readonly accessToken: Promise<string>) {
     super(robot, firestore);
+
     this.dispatch([
       'status',
     ], this.checkSize.bind(this));
   }
 
   async checkSize(context: Context): Promise<any> {
+    await this.accessToken;
     const config = await this.getConfig(context);
 
     if(config.disabled) {
@@ -121,37 +124,35 @@ export class SizeTask extends Task {
     
     for(const project of projects) {
       for(const branch of context.payload.branches) {
-        const ref = this.rtDb.ref(`/payload/${project}/${firebasePathEncode(branch.name)}/${context.payload.commit.sha}`);
         const artifactsOutput = {
           change: 'application',
           message: context.payload.commit.commit.message,
           timestamp: new Date().getTime(),
         };
-
+        
         // only use the artifacts from this project
         artifacts.filter(a => a.projectName === project)
-          .forEach(a => {
-            // hold a ref to where we are in our tree walk
-            let lastNestedItemRef: object | number = artifactsOutput;
-            // first item is the project name which we've used already 
-            a.contextPath.forEach((path, i) => {
-              const encodedPath = firebasePathEncode(path);
-              // last item so assign it the bytes size
-              if(i === a.contextPath.length - 1) {
-                lastNestedItemRef[encodedPath] = a.sizeBytes;
-                return;
-              }
-              if(!lastNestedItemRef[encodedPath]) {
-                lastNestedItemRef[encodedPath] = {};
-              }
-
-              lastNestedItemRef = lastNestedItemRef[encodedPath];
-            });
-            lastNestedItemRef = a.sizeBytes;
+        .forEach(a => {
+          // hold a ref to where we are in our tree walk
+          let lastNestedItemRef: object | number = artifactsOutput;
+          // first item is the project name which we've used already 
+          a.contextPath.forEach((path, i) => {
+            const encodedPath = firebasePathEncode(path);
+            // last item so assign it the bytes size
+            if(i === a.contextPath.length - 1) {
+              lastNestedItemRef[encodedPath] = a.sizeBytes;
+              return;
+            }
+            if(!lastNestedItemRef[encodedPath]) {
+              lastNestedItemRef[encodedPath] = {};
+            }
+            
+            lastNestedItemRef = lastNestedItemRef[encodedPath];
           });
-
-        // if one already exists for this sha, override it
-        await ref.set(artifactsOutput);
+          lastNestedItemRef = a.sizeBytes;
+        });
+        
+        await this.http.put<{}>(await this.makeFirebaseDbUrl(`/payload/${project}/${firebasePathEncode(branch.name)}/${context.payload.commit.sha}`), artifactsOutput);
       }
     }
   }
@@ -214,15 +215,13 @@ export class SizeTask extends Task {
   async getTargetBranchArtifacts(prPayload: Github.PullRequest): Promise<BuildArtifact[]> {
     const targetBranch = prPayload.base;
     this.logDebug(`[size] Fetching target branch artifacts for ${targetBranch.ref}/${targetBranch.sha}`);
-
-    const payloadValue = await this.rtDb.ref('/payload').once('value');
-    const projects = Object.keys(payloadValue.val());
+    
+    const payloadValue = await this.http.get(await this.makeFirebaseDbUrl('/payload'));
+    const projects = Object.keys(payloadValue);
     const artifacts: BuildArtifact[] = [];
 
     for(const projectName of projects) {
-      const ref = this.rtDb.ref(`/payload/${projectName}/${firebasePathEncode(targetBranch.ref)}/${targetBranch.sha}`);
-      const snapshot = await ref.once('value');
-      const value = snapshot.val();
+      const value = await this.http.get<any>(await this.makeFirebaseDbUrl(`/payload/${projectName}/${firebasePathEncode(targetBranch.ref)}/${targetBranch.sha}`));
 
       if(value) {
         delete value.change;
@@ -275,6 +274,13 @@ export class SizeTask extends Task {
       };
     }));
 
+  }
+
+  async makeFirebaseDbUrl(url: string): Promise<string> {
+    const accessToken = await this.accessToken;
+    const finalUrl = `${this.databaseUrl}${url}.json?access_token=${accessToken}`;
+    this.logDebug(`[size] making Firebase url: ${finalUrl}`);
+    return finalUrl;
   }
 
   /**
