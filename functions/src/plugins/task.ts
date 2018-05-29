@@ -115,6 +115,6 @@ export class Task {
           ${query}
         }
       }
-    }`, params)).repository.pullRequest;
+    }`, params) as any).repository.pullRequest;
   }
 }

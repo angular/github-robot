@@ -44,7 +44,7 @@ bot.load(robot => {
  */
 exports.bot = https.onRequest(async (request: Request, response: Response) => {
   const event = request.get('x-github-event') || request.get('X-GitHub-Event');
-  const id = request.get('x-github-delivery') || request.get('X-GitHub-Delivery');
+  const id: any = request.get('x-github-delivery') || request.get('X-GitHub-Delivery');
   if(event) {
     try {
       await bot.receive({

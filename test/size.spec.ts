@@ -14,8 +14,6 @@ describe('size', () => {
   let sizeTask: SizeTask;
   let store: FirebaseFirestore.Firestore;
   let mockHttp: MockHttpHost;
-  const accessToken = '123';  
-  const dburl = 'somedburl';
 
   beforeEach(() => {
     mockGithub('repos');
@@ -126,7 +124,6 @@ describe('size', () => {
         ]
       },
     };
-
 
 
     it('should insert the value', async () => {

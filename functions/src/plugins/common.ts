@@ -51,7 +51,7 @@ export class CommonTask extends Task {
    */
   async triggeredInit(data: firebase.firestore.DocumentData): Promise<void> {
     const repository = data as Repository & { installationId: number };
-    const authGithub = await this.robot.auth(repository.installationId.toString());
+    const authGithub = await this.robot.auth(repository.installationId);
     return this.init(authGithub, [repository]);
   }
 
@@ -61,7 +61,7 @@ export class CommonTask extends Task {
    */
   async installInit(context: Context): Promise<void> {
     let repositories: Repository[];
-    switch(context.event) {
+    switch(context['event']) {
       case 'installation':
         repositories = context.payload.repositories;
         break;

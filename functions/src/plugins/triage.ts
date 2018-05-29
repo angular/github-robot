@@ -4,7 +4,6 @@ import {CONFIG_FILE} from "./merge";
 import {AdminConfig, AppConfig, appConfig, TriageConfig} from "../default";
 import {getGhLabels, getLabelsNames, matchAllOfAny} from "./common";
 import * as Github from '@octokit/rest';
-import {GitHubApi} from "../typings";
 
 export class TriageTask extends Task {
   constructor(robot: Robot, db: FirebaseFirestore.Firestore) {
@@ -25,7 +24,7 @@ export class TriageTask extends Task {
       const github = await this.robot.auth();
       const installations = await github.paginate(github.apps.getInstallations({}), pages => pages.data);
       await Promise.all(installations.map(async installation => {
-        const authGithub = await this.robot.auth(installation.id) as GitHubApi;
+        const authGithub = await this.robot.auth(installation.id);
         const repositories = await authGithub.apps.getInstallationRepositories({});
         await Promise.all(repositories.data.repositories.map(async (repository: Github.Repository) => {
           const context = new Context({payload: {repository}}, authGithub, this.robot.log);

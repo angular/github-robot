@@ -46,7 +46,7 @@ export class MergeTask extends Task {
    */
   async onLabeled(context: Context): Promise<void> {
     const newLabel = context.payload.label.name;
-    const pr = context.payload.pull_request;
+    const pr = context.payload.pull_request as any as Github.PullRequest;
     const config = await this.getConfig(context);
     const {owner, repo} = context.repo();
     // we need the list of labels from Github because we might be adding multiple labels at once
@@ -388,7 +388,7 @@ export class MergeTask extends Task {
     let sha, pr;
     const {owner, repo} = context.repo();
 
-    switch(context.event) {
+    switch(context['event']) {
       case 'pull_request':
       case 'pull_request_review':
         sha = context.payload.pull_request.head.sha;
@@ -438,7 +438,7 @@ export class MergeTask extends Task {
         }
         break;
       default:
-        throw new Error(`Unhandled event ${context.event} in updateStatus`);
+        throw new Error(`Unhandled event ${context['event']} in updateStatus`);
     }
 
     const statuses = await this.getStatuses(context, sha);
