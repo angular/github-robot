@@ -5,8 +5,8 @@ import * as Github from '@octokit/rest';
 import {STATUS_STATE} from "../typings";
 import {HttpClient} from "../http";
 import {Response} from "request";
-import {database} from "firebase-admin";
-import { firebasePathDecode, firebasePathEncode, getJwtToken} from "../util";
+import {firebasePathDecode, firebasePathEncode, getJwtToken} from "../util";
+import {ServiceAccount} from "firebase-admin";
 
 export const CONFIG_FILE = "angular-robot.yml";
 
@@ -30,17 +30,32 @@ export interface BuildArtifactDiff {
 }
 
 export class SizeTask extends Task {
-  
-  constructor(robot: Robot, firestore: FirebaseFirestore.Firestore, private readonly http: HttpClient, private readonly databaseUrl: string, private readonly accessToken: Promise<string>) {
-    super(robot, firestore);
+  private accessToken = '';
+  private databaseUrl: string;
 
-    this.dispatch([
-      'status',
-    ], this.checkSize.bind(this));
+  constructor(robot: Robot, firestore: FirebaseFirestore.Firestore, private readonly http: HttpClient, sizeAppConfig: ServiceAccount) {
+    super(robot, firestore);
+    this.databaseUrl = `https://${sizeAppConfig.projectId}.firebaseio.com`;
+
+    const subscribe = () => {
+      this.dispatch([
+        'status',
+      ], this.checkSize.bind(this));
+    };
+
+    if(sizeAppConfig.clientEmail && sizeAppConfig.privateKey) {
+      getJwtToken(sizeAppConfig.clientEmail, sizeAppConfig.privateKey).then(accessToken => {
+        this.accessToken = accessToken;
+        subscribe();
+      }).catch(err => {
+        throw err;
+      });
+    } else { // test mode
+      subscribe();
+    }
   }
 
   async checkSize(context: Context): Promise<any> {
-    await this.accessToken;
     const config = await this.getConfig(context);
 
     if(config.disabled) {
@@ -99,9 +114,8 @@ export class SizeTask extends Task {
    */
   async storeArtifacts(context: Context): Promise<void> {
     this.logDebug(`[size] Storing artifacts for: ${context.payload.commit.sha}`);
-    
-    const {owner, repo} = context.repo();
 
+    const {owner, repo} = context.repo();
     const buildNumber = await this.getBuildNumberFromCircleCIUrl(context.payload.target_url);
     const newArtifacts = await this.getCircleCIArtifacts(owner, repo, buildNumber);
     return this.upsertNewArtifacts(context, newArtifacts);
@@ -116,12 +130,12 @@ export class SizeTask extends Task {
    */
   async upsertNewArtifacts(context: Context, artifacts: BuildArtifact[]): Promise<void> {
     this.logDebug(`[size] Storing artifacts for: ${context.payload.commit.sha}, on branches [${context.payload.branches.map(b => b.commit.url).join(', ')}]`);
-    
+
     // eg: aio/gzip7/inline
     // eg: ivy/gzip7/inline
     // projects within this repo
     const projects = new Set(artifacts.map(a => a.projectName));
-    
+
     for(const project of projects) {
       for(const branch of context.payload.branches) {
         const artifactsOutput = {
@@ -129,29 +143,29 @@ export class SizeTask extends Task {
           message: context.payload.commit.commit.message,
           timestamp: new Date().getTime(),
         };
-        
+
         // only use the artifacts from this project
         artifacts.filter(a => a.projectName === project)
-        .forEach(a => {
-          // hold a ref to where we are in our tree walk
-          let lastNestedItemRef: object | number = artifactsOutput;
-          // first item is the project name which we've used already 
-          a.contextPath.forEach((path, i) => {
-            const encodedPath = firebasePathEncode(path);
-            // last item so assign it the bytes size
-            if(i === a.contextPath.length - 1) {
-              lastNestedItemRef[encodedPath] = a.sizeBytes;
-              return;
-            }
-            if(!lastNestedItemRef[encodedPath]) {
-              lastNestedItemRef[encodedPath] = {};
-            }
-            
-            lastNestedItemRef = lastNestedItemRef[encodedPath];
+          .forEach(a => {
+            // hold a ref to where we are in our tree walk
+            let lastNestedItemRef: object | number = artifactsOutput;
+            // first item is the project name which we've used already
+            a.contextPath.forEach((path, i) => {
+              const encodedPath = firebasePathEncode(path);
+              // last item so assign it the bytes size
+              if(i === a.contextPath.length - 1) {
+                lastNestedItemRef[encodedPath] = a.sizeBytes;
+                return;
+              }
+              if(!lastNestedItemRef[encodedPath]) {
+                lastNestedItemRef[encodedPath] = {};
+              }
+
+              lastNestedItemRef = lastNestedItemRef[encodedPath];
+            });
+            lastNestedItemRef = a.sizeBytes;
           });
-          lastNestedItemRef = a.sizeBytes;
-        });
-        
+
         await this.http.put<{}>(await this.makeFirebaseDbUrl(`/payload/${project}/${firebasePathEncode(branch.name)}/${context.payload.commit.sha}`), artifactsOutput);
       }
     }
@@ -215,7 +229,7 @@ export class SizeTask extends Task {
   async getTargetBranchArtifacts(prPayload: Github.PullRequest): Promise<BuildArtifact[]> {
     const targetBranch = prPayload.base;
     this.logDebug(`[size] Fetching target branch artifacts for ${targetBranch.ref}/${targetBranch.sha}`);
-    
+
     const payloadValue = await this.http.get(await this.makeFirebaseDbUrl('/payload'));
     const projects = Object.keys(payloadValue);
     const artifacts: BuildArtifact[] = [];
@@ -277,8 +291,7 @@ export class SizeTask extends Task {
   }
 
   async makeFirebaseDbUrl(url: string): Promise<string> {
-    const accessToken = await this.accessToken;
-    const finalUrl = `${this.databaseUrl}${url}.json?access_token=${accessToken}`;
+    const finalUrl = `${this.databaseUrl}${url}.json?access_token=${this.accessToken}`;
     this.logDebug(`[size] making Firebase url: ${finalUrl}`);
     return finalUrl;
   }

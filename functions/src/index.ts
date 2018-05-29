@@ -1,8 +1,8 @@
 import {config, firestore, https} from 'firebase-functions';
 import {Request, Response} from "express";
 import {createProbot, Options} from "probot";
-import {consoleStream, loadFirebaseConfig, registerTasks, Tasks, getJwtToken} from "./util";
-import {app, credential, firestore as firestoreAdmin, initializeApp, ServiceAccount} from "firebase-admin";
+import {consoleStream, loadFirebaseConfig, registerTasks, Tasks} from "./util";
+import {credential, firestore as firestoreAdmin, initializeApp, ServiceAccount} from "firebase-admin";
 import {DocumentSnapshot} from "firebase-functions/lib/providers/firestore";
 import {EventContext} from "firebase-functions/lib/cloud-functions";
 import {HttpClient} from './http';
@@ -10,21 +10,11 @@ import {HttpClient} from './http';
 let tasks: Tasks;
 let probotConfig: Options = config().probot;
 let sizeAppConfig: ServiceAccount = loadFirebaseConfig(config().sizeapp);
-let sizeApp: app.App;
 
 // Check if we are in Firebase or in development
 if(probotConfig) {
   // Init Firebase
   initializeApp();
-
-  sizeApp = initializeApp({
-    credential: credential.cert({
-      projectId: sizeAppConfig.projectId,
-      clientEmail: sizeAppConfig.clientEmail,
-      privateKey: sizeAppConfig.privateKey
-    }),
-    databaseURL: `https://${sizeAppConfig.projectId}.firebaseio.com`,
-  }, 'sizeApp');
 } else {
   // Use dev config
   probotConfig = require('../private/env.json');
@@ -36,10 +26,6 @@ if(probotConfig) {
 }
 
 const store: FirebaseFirestore.Firestore = firestoreAdmin();
-// database here is needed for the size task
-// since the existing data was already stored in on to continue the historical tracking
-// we need to continue using it here
-const sizeStore = sizeApp.database();
 const httpClient = new HttpClient();
 // Create the bot using Firebase's probot config (see Readme.md)
 const bot = createProbot(probotConfig);
@@ -50,7 +36,7 @@ bot.logger.addStream(consoleStream(store));
 
 // Load the merge task to monitor PRs
 bot.load(robot => {
-  tasks = registerTasks(robot, store, httpClient, `https://${sizeAppConfig.projectId}.firebaseio.com`, getJwtToken(sizeAppConfig.clientEmail, sizeAppConfig.privateKey));
+  tasks = registerTasks(robot, store, httpClient, sizeAppConfig);
 });
 
 /**

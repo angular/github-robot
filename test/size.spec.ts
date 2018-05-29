@@ -38,7 +38,7 @@ describe('size', () => {
     mockHttp = new MockHttpHost();
 
     // create plugin
-    sizeTask = new SizeTask(robot, store, mockHttp.httpClient(), dburl, Promise.resolve('somekey'));
+    sizeTask = new SizeTask(robot, store, mockHttp.httpClient(), {});
   });
 
   describe('getConfig', () => {

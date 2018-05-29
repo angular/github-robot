@@ -1,6 +1,6 @@
 import {createProbot, Options} from "probot";
 import {credential, firestore, initializeApp, ServiceAccount} from "firebase-admin";
-import {consoleStream, loadFirebaseConfig, registerTasks, getJwtToken} from "./util";
+import {consoleStream, loadFirebaseConfig, registerTasks} from "./util";
 import {HttpClient} from "./http";
 
 console.warn(`Starting dev mode`);
@@ -11,7 +11,6 @@ const sizeAppConfig: ServiceAccount = loadFirebaseConfig("../private/firebase-ke
 initializeApp({
   credential: credential.cert(sizeAppConfig),
 });
-
 
 const store: FirebaseFirestore.Firestore = firestore();
 const httpClient = new HttpClient();
@@ -27,7 +26,7 @@ bot.logger.addStream(consoleStream(store));
 
 // Load plugins
 bot.setup([robot => {
-  registerTasks(robot, store, httpClient, `https://${sizeAppConfig.projectId}.firebaseio.com`, getJwtToken(sizeAppConfig.clientEmail, sizeAppConfig.privateKey));
+  registerTasks(robot, store, httpClient, sizeAppConfig);
 }]);
 
 // Start the bot

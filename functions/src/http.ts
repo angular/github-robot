@@ -1,4 +1,3 @@
-
 import * as request from 'request';
 
 export type HttpOptions = request.Options & {responseType: 'json' | 'response'};
