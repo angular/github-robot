@@ -19,15 +19,4 @@ export class HttpClient {
       });
     });
   }
-  put<T>(url, body): Promise<T> {
-    return new Promise((resolve, reject) => {
-      request.put(url, {headers: {'Accept': 'application/json'}, body: JSON.stringify(body) }, (error, response, resBody) => {
-        if(error) {
-          reject(error);
-        } else {
-          resolve(JSON.parse(resBody));
-        }
-      });
-    });
-  }
 }

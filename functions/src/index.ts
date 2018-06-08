@@ -1,8 +1,8 @@
-import {config, firestore, https} from 'firebase-functions';
+import {config, firestore, https, database} from 'firebase-functions';
 import {Request, Response} from "express";
 import {createProbot, Options} from "probot";
 import {consoleStream, loadFirebaseConfig, registerTasks, Tasks} from "./util";
-import {credential, firestore as firestoreAdmin, initializeApp, ServiceAccount} from "firebase-admin";
+import {app, credential, firestore as firestoreAdmin, initializeApp, ServiceAccount} from "firebase-admin";
 import {DocumentSnapshot} from "firebase-functions/lib/providers/firestore";
 import {EventContext} from "firebase-functions/lib/cloud-functions";
 import {HttpClient} from './http';
@@ -10,6 +10,7 @@ import {HttpClient} from './http';
 let tasks: Tasks;
 let probotConfig: Options = config().probot;
 let sizeAppConfig: ServiceAccount = loadFirebaseConfig(config().sizeapp);
+let sizeAppStore;
 
 // Check if we are in Firebase or in development
 if(probotConfig) {
@@ -20,9 +21,11 @@ if(probotConfig) {
   probotConfig = require('../private/env.json');
   sizeAppConfig = loadFirebaseConfig("../private/firebase-key.json");
 
-  initializeApp({
+  const sizeApp = initializeApp({
     credential: credential.cert(sizeAppConfig),
+    databaseURL: `https://${sizeAppConfig.projectId}.firebaseio.com`,
   });
+  sizeAppStore = sizeApp.database();
 }
 
 const store: FirebaseFirestore.Firestore = firestoreAdmin();
@@ -33,10 +36,9 @@ const bot = createProbot(probotConfig);
 bot.logger.streams.splice(0, 1);
 // Use node console as the output stream
 bot.logger.addStream(consoleStream(store));
-
 // Load the merge task to monitor PRs
 bot.load(robot => {
-  tasks = registerTasks(robot, store, httpClient, sizeAppConfig);
+  tasks = registerTasks(robot, store, sizeAppStore, httpClient);
 });
 
 /**

@@ -161,9 +161,9 @@
     call-me-maybe "^1.0.1"
     glob-to-regexp "^0.3.0"
 
-"@octokit/rest@^15.6.0":
-  version "15.8.0"
-  resolved "https://registry.yarnpkg.com/@octokit/rest/-/rest-15.8.0.tgz#b5c2d1b3f1a4e13f4ecdfb9a55fb542f9f5b1484"
+"@octokit/rest@15.2.4":
+  version "15.2.4"
+  resolved "https://registry.yarnpkg.com/@octokit/rest/-/rest-15.2.4.tgz#f83a0892979b2792aac073c17671fd4ce5239a9e"
   dependencies:
     before-after-hook "^1.1.0"
     btoa-lite "^1.0.0"
@@ -1996,6 +1996,12 @@ ecc-jsbn@~0.1.1:
   dependencies:
     jsbn "~0.1.0"
 
+ecdsa-sig-formatter@1.0.10:
+  version "1.0.10"
+  resolved "https://registry.yarnpkg.com/ecdsa-sig-formatter/-/ecdsa-sig-formatter-1.0.10.tgz#1c595000f04a8897dfb85000892a0f4c33af86c3"
+  dependencies:
+    safe-buffer "^5.0.1"
+
 ecdsa-sig-formatter@1.0.9:
   version "1.0.9"
   resolved "https://registry.yarnpkg.com/ecdsa-sig-formatter/-/ecdsa-sig-formatter-1.0.9.tgz#4bc926274ec3b5abb5016e7e1d60921ac262b2a1"
@@ -2887,15 +2893,15 @@ google-auth-library@^1.3.1:
     retry-axios "^0.3.2"
 
 google-auth-library@^1.4.0:
-  version "1.5.0"
-  resolved "https://registry.yarnpkg.com/google-auth-library/-/google-auth-library-1.5.0.tgz#d9068f8bad9017224a4c41abcdcb6cf6a704e83b"
+  version "1.6.1"
+  resolved "https://registry.yarnpkg.com/google-auth-library/-/google-auth-library-1.6.1.tgz#9c73d831ad720c0c3048ab89d0ffdec714d07dd2"
   dependencies:
     axios "^0.18.0"
     gcp-metadata "^0.6.3"
     gtoken "^2.3.0"
-    jws "^3.1.4"
+    jws "^3.1.5"
     lodash.isstring "^4.0.1"
-    lru-cache "^4.1.2"
+    lru-cache "^4.1.3"
     retry-axios "^0.3.2"
 
 google-auto-auth@^0.10.0:
@@ -2968,16 +2974,6 @@ googleapis@23.0.0:
     async "2.6.0"
     google-auth-library "0.12.0"
     string-template "1.0.0"
-
-googleapis@31.0.2:
-  version "31.0.2"
-  resolved "https://registry.yarnpkg.com/googleapis/-/googleapis-31.0.2.tgz#03266287c8b52681e4311a28d9ff2d800e8f1afb"
-  dependencies:
-    google-auth-library "^1.4.0"
-    pify "^3.0.0"
-    qs "^6.5.2"
-    url-template "^2.0.8"
-    uuid "^3.2.1"
 
 got@8.2.0:
   version "8.2.0"
@@ -4322,12 +4318,27 @@ jwa@^1.1.4:
     ecdsa-sig-formatter "1.0.9"
     safe-buffer "^5.0.1"
 
+jwa@^1.1.5:
+  version "1.1.6"
+  resolved "https://registry.yarnpkg.com/jwa/-/jwa-1.1.6.tgz#87240e76c9808dbde18783cf2264ef4929ee50e6"
+  dependencies:
+    buffer-equal-constant-time "1.0.1"
+    ecdsa-sig-formatter "1.0.10"
+    safe-buffer "^5.0.1"
+
 jws@^3.0.0, jws@^3.1.4:
   version "3.1.4"
   resolved "https://registry.yarnpkg.com/jws/-/jws-3.1.4.tgz#f9e8b9338e8a847277d6444b1464f61880e050a2"
   dependencies:
     base64url "^2.0.0"
     jwa "^1.1.4"
+    safe-buffer "^5.0.1"
+
+jws@^3.1.5:
+  version "3.1.5"
+  resolved "https://registry.yarnpkg.com/jws/-/jws-3.1.5.tgz#80d12d05b293d1e841e7cb8b4e69e561adcf834f"
+  dependencies:
+    jwa "^1.1.5"
     safe-buffer "^5.0.1"
 
 keyv@3.0.0:
@@ -4600,6 +4611,13 @@ lru-cache@^4.1.2:
     pseudomap "^1.0.2"
     yallist "^2.1.2"
 
+lru-cache@^4.1.3:
+  version "4.1.3"
+  resolved "https://registry.yarnpkg.com/lru-cache/-/lru-cache-4.1.3.tgz#a1175cf3496dfc8436c156c334b4955992bce69c"
+  dependencies:
+    pseudomap "^1.0.2"
+    yallist "^2.1.2"
+
 make-dir@^1.0.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/make-dir/-/make-dir-1.1.0.tgz#19b4369fe48c116f53c2af95ad102c0e39e85d51"
@@ -4760,7 +4778,7 @@ mimic-response@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/mimic-response/-/mimic-response-1.0.0.tgz#df3d3652a73fded6b9b0b24146e6fd052353458e"
 
-"minimatch@2 || 3", minimatch@3.0.4, minimatch@^3.0.0, minimatch@^3.0.2, minimatch@^3.0.3, minimatch@^3.0.4:
+"minimatch@2 || 3", minimatch@^3.0.0, minimatch@^3.0.2, minimatch@^3.0.3, minimatch@^3.0.4:
   version "3.0.4"
   resolved "https://registry.yarnpkg.com/minimatch/-/minimatch-3.0.4.tgz#5166e286457f03306064be5497e8dbb0c3d32083"
   dependencies:
@@ -5578,11 +5596,11 @@ private@^0.1.7, private@^0.1.8:
   version "0.1.8"
   resolved "https://registry.yarnpkg.com/private/-/private-0.1.8.tgz#2381edb3689f7a53d653190060fcf822d2f368ff"
 
-probot@7.0.0-typescript.4:
-  version "7.0.0-typescript.4"
-  resolved "https://registry.yarnpkg.com/probot/-/probot-7.0.0-typescript.4.tgz#e0918fad6dca78f73d8634a88137756cd226a16f"
+probot@7.0.0-typescript.2:
+  version "7.0.0-typescript.2"
+  resolved "https://registry.yarnpkg.com/probot/-/probot-7.0.0-typescript.2.tgz#f359416251bb13be010d61fd04ecf2abf94509ed"
   dependencies:
-    "@octokit/rest" "^15.6.0"
+    "@octokit/rest" "15.2.4"
     "@octokit/webhooks" "^3.1.1"
     bottleneck "^1.16.0"
     bunyan "^1.8.12"
@@ -5713,10 +5731,6 @@ punycode@^2.1.0:
 qs@6.5.1, qs@^6.5.1, qs@~6.5.1:
   version "6.5.1"
   resolved "https://registry.yarnpkg.com/qs/-/qs-6.5.1.tgz#349cdf6eef89ec45c12d7d5eb3fc0c870343a6d8"
-
-qs@^6.5.2:
-  version "6.5.2"
-  resolved "https://registry.yarnpkg.com/qs/-/qs-6.5.2.tgz#cb3ae806e8740444584ef154ce8ee98d403f3e36"
 
 qs@~6.4.0:
   version "6.4.0"
@@ -5965,31 +5979,6 @@ request@2.81.0:
     tough-cookie "~2.3.0"
     tunnel-agent "^0.6.0"
     uuid "^3.0.0"
-
-request@2.87.0:
-  version "2.87.0"
-  resolved "https://registry.yarnpkg.com/request/-/request-2.87.0.tgz#32f00235cd08d482b4d0d68db93a829c0ed5756e"
-  dependencies:
-    aws-sign2 "~0.7.0"
-    aws4 "^1.6.0"
-    caseless "~0.12.0"
-    combined-stream "~1.0.5"
-    extend "~3.0.1"
-    forever-agent "~0.6.1"
-    form-data "~2.3.1"
-    har-validator "~5.0.3"
-    http-signature "~1.2.0"
-    is-typedarray "~1.0.0"
-    isstream "~0.1.2"
-    json-stringify-safe "~5.0.1"
-    mime-types "~2.1.17"
-    oauth-sign "~0.8.2"
-    performance-now "^2.1.0"
-    qs "~6.5.1"
-    safe-buffer "^5.1.1"
-    tough-cookie "~2.3.3"
-    tunnel-agent "^0.6.0"
-    uuid "^3.1.0"
 
 request@2.x, request@^2.58.0, request@^2.72.0, request@^2.74.0, request@^2.79.0, request@^2.81.0, request@^2.83.0:
   version "2.83.0"
@@ -7214,7 +7203,7 @@ uuid@3.0.0:
   version "3.0.0"
   resolved "https://registry.yarnpkg.com/uuid/-/uuid-3.0.0.tgz#6728fc0459c450d796a99c31837569bdf672d728"
 
-uuid@3.2.1, uuid@^3.2.1:
+uuid@3.2.1:
   version "3.2.1"
   resolved "https://registry.yarnpkg.com/uuid/-/uuid-3.2.1.tgz#12c528bb9d58d0b9265d9a2f6f0fe8be17ff1f14"
 
