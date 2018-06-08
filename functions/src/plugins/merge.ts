@@ -166,7 +166,7 @@ export class MergeTask extends Task {
 
     // Check if all required labels are present
     if(config.checks.requiredLabels) {
-      const missingLabels = [];
+      const missingLabels: string[] = [];
       config.checks.requiredLabels.forEach(reqLabel => {
         if(!labelsNames.some(label => !!label.match(new RegExp(reqLabel)))) {
           missingLabels.push(reqLabel);
@@ -180,7 +180,7 @@ export class MergeTask extends Task {
 
     // Check if any forbidden label is present
     if(config.checks.forbiddenLabels) {
-      const fbdLabels = [];
+      const fbdLabels: string[] = [];
       config.checks.forbiddenLabels.forEach(fbdLabel => {
         if(labelsNames.some(label => !!label.match(new RegExp(fbdLabel)))) {
           fbdLabels.push(fbdLabel);
@@ -276,9 +276,9 @@ export class MergeTask extends Task {
     // the list of requested reviewers only contains people that have been requested for review but have not
     // given the review yet. Once he does, he disappears from this list, and we need to check the reviews
     const reviewRequests = prData.reviewRequests.nodes.length;
-    const usersReviews = [];
+    const usersReviews: string[] = [];
     // for each user that reviewed this PR, we get the latest review
-    const finalReviews = [];
+    const finalReviews: any[] = [];
 
     // for each user that reviewed this PR, we get the latest review
     reviews.forEach(review => {
@@ -388,7 +388,7 @@ export class MergeTask extends Task {
     let sha, pr;
     const {owner, repo} = context.repo();
 
-    switch(context['event']) {
+    switch((context as any).event) {
       case 'pull_request':
       case 'pull_request_review':
         sha = context.payload.pull_request.head.sha;
@@ -438,7 +438,7 @@ export class MergeTask extends Task {
         }
         break;
       default:
-        throw new Error(`Unhandled event ${context['event']} in updateStatus`);
+        throw new Error(`Unhandled event ${(context as any).event} in updateStatus`);
     }
 
     const statuses = await this.getStatuses(context, sha);

@@ -6,8 +6,7 @@ import {STATUS_STATE} from "../typings";
 import {HttpClient} from "../http";
 import {Response} from "request";
 import {database} from "firebase-admin";
-import { firebasePathDecode, firebasePathEncode} from "../util";
-import { PayloadRepository, WebhookPayloadWithRepository } from "probot/lib/context";
+import {firebasePathDecode, firebasePathEncode} from "../util";
 
 export const CONFIG_FILE = "angular-robot.yml";
 
@@ -112,14 +111,14 @@ export class SizeTask extends Task {
    * @param artifacts
    */
   async upsertNewArtifacts(context: Context, artifacts: BuildArtifact[]): Promise<void> {
-    this.logDebug(`[size] Storing artifacts for: ${context.payload.commit.sha}, on branches [${context.payload.branches.map(b => b.commit.url).join(', ')}]`);
+    this.logDebug(`[size] Storing artifacts for: ${context.payload.commit.sha}, on branches [${context.payload.branches.map((b: any) => b.commit.url).join(', ')}]`);
 
     // eg: aio/gzip7/inline
     // eg: ivy/gzip7/inline
     // projects within this repo
     const projects = new Set(artifacts.map(a => a.projectName));
 
-    const updates = {};
+    const updates: any = {};
 
     for(const project of projects) {
       for(const branch of context.payload.branches) {
@@ -128,28 +127,28 @@ export class SizeTask extends Task {
           message: context.payload.commit.commit.message,
           timestamp: new Date().getTime(),
         };
-        
+
         // only use the artifacts from this project
         artifacts.filter(a => a.projectName === project)
-        .forEach(a => {
-          // hold a ref to where we are in our tree walk
-          let lastNestedItemRef: object | number = artifactsOutput;
-          // first item is the project name which we've used already 
-          a.contextPath.forEach((path, i) => {
-            const encodedPath = firebasePathEncode(path);
-            // last item so assign it the bytes size
-            if(i === a.contextPath.length - 1) {
-              lastNestedItemRef[encodedPath] = a.sizeBytes;
-              return;
-            }
-            if(!lastNestedItemRef[encodedPath]) {
-              lastNestedItemRef[encodedPath] = {};
-            }
-            
-            lastNestedItemRef = lastNestedItemRef[encodedPath];
+          .forEach(a => {
+            // hold a ref to where we are in our tree walk
+            let lastNestedItemRef: any | number = artifactsOutput;
+            // first item is the project name which we've used already
+            a.contextPath.forEach((path, i) => {
+              const encodedPath = firebasePathEncode(path);
+              // last item so assign it the bytes size
+              if(i === a.contextPath.length - 1) {
+                lastNestedItemRef[encodedPath] = a.sizeBytes;
+                return;
+              }
+              if(!lastNestedItemRef[encodedPath]) {
+                lastNestedItemRef[encodedPath] = {};
+              }
+
+              lastNestedItemRef = lastNestedItemRef[encodedPath];
+            });
+            lastNestedItemRef = a.sizeBytes;
           });
-          lastNestedItemRef = a.sizeBytes;
-        });
         updates[`/${project}/${firebasePathEncode(branch.name)}/${context.payload.commit.sha}`] = artifactsOutput;
       }
     }

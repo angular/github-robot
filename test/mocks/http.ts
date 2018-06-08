@@ -22,6 +22,6 @@ export class MockHttpHost {
         this.endpoints[url].hits ++;
         return new Promise((resolve, reject) => resolve(this.endpoints[url].response as string));
       }
-    };
+    } as HttpClient;
   }
 }

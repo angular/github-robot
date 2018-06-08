@@ -5,7 +5,6 @@ import {TriageTask} from "../functions/src/plugins/triage";
 import {appConfig} from "../functions/src/default";
 import {MockFirestore} from './mocks/firestore';
 import {mockGithub} from "./mocks/github";
-import {GitHubApi} from "../functions/src/typings";
 
 describe('triage', () => {
   let robot: Robot;
@@ -38,7 +37,7 @@ describe('triage', () => {
   describe('getConfig', () => {
     it('should return the default merge config', async () => {
       const event = require('./fixtures/issues.opened.json');
-      const context = new Context(event, github as GitHubApi, robot.log);
+      const context = new Context(event, github, robot.log);
       const config = await triageTask.getConfig(context);
       expect(config).toEqual(appConfig.triage);
     });
@@ -47,7 +46,7 @@ describe('triage', () => {
   describe('isTriaged', () => {
     it('should return the triage status', async () => {
       const event = require('./fixtures/issues.labeled.json');
-      const context = new Context(event, github as GitHubApi, robot.log);
+      const context = new Context(event, github, robot.log);
       const config = await triageTask.getConfig(context);
 
       let isTriaged = triageTask.isTriaged(config.l2TriageLabels, ['comp: aio']);

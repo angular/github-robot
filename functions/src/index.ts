@@ -1,8 +1,8 @@
-import {config, firestore, https, database} from 'firebase-functions';
+import {config, firestore, https} from 'firebase-functions';
 import {Request, Response} from "express";
 import {createProbot, Options} from "probot";
 import {consoleStream, loadFirebaseConfig, registerTasks, Tasks} from "./util";
-import {app, credential, firestore as firestoreAdmin, initializeApp, ServiceAccount} from "firebase-admin";
+import {credential, database, firestore as firestoreAdmin, initializeApp, ServiceAccount} from "firebase-admin";
 import {DocumentSnapshot} from "firebase-functions/lib/providers/firestore";
 import {EventContext} from "firebase-functions/lib/cloud-functions";
 import {HttpClient} from './http';
@@ -10,7 +10,7 @@ import {HttpClient} from './http';
 let tasks: Tasks;
 let probotConfig: Options = config().probot;
 let sizeAppConfig: ServiceAccount = loadFirebaseConfig(config().sizeapp);
-let sizeAppStore;
+let sizeAppStore: database.Database;
 
 // Check if we are in Firebase or in development
 if(probotConfig) {

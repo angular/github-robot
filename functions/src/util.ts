@@ -2,17 +2,9 @@ import {Robot} from "probot";
 import {CommonTask} from "./plugins/common";
 import {MergeTask} from "./plugins/merge";
 import {TriageTask} from "./plugins/triage";
-import {OctokitWithPagination} from "probot/lib/github";
-import { SizeTask } from "./plugins/size";
-import { HttpClient } from "./http";
-import { database } from "firebase-admin";
-
-/**
- * Get all results in case of paginated Github request
- */
-export function getAllResults(github: OctokitWithPagination, request): Promise<any[]> {
-  return github.paginate(request, page => page.data) as any as Promise<any[]>;
-}
+import {SizeTask} from "./plugins/size";
+import {HttpClient} from "./http";
+import {database} from "firebase-admin";
 
 class Stream {
   constructor(private store: FirebaseFirestore.Firestore) {
@@ -100,7 +92,7 @@ class Stream {
 /**
  * Stream Probot logs to console for Firebase
  */
-export const consoleStream = (store) => ({
+export const consoleStream = (store: FirebaseFirestore.Firestore) => ({
   type: "raw",
   level: "debug",
   stream: new Stream(store)
@@ -123,14 +115,14 @@ export function registerTasks(robot: Robot, store: FirebaseFirestore.Firestore, 
 }
 
 // copied from https://github.com/firebase/firebase-admin-node/blob/master/src/auth/credential.ts#L61
-function copyAttr(to: object, from: object, key: string, alt: string) {
+function copyAttr(to: any, from: any, key: string, alt: string) {
   const tmp = from[key] || from[alt];
-  if (typeof tmp !== 'undefined') {
+  if(typeof tmp !== 'undefined') {
     to[key] = tmp;
   }
 }
 
-export function loadFirebaseConfig(params?: string|object) {
+export function loadFirebaseConfig(params?: string | object) {
   let config;
   if(!params) {
     return;

@@ -46,7 +46,7 @@ class DocumentReference implements FirebaseFirestore.DocumentReference {
   path: string;
   private _data: any;
 
-  constructor(firestore: FirebaseFirestore.Firestore, path) {
+  constructor(firestore: FirebaseFirestore.Firestore, path: string) {
     this.firestore = firestore;
     this.path = path;
   }

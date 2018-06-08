@@ -12,7 +12,7 @@ function objectToRawHeaders(map: any) {
 
 export function mockGithub(name: string) {
   const fixtures = get(name);
-  fixtures.forEach(fixture => {
+  fixtures.forEach((fixture: any) => {
     fixture['rawHeaders'] = objectToRawHeaders(fixture.headers);
     delete fixture.headers;
   });

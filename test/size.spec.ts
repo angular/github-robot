@@ -4,7 +4,6 @@ import {EnhancedGitHubClient, OctokitWithPagination} from "probot/lib/github";
 import {appConfig} from "../functions/src/default";
 import {MockFirestore} from './mocks/firestore';
 import {mockGithub} from "./mocks/github";
-import {GitHubApi} from "../functions/src/typings";
 import {BuildArtifact, CircleCiArtifact, SizeTask} from "../functions/src/plugins/size";
 import {MockHttpHost} from "./mocks/http";
 import {MockDatabaseHost} from "./mocks/database";
@@ -45,7 +44,7 @@ describe('size', () => {
   describe('getConfig', () => {
     it('should return the default merge config', async () => {
       const event = require('./fixtures/issues.opened.json');
-      const context = new Context(event, github as GitHubApi, robot.log);
+      const context = new Context(event, github, robot.log);
       const config = await sizeTask.getConfig(context);
       expect(config).toEqual(appConfig.size);
     });
@@ -124,7 +123,7 @@ describe('size', () => {
           }
         },
         branches: [
-          {name: 'master', commit:{url: ''}}
+          {name: 'master', commit: {url: ''}}
         ]
       },
     };
@@ -206,7 +205,7 @@ describe('size', () => {
         {fullPath: 'aio/gzip7/inline', sizeBytes: 1010, contextPath: ['gzip7', 'inline'], projectName: 'aio'},
         {fullPath: 'aio/gzip7/main', sizeBytes: 1020, contextPath: ['gzip7', 'main'], projectName: 'aio'}
       ];
-      
+
       await sizeTask.upsertNewArtifacts(context as any, artifacts);
       ref = database.values.get('/payload');
       expect(ref['/aio/master/444'].gzip7.inline).toEqual(1010);
