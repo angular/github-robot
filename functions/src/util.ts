@@ -4,9 +4,8 @@ import {MergeTask} from "./plugins/merge";
 import {TriageTask} from "./plugins/triage";
 import {OctokitWithPagination} from "probot/lib/github";
 import { SizeTask } from "./plugins/size";
-import {ServiceAccount} from "firebase-admin";
-import { google } from "googleapis";
-import {HttpClient} from "./http";
+import { HttpClient } from "./http";
+import { database } from "firebase-admin";
 
 /**
  * Get all results in case of paginated Github request
@@ -114,12 +113,12 @@ export interface Tasks {
   sizeTask: SizeTask;
 }
 
-export function registerTasks(robot: Robot, store: FirebaseFirestore.Firestore, http: HttpClient, sizeAppConfig: ServiceAccount): Tasks {
+export function registerTasks(robot: Robot, store: FirebaseFirestore.Firestore, sizeStore: database.Database, http: HttpClient): Tasks {
   return {
     commonTask: new CommonTask(robot, store),
     mergeTask: new MergeTask(robot, store),
     triageTask: new TriageTask(robot, store),
-    sizeTask: new SizeTask(robot, store, http, sizeAppConfig),
+    sizeTask: new SizeTask(robot, store, sizeStore, http),
   };
 }
 
@@ -159,31 +158,4 @@ export function firebasePathEncode(s: string) {
 
 export function firebasePathDecode(s: string) {
   return s.replace(/_/g, '.');
-}
-
-export async function getJwtToken(clientEmail: string, privateKey: string): Promise<string> {
-
-  // Define the required scopes.
-  const scopes = [
-    "https://www.googleapis.com/auth/userinfo.email",
-    "https://www.googleapis.com/auth/firebase.database"
-  ];
-  const jwtClient = new google.auth.JWT(
-    clientEmail,
-    null,
-    privateKey,
-    scopes
-  );
-  
-  return new Promise<string>((resolve, reject) => {
-    jwtClient.authorize(function(error,  tokens) {
-      if (error) {
-        reject(error);
-      } else if (tokens.access_token === null) {
-        reject('Provided service account does not have permission to generate access tokens');
-      } else {
-        resolve(tokens.access_token);
-      }
-    });
-  });
 }

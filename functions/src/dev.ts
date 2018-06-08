@@ -8,11 +8,14 @@ console.warn(`Starting dev mode`);
 const config: Options = require('../private/env.json');
 const sizeAppConfig: ServiceAccount = loadFirebaseConfig("../private/firebase-key.json");
 
-initializeApp({
+const sizeApp = initializeApp({
   credential: credential.cert(sizeAppConfig),
+  databaseURL: `https://${sizeAppConfig.projectId}.firebaseio.com`,
 });
 
 const store: FirebaseFirestore.Firestore = firestore();
+const sizeStore = sizeApp.database();
+
 const httpClient = new HttpClient();
 
 // Probot setup
@@ -26,9 +29,8 @@ bot.logger.addStream(consoleStream(store));
 
 // Load plugins
 bot.setup([robot => {
-  registerTasks(robot, store, httpClient, sizeAppConfig);
+  registerTasks(robot, store, sizeStore, httpClient);
 }]);
 
 // Start the bot
 bot.start();
-
