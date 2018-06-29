@@ -82,7 +82,10 @@ export class MergeTask extends Task {
       updateG3Status = true;
     }
 
-    if(matchAny([newLabel], config.checks.requiredLabels) || matchAny([newLabel], config.checks.forbiddenLabels)) {
+    if(matchAny([newLabel], config.checks.requiredLabels)
+      || matchAny([newLabel], config.checks.forbiddenLabels)
+      || (getLabelsNames(labels).indexOf(config.mergeLabel) !== -1 && matchAny([newLabel], config.checks.requiredLabelsWhenMergeReady))
+    ) {
       updateStatus = true;
     }
 
@@ -108,7 +111,11 @@ export class MergeTask extends Task {
       throw err;
     });
 
-    if(matchAny([removedLabel], config.checks.requiredLabels) || matchAny([removedLabel], config.checks.forbiddenLabels)) {
+    if(
+      matchAny([removedLabel], config.checks.requiredLabels)
+      || matchAny([removedLabel], config.checks.forbiddenLabels)
+      || (getLabelsNames(labels).indexOf(config.mergeLabel) !== -1 && matchAny([removedLabel], config.checks.requiredLabelsWhenMergeReady))
+    ) {
       this.updateStatus(context, true, false, labels).catch(err => {
         throw err;
       });
@@ -174,7 +181,21 @@ export class MergeTask extends Task {
       });
 
       if(missingLabels.length > 0) {
-        checksStatus.failure.push(`missing required label${missingLabels.length > 1 ? 's' : ''}: "${missingLabels.join('", "')}"`);
+        checksStatus.pending.push(`missing required label${missingLabels.length > 1 ? 's' : ''}: "${missingLabels.join('", "')}"`);
+      }
+    }
+
+    // Check if all required labels when merge ready are present
+    if(labelsNames.indexOf(config.mergeLabel) !== -1 && config.checks.requiredLabelsWhenMergeReady) {
+      const missingLabels = [];
+      config.checks.requiredLabelsWhenMergeReady.forEach(reqLabel => {
+        if(!labelsNames.some(label => !!label.match(new RegExp(reqLabel)))) {
+          missingLabels.push(reqLabel);
+        }
+      });
+
+      if(missingLabels.length > 0) {
+        checksStatus.pending.push(`missing required label${missingLabels.length > 1 ? 's' : ''}: "${missingLabels.join('", "')}"`);
       }
     }
 
@@ -188,7 +209,7 @@ export class MergeTask extends Task {
       });
 
       if(fbdLabels.length > 0) {
-        checksStatus.failure.push(`forbidden label${fbdLabels.length > 1 ? 's' : ''} detected: ${fbdLabels.join(', ')}`);
+        checksStatus.pending.push(`forbidden label${fbdLabels.length > 1 ? 's' : ''} detected: ${fbdLabels.join(', ')}`);
       }
     }
 
@@ -210,7 +231,7 @@ export class MergeTask extends Task {
     if(config.checks.requiredStatuses) {
       config.checks.requiredStatuses.forEach(reqCheck => {
         if(!statuses.some(status => !!status.context.match(new RegExp(reqCheck)))) {
-          checksStatus.failure.push(`missing required status "${reqCheck}"`);
+          checksStatus.pending.push(`missing required status "${reqCheck}"`);
         }
       });
     }
@@ -487,7 +508,7 @@ export class MergeTask extends Task {
       const failedChecks = await this.getChecksStatus(context, pr, config, labels, statuses);
 
       if(failedChecks.failure.length > 0) {
-        statusParams.state = config.status.showFailingAsPending ? STATUS_STATE.Pending : STATUS_STATE.Failure;
+        statusParams.state = STATUS_STATE.Failure;
         statusParams.description = failedChecks.failure.concat(failedChecks.pending).join(', ');
       } else if(failedChecks.pending.length > 0) {
         statusParams.state = STATUS_STATE.Pending;

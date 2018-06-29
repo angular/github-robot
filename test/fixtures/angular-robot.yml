@@ -20,9 +20,6 @@ merge:
     successText: "All checks passed!"
     # text to show when some checks are failing
     failureText: "The following checks are failing:"
-    # whether failing states should be shown as pending.
-    showFailingAsPending: false
-    
 
   # the g3 status will be added to your pull requests if they include files that match the patterns
   g3Status:
@@ -68,9 +65,10 @@ merge:
     requireReviews: true
     # list of labels that a PR needs to have, checked with a regexp (e.g. "PR target:" will work for the label "PR target: master")
     requiredLabels:
-      - "PR target: *"
       - "cla: yes"
-
+    # list of labels that a PR needs to have, checked only AFTER the merge label has been applied
+    requiredLabelsWhenMergeReady:
+    - "PR target: *"
     # list of labels that a PR shouldn't have, checked after the required labels with a regexp
     forbiddenLabels:
       - "PR target: TBD"
@@ -78,7 +76,6 @@ merge:
       - "PR action: review"
       - "PR state: blocked"
       - "cla: no"
-
     # list of PR statuses that need to be successful
     requiredStatuses:
       - "continuous-integration/travis-ci/pr"
