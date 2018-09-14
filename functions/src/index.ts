@@ -1,47 +1,24 @@
 import {config, firestore, https} from 'firebase-functions';
 import {Request, Response} from "express";
 import {createProbot, Options} from "probot";
-import {consoleStream, loadFirebaseConfig, registerTasks, Tasks} from "./util";
-import {app, credential, firestore as firestoreAdmin, initializeApp, ServiceAccount} from "firebase-admin";
+import {consoleStream, registerTasks, Tasks} from "./util";
+import {firestore as firestoreAdmin, initializeApp} from "firebase-admin";
 import {DocumentSnapshot} from "firebase-functions/lib/providers/firestore";
 import {EventContext} from "firebase-functions/lib/cloud-functions";
-import {HttpClient} from './http';
 
 let tasks: Tasks;
 let probotConfig: Options = config().probot;
-let sizeAppConfig: ServiceAccount = loadFirebaseConfig(config().sizeapp);
-let sizeApp: app.App;
 
 // Check if we are in Firebase or in development
 if(probotConfig) {
   // Init Firebase
   initializeApp();
-
-  sizeApp = initializeApp({
-    credential: credential.cert({
-      projectId: sizeAppConfig.projectId,
-      clientEmail: sizeAppConfig.clientEmail,
-      privateKey: sizeAppConfig.privateKey
-    }),
-    databaseURL: `https://${sizeAppConfig.projectId}.firebaseio.com`,
-  }, 'sizeApp');
 } else {
   // Use dev config
   probotConfig = require('../private/env.json');
-  sizeAppConfig = loadFirebaseConfig("../private/firebase-key.json");
-
-  sizeApp = initializeApp({
-    credential: credential.cert(sizeAppConfig),
-    databaseURL: `https://${sizeAppConfig.projectId}.firebaseio.com`,
-  });
 }
 
 const store: FirebaseFirestore.Firestore = firestoreAdmin();
-// database here is needed for the size task
-// since the existing data was already stored in on to continue the historical tracking
-// we need to continue using it here
-const sizeAppStore = sizeApp.database();
-const httpClient = new HttpClient();
 // Create the bot using Firebase's probot config (see Readme.md)
 const bot = createProbot(probotConfig);
 // disable probot logging
@@ -50,7 +27,7 @@ bot.logger.streams.splice(0, 1);
 bot.logger.addStream(consoleStream(store));
 // Load the merge task to monitor PRs
 bot.load(robot => {
-  tasks = registerTasks(robot, store, sizeAppStore, httpClient);
+  tasks = registerTasks(robot, store);
 });
 
 /**
