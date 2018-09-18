@@ -49,15 +49,17 @@ export class Task {
   /**
    * Finds a PR that's previously been processed by the bot
    */
-  async findPrBySha(sha: string, repositoryId: number): Promise<PullRequest> {
-    let pr: PullRequest;
-    const matches = (await this.pullRequests.where('head.sha', '==', sha)
+  async findPrBySha(sha: string, repositoryId: number): Promise<PullRequest | undefined> {
+    const matches = await this.pullRequests
+      .where('head.sha', '==', sha)
       .where('repository.id', '==', repositoryId)
-      .get());
-    matches.forEach(async doc => {
-      pr = doc.data() as any;
-    });
-    return pr;
+      .get();
+
+    if (matches.empty) {
+      return undefined;
+    }
+
+    return matches.docs[0].data() as PullRequest;
   }
 
   // wrapper for this.robot.on
