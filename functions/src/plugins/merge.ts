@@ -82,10 +82,7 @@ export class MergeTask extends Task {
       updateG3Status = true;
     }
 
-    if(matchAny([newLabel], config.checks.requiredLabels)
-      || matchAny([newLabel], config.checks.forbiddenLabels)
-      || (getLabelsNames(labels).indexOf(config.mergeLabel) !== -1 && matchAny([newLabel], config.checks.requiredLabelsWhenMergeReady))
-    ) {
+    if(this.matchLabel(newLabel, labels, config)) {
       updateStatus = true;
     }
 
@@ -111,15 +108,17 @@ export class MergeTask extends Task {
       throw err;
     });
 
-    if(
-      matchAny([removedLabel], config.checks.requiredLabels)
-      || matchAny([removedLabel], config.checks.forbiddenLabels)
-      || (getLabelsNames(labels).indexOf(config.mergeLabel) !== -1 && matchAny([removedLabel], config.checks.requiredLabelsWhenMergeReady))
-    ) {
+    if(this.matchLabel(removedLabel, labels, config)) {
       this.updateStatus(context, true, false, labels).catch(err => {
         throw err;
       });
     }
+  }
+
+  private matchLabel(label: string, labels: Github.Label[], config: MergeConfig): boolean {
+    return matchAny([label], config.checks.requiredLabels)
+      || matchAny([label], config.checks.forbiddenLabels)
+      || (getLabelsNames(labels).includes(config.mergeLabel) && matchAny([label], config.checks.requiredLabelsWhenMergeReady || []));
   }
 
   /**
@@ -181,12 +180,12 @@ export class MergeTask extends Task {
       });
 
       if(missingLabels.length > 0) {
-        checksStatus.pending.push(`missing required label${missingLabels.length > 1 ? 's' : ''}: "${missingLabels.join('", "')}"`);
+        checksStatus.pending.push(`missing required labels: ${missingLabels.join(', ')}`);
       }
     }
 
     // Check if all required labels when merge ready are present
-    if(labelsNames.indexOf(config.mergeLabel) !== -1 && config.checks.requiredLabelsWhenMergeReady) {
+    if(labelsNames.includes(config.mergeLabel) && config.checks.requiredLabelsWhenMergeReady) {
       const missingLabels = [];
       config.checks.requiredLabelsWhenMergeReady.forEach(reqLabel => {
         if(!labelsNames.some(label => !!label.match(new RegExp(reqLabel)))) {
@@ -195,7 +194,7 @@ export class MergeTask extends Task {
       });
 
       if(missingLabels.length > 0) {
-        checksStatus.pending.push(`missing required label${missingLabels.length > 1 ? 's' : ''}: "${missingLabels.join('", "')}"`);
+        checksStatus.pending.push(`missing required labels: ${missingLabels.join(', ')}`);
       }
     }
 
@@ -209,7 +208,7 @@ export class MergeTask extends Task {
       });
 
       if(fbdLabels.length > 0) {
-        checksStatus.pending.push(`forbidden label${fbdLabels.length > 1 ? 's' : ''} detected: ${fbdLabels.join(', ')}`);
+        checksStatus.pending.push(`forbidden labels detected: ${fbdLabels.join(', ')}`);
       }
     }
 

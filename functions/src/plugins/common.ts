@@ -51,7 +51,7 @@ export class CommonTask extends Task {
    */
   async triggeredInit(data: firebase.firestore.DocumentData): Promise<void> {
     const repository = data as Repository & { installationId: number };
-    const authGithub = await this.robot.auth(repository.installationId.toString());
+    const authGithub = await this.robot.auth(repository.installationId);
     return this.init(authGithub, [repository]);
   }
 
@@ -180,13 +180,12 @@ export function matchAny(names: string[], patterns: (string | RegExp)[], negPatt
   );
 }
 
-
 /**
  * Same as matchAny, but for files, takes paths into account
  * Returns true if any of the names match any of the patterns
  * It ignores any pattern match that is also matching a negPattern
  */
-export function matchAnyFile(names: string[], patterns: (string | RegExp)[], negPatterns: (string | RegExp)[] = []): boolean {
+export function matchAnyFile(names: string[], patterns: string[], negPatterns: string[] = []): boolean {
   return names.some(name =>
     patterns.some(pattern =>
       minimatch(name, pattern) && !negPatterns.some(negPattern =>
