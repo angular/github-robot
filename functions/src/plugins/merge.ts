@@ -463,7 +463,7 @@ export class MergeTask extends Task {
 
     const statuses = await this.getStatuses(context, sha);
 
-    if(updateG3Status && !config.g3Status.disabled) {
+    if(updateG3Status && config.g3Status && !config.g3Status.disabled) {
       // checking if we need to add g3 status
       const files: Github.File[] = (await context.github.pullRequests.getFiles({owner, repo, number: pr.number})).data;
       if(matchAnyFile(files.map(file => file.filename), config.g3Status.include, config.g3Status.exclude)) {
