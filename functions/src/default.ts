@@ -63,7 +63,9 @@ Please help to unblock it by resolving these conflicts. Thanks!`,
       // whether the PR should have all reviews completed.
       requireReviews: true,
       // list of labels that a PR needs to have, checked with a regexp (e.g. "PR target:" will work for the label "PR target: master")
-      requiredLabels: ["PR target: *", "cla: yes"],
+      requiredLabels: ["cla: yes"],
+      // list of labels that a PR needs to have, checked only AFTER the merge label has been applied
+      requiredLabelsWhenMergeReady: ["PR target: *"],
       // list of labels that a PR shouldn't have, checked after the required labels with a regexp
       forbiddenLabels: ["PR target: TBD", "PR action: cleanup", "PR action: review", "PR state: blocked", "cla: no"],
       // list of PR statuses that need to be successful
@@ -123,6 +125,7 @@ export interface MergeConfig {
     noConflict: boolean;
     requireReviews: boolean;
     requiredLabels: string[];
+    requiredLabelsWhenMergeReady: string[];
     forbiddenLabels: string[];
     requiredStatuses: string[];
   };

@@ -180,7 +180,6 @@ export function matchAny(names: string[], patterns: (string | RegExp)[], negPatt
   );
 }
 
-
 /**
  * Same as matchAny, but for files, takes paths into account
  * Returns true if any of the names match any of the patterns
