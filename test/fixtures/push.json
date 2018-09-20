@@ -1,5 +1,6 @@
 {
   "event": "push",
+  "name": "push",
   "payload": {
     "ref": "refs/heads/master",
     "before": "f1ea7b6d00830786172bd0282e5c9f3d4424e79f",

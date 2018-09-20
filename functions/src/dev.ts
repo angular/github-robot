@@ -1,5 +1,5 @@
 import {createProbot, Options} from "probot";
-import {credential, initializeApp, firestore} from "firebase-admin";
+import {credential, firestore, initializeApp} from "firebase-admin";
 import {consoleStream, loadFirebaseConfig, registerTasks} from "./util";
 
 console.warn(`Starting dev mode`);

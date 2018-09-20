@@ -34,12 +34,12 @@ bot.load(robot => {
  * Relay Github events to the bot
  */
 exports.bot = https.onRequest(async (request: Request, response: Response) => {
-  const event = request.get('x-github-event') || request.get('X-GitHub-Event');
-  const id: any = request.get('x-github-delivery') || request.get('X-GitHub-Delivery');
-  if(event) {
+  const name = request.get('x-github-event') || request.get('X-GitHub-Event');
+  const id = request.get('x-github-delivery') || request.get('X-GitHub-Delivery');
+  if(name) {
     try {
       await bot.receive({
-        event,
+        name,
         id,
         payload: request.body,
         protocol: 'https',

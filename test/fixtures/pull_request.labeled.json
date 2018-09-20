@@ -1,5 +1,6 @@
 {
   "event": "pull_request",
+  "name": "pull_request",
   "payload": {
     "action": "labeled",
     "number": 10,

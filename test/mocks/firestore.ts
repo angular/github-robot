@@ -1,8 +1,8 @@
 class WriteResult implements FirebaseFirestore.WriteResult {
-  writeTime: string;
+  writeTime: FirebaseFirestore.Timestamp;
 
   constructor() {
-    this.writeTime = new Date().toISOString();
+    this.writeTime = new Date().getTime() as any as FirebaseFirestore.Timestamp;
   }
 
   isEqual(other: FirebaseFirestore.WriteResult): boolean {
@@ -14,9 +14,9 @@ class DocumentSnapshot implements FirebaseFirestore.DocumentSnapshot {
   exists: boolean;
   ref: FirebaseFirestore.DocumentReference;
   id: string;
-  createTime?: string;
-  updateTime?: string;
-  readTime: string;
+  createTime?: FirebaseFirestore.Timestamp;
+  updateTime?: FirebaseFirestore.Timestamp;
+  readTime: FirebaseFirestore.Timestamp;
   private _data: any;
 
   constructor(data?: any) {
@@ -90,8 +90,8 @@ class DocumentReference implements FirebaseFirestore.DocumentReference {
 }
 
 class QueryDocumentSnapshot implements FirebaseFirestore.QueryDocumentSnapshot {
-  createTime: string;
-  updateTime: string;
+  createTime: FirebaseFirestore.Timestamp;
+  updateTime: FirebaseFirestore.Timestamp;
 
   constructor(private doc: FirebaseFirestore.DocumentSnapshot) {
   }
@@ -103,7 +103,7 @@ class QueryDocumentSnapshot implements FirebaseFirestore.QueryDocumentSnapshot {
   exists: boolean;
   ref: FirebaseFirestore.DocumentReference;
   id: string;
-  readTime: string;
+  readTime: FirebaseFirestore.Timestamp;
 
   get(fieldPath: string | FirebaseFirestore.FieldPath) {
     return this.data();
@@ -120,7 +120,7 @@ class QuerySnapshot implements FirebaseFirestore.QuerySnapshot {
   docs: QueryDocumentSnapshot[];
   size: number;
   empty: boolean;
-  readTime: string;
+  readTime: FirebaseFirestore.Timestamp;
 
   constructor(query: Query, docs: QueryDocumentSnapshot[]) {
     this.query = query;
@@ -286,6 +286,10 @@ class Collection implements FirebaseFirestore.CollectionReference {
 
 export class MockFirestore implements FirebaseFirestore.Firestore {
   private _collections = new Map<string, FirebaseFirestore.CollectionReference>();
+
+  settings(settings: FirebaseFirestore.Settings): void {
+    throw new Error("Method not implemented.");
+  }
 
   collection(collectionPath: string): FirebaseFirestore.CollectionReference {
     if(this._collections.has(collectionPath)) {

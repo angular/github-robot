@@ -1,4 +1,4 @@
-import {Robot} from "probot";
+import {Application} from "probot";
 import {CommonTask} from "./plugins/common";
 import {MergeTask} from "./plugins/merge";
 import {TriageTask} from "./plugins/triage";
@@ -11,38 +11,31 @@ class Stream {
   write(data: any) {
     let log = console.log;
     let level = 'info';
-    switch(data.level) {
-      case 60: // fatal
-        log = console.error;
-        level = 'fatal';
-        break;
-      case 50: // error
-        log = console.error;
-        level = 'error';
-        break;
-      case 40: // warn
-        log = console.warn;
-        level = 'warn';
-        break;
-      case 30: // info
-        level = 'info';
-        log = console.info;
-        break;
-      case 20: // debug
-        level = 'debug';
-        log = console.log;
-        break;
-      case 10: // trace
-        level = 'trace';
-        log = console.log;
-        break;
+    if(data.level === 60) {// fatal
+      log = console.error;
+      level = 'fatal';
+    } else if(data.level === 50) {// error
+      log = console.error;
+      level = 'error';
+    } else if(data.level === 40) {// warn
+      log = console.warn;
+      level = 'warn';
+    } else if(data.level === 30) {// info
+      level = 'info';
+      log = console.info;
+    } else if(data.level === 20) {// debug
+      level = 'debug';
+      log = console.log;
+    } else if(data.level === 10) {// trace
+      level = 'trace';
+      log = console.log;
     }
 
     let event = '';
     let extraData = '';
     const context = data.context;
     if(context) {
-      event = context.event;
+      event = context.name;
       const payload = data.context.payload;
 
       let path = '';
@@ -103,7 +96,8 @@ export interface Tasks {
   sizeTask: SizeTask;
 }
 
-export function registerTasks(robot: Robot, store: FirebaseFirestore.Firestore): Tasks {
+export function registerTasks(robot: Application, store: FirebaseFirestore.Firestore): Tasks {
+  store.settings({timestampsInSnapshots: true});
   return {
     commonTask: new CommonTask(robot, store),
     mergeTask: new MergeTask(robot, store),

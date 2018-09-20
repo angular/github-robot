@@ -110,7 +110,7 @@ export interface MergeConfig {
     successText: string;
     failureText: string;
   };
-  g3Status: {
+  g3Status?: {
     disabled: boolean;
     context: string;
     pendingDesc: string;

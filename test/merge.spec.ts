@@ -1,15 +1,14 @@
-import {Context, Robot} from "probot";
-import {createRobot} from "probot/lib/robot";
-import {EnhancedGitHubClient, OctokitWithPagination} from "probot/lib/github";
+import {Context, Application} from "probot";
 import {MergeTask} from "../functions/src/plugins/merge";
 import {appConfig} from "../functions/src/default";
 import {MockFirestore} from './mocks/firestore';
 import {mockGithub, mockGraphQL} from "./mocks/github";
 import {CommonTask} from "../functions/src/plugins/common";
+import {GitHubAPI} from "probot/lib/github";
 
 describe('merge', () => {
-  let robot: Robot;
-  let github: OctokitWithPagination;
+  let robot: Application;
+  let github: GitHubAPI;
   let commonTask: CommonTask;
   let mergeTask: MergeTask;
   let store: FirebaseFirestore.Firestore;
@@ -25,10 +24,10 @@ describe('merge', () => {
     store = new MockFirestore();
 
     // Create a new Robot to run our plugin
-    robot = createRobot(undefined);
+    robot = new Application();
 
     // Mock out the GitHub API
-    github = EnhancedGitHubClient({
+    github = GitHubAPI({
       debug: true,
       logger: robot.log
     });
