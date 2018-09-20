@@ -106,7 +106,7 @@
       ]
     },
     "reqheaders": {
-      "accept": "application/vnd.github.machine-man-preview",
+      "accept": "application/vnd.github.machine-man-preview+json",
       "host": "api.github.com"
     },
     "headers": {
