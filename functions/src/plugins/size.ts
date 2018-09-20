@@ -124,7 +124,7 @@ export class SizeTask extends Task {
 
     if (targetBranchArtifacts.length === 0) {
       await this.setStatus(
-        STATUS_STATE.Error,
+        STATUS_STATE.Success,
         `No baseline available for ${pr.base.ref} / ${pr.base.sha}`,
         config.status.context,
         context,
