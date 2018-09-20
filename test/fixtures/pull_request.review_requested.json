@@ -1,5 +1,6 @@
 {
   "event": "pull_request",
+  "name": "pull_request",
   "payload": {
     "action": "review_requested",
     "number": 11,

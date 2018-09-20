@@ -1,9 +1,9 @@
 import fetch from 'node-fetch';
-import {Context, Robot} from "probot";
+import {Application, Context} from "probot";
 import {Task} from "./task";
 import {AppConfig, appConfig, SizeConfig} from "../default";
-import {PullRequest} from '@octokit/rest';
 import {STATUS_STATE} from "../typings";
+import Github from '@octokit/rest';
 
 export const CONFIG_FILE = "angular-robot.yml";
 
@@ -30,19 +30,20 @@ export interface BuildArtifactDiff {
 
 const byteUnits = 'KMGT';
 const byteBase = 1024;
+
 function formatBytes(value: number): string {
   const i = Math.min(Math.trunc(Math.log(value) / Math.log(byteBase)), byteUnits.length);
-  if (i === 0) {
+  if(i === 0) {
     return value + ' bytes';
   }
 
-  return (value / byteBase**i).toFixed(2) + byteUnits[i - 1] + 'B';
+  return (value / byteBase ** i).toFixed(2) + byteUnits[i - 1] + 'B';
 }
 
 export class SizeTask extends Task {
-  constructor(robot: Robot, db: FirebaseFirestore.Firestore) {
+  constructor(robot: Application, db: FirebaseFirestore.Firestore) {
     super(robot, db);
-    
+
     this.dispatch(
       [
         'status',
@@ -61,11 +62,11 @@ export class SizeTask extends Task {
     const statusEvent = context.payload;
 
     // only check on PRs the status has that artifacts
-    if (statusEvent.context !== config.circleCiStatusName) {
+    if(statusEvent.context !== config.circleCiStatusName) {
       return;
     }
 
-    if (statusEvent.state === STATUS_STATE.Pending) {
+    if(statusEvent.state === STATUS_STATE.Pending) {
       await this.setStatus(
         STATUS_STATE.Pending,
         `Waiting for "${config.circleCiStatusName}"...`,
@@ -74,7 +75,7 @@ export class SizeTask extends Task {
       );
 
       return;
-    } else if (statusEvent.state === STATUS_STATE.Failure) {
+    } else if(statusEvent.state === STATUS_STATE.Failure) {
       await this.setStatus(
         STATUS_STATE.Error,
         `Unable to calculate sizes. Failure: "${config.circleCiStatusName}"`,
@@ -85,13 +86,13 @@ export class SizeTask extends Task {
       return;
     }
 
-    const { owner, repo } = context.repo();
+    const {owner, repo} = context.repo();
     const buildNumber = this.getBuildNumberFromCircleCIUrl(statusEvent.target_url);
-    
+
     let newArtifacts;
     try {
       newArtifacts = await this.getCircleCIArtifacts(owner, repo, buildNumber);
-    } catch (e) {
+    } catch(e) {
       this.logError('CircleCI Artifact retrieval error: ' + e.message);
       await this.setStatus(
         STATUS_STATE.Error,
@@ -104,7 +105,7 @@ export class SizeTask extends Task {
     }
 
     const pr = await this.findPrBySha(statusEvent.sha, statusEvent.repository.id);
-    if (!pr) {
+    if(!pr) {
       // this status doesn't have a PR therefore it's probably a commit to a branch
       // so we want to store any changes from that commit
       return this.upsertNewArtifacts(context, newArtifacts);
@@ -122,7 +123,7 @@ export class SizeTask extends Task {
 
     const targetBranchArtifacts = await this.getTargetBranchArtifacts(pr);
 
-    if (targetBranchArtifacts.length === 0) {
+    if(targetBranchArtifacts.length === 0) {
       await this.setStatus(
         STATUS_STATE.Success,
         `No baseline available for ${pr.base.ref} / ${pr.base.sha}`,
@@ -137,7 +138,7 @@ export class SizeTask extends Task {
     const failure = this.isFailure(config, largestIncrease.increase);
 
     let description;
-    if (largestIncrease.increase === 0) {
+    if(largestIncrease.increase === 0) {
       description = 'No size change against base branch.';
     } else {
       const direction = largestIncrease.increase > 0 ? 'increased' : 'decreased';
@@ -160,12 +161,12 @@ export class SizeTask extends Task {
    * @param context Must be from a "Status" github event
    * @param artifacts
    */
-  async upsertNewArtifacts(context: Context,artifacts: BuildArtifact[]): Promise<void> {
-    this.logDebug(`[size] Storing artifacts for: ${context.payload.sha}, on branches [${context.payload.branches.map((b: any) => b.commit.url).join(', ')}]`);
+  async upsertNewArtifacts(context: Context, artifacts: BuildArtifact[]): Promise<void> {
+    this.logDebug(`[size] Storing artifacts for: ${context.payload.sha}, on branches [${context.payload.branches.map((b: Github.ReposGetBranchesResponseItem) => b.commit.url).join(', ')}]`);
 
     const updatedAt = context.payload.updated_at;
     const branch = context.payload.branches
-      .find(b => b.commit.sha === context.payload.commit.sha);
+      .find((b: Github.ReposGetBranchesResponseItem) => b.commit.sha === context.payload.commit.sha);
     const sizeArtifacts = this.repositories
       .doc(context.payload.repository.id.toString())
       .collection('sizeArtifacts');
@@ -178,14 +179,14 @@ export class SizeTask extends Task {
     return sizeArtifacts.firestore.runTransaction(async transaction => {
       const results = await transaction.getAll(...artifactDocs);
 
-      for (let i = 0; i < results.length; ++i) {
-        if (results[i].exists) {
-          if (results[i].data().updatedAt < updatedAt) {
+      for(let i = 0; i < results.length; ++i) {
+        if(results[i].exists) {
+          if(results[i].data().updatedAt < updatedAt) {
             transaction.update(results[i].ref, {
               ...artifacts[i],
               sha: context.payload.commit.sha,
               updatedAt: context.payload.updated_at,
-              ...(branch ? { branch: branch.name } : {}),
+              ...(branch ? {branch: branch.name} : {}),
             });
           }
         } else {
@@ -193,7 +194,7 @@ export class SizeTask extends Task {
             ...artifacts[i],
             sha: context.payload.commit.sha,
             updatedAt: context.payload.updated_at,
-            ...(branch ? { branch: branch.name } : {}),
+            ...(branch ? {branch: branch.name} : {}),
           });
         }
       }
@@ -255,7 +256,7 @@ export class SizeTask extends Task {
   /**
    * Finds the target branch of a PR then retrieves the artifacts at the for the HEAD of that branch
    */
-  async getTargetBranchArtifacts(prPayload: PullRequest): Promise<BuildArtifact[]> {
+  async getTargetBranchArtifacts(prPayload: Github.PullRequestsGetResponse): Promise<BuildArtifact[]> {
     const targetBranch = prPayload.base;
     this.logDebug(`[size] Fetching target branch artifacts for ${targetBranch.ref}/${targetBranch.sha}`);
 
@@ -265,7 +266,7 @@ export class SizeTask extends Task {
       .where('sha', '==', targetBranch.sha)
       .get();
 
-    if (artifactsSnaphot.empty) {
+    if(artifactsSnaphot.empty) {
       return [];
     }
 

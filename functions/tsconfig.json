@@ -6,7 +6,10 @@
     "outDir": "dist",
     "sourceMap": true,
     "target": "es2015",
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "noUnusedLocals": true,
+    "noImplicitAny": true
   },
   "compileOnSave": true,
   "include": [

@@ -1,6 +1,5 @@
-import {Context, Robot} from "probot";
-import {OctokitWithPagination} from "probot/lib/github";
-import {PullRequest, ReposCreateStatusParams} from "@octokit/rest";
+import {Application, Context} from "probot";
+import Github from "@octokit/rest";
 import {STATUS_STATE} from "../typings";
 
 export class Task {
@@ -8,7 +7,7 @@ export class Task {
   pullRequests: FirebaseFirestore.CollectionReference;
   admin: FirebaseFirestore.CollectionReference;
 
-  constructor(public robot: Robot, public db: FirebaseFirestore.Firestore) {
+  constructor(public robot: Application, public db: FirebaseFirestore.Firestore) {
     this.repositories = this.db.collection('repositories');
     this.pullRequests = this.db.collection('pullRequests');
     this.admin = this.db.collection('admin');
@@ -17,7 +16,7 @@ export class Task {
   /**
    * Gets the PR data from Github (or parameter) and adds/updates it in Firebase
    */
-  async updateDbPR(github: OctokitWithPagination, owner: string, repo: string, number: number, repositoryId: number, newData?: any): Promise<any> {
+  async updateDbPR(github: Github, owner: string, repo: string, number: number, repositoryId: number, newData?: any): Promise<any> {
     newData = newData || (await github.pullRequests.get({owner, repo, number})).data;
     const data = {...newData, repository: {owner, name: repo, id: repositoryId}};
     const doc = this.pullRequests.doc(data.id.toString());
@@ -34,7 +33,7 @@ export class Task {
   async setStatus(state: STATUS_STATE, desc: string, statusContext: string, context: Context): Promise<void> {
     const {owner, repo} = context.repo();
 
-    const statusParams: ReposCreateStatusParams = {
+    const statusParams: Github.ReposCreateStatusParams = {
       owner,
       repo,
       sha: context.payload.sha,
@@ -49,22 +48,22 @@ export class Task {
   /**
    * Finds a PR that's previously been processed by the bot
    */
-  async findPrBySha(sha: string, repositoryId: number): Promise<PullRequest | undefined> {
+  async findPrBySha(sha: string, repositoryId: number): Promise<Github.PullRequestsGetResponse | undefined> {
     const matches = await this.pullRequests
       .where('head.sha', '==', sha)
       .where('repository.id', '==', repositoryId)
       .get();
 
-    if (matches.empty) {
+    if(matches.empty) {
       return undefined;
     }
 
-    return matches.docs[0].data() as PullRequest;
+    return matches.docs[0].data() as Github.PullRequestsGetResponse;
   }
 
   // wrapper for this.robot.on
   dispatch(events: string | string[], callback: (context: Context) => any) {
-    this.robot.on(events, (context: any) => {
+    this.robot.on(events, (context: Context) => {
       this.log({context}, "Event received");
       return callback(context);
     });

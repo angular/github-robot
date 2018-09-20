@@ -1,5 +1,6 @@
 {
   "event": "pull_request_review",
+  "name": "pull_request_review",
   "payload": {
     "action": "submitted",
     "review": {

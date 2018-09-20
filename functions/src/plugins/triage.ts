@@ -1,12 +1,12 @@
-import {Context, Robot} from "probot";
+import {Application, Context} from "probot";
 import {Task} from "./task";
 import {CONFIG_FILE} from "./merge";
 import {AdminConfig, AppConfig, appConfig, TriageConfig} from "../default";
 import {getGhLabels, getLabelsNames, matchAllOfAny} from "./common";
-import * as Github from '@octokit/rest';
+import Github from '@octokit/rest';
 
 export class TriageTask extends Task {
-  constructor(robot: Robot, db: FirebaseFirestore.Firestore) {
+  constructor(robot: Application, db: FirebaseFirestore.Firestore) {
     super(robot, db);
 
     // TODO(ocombe): add a debounce for labeled events per issue
@@ -18,7 +18,7 @@ export class TriageTask extends Task {
     ], this.checkTriage.bind(this));
   }
 
-  async manualInit(): Promise<any> {
+  async manualInit(): Promise<void> {
     const adminConfig = await this.admin.doc('config').get();
     if(adminConfig.exists && (<AdminConfig>adminConfig.data()).allowInit) {
       const github = await this.robot.auth();
@@ -26,10 +26,10 @@ export class TriageTask extends Task {
       await Promise.all(installations.map(async installation => {
         const authGithub = await this.robot.auth(installation.id);
         const repositories = await authGithub.apps.getInstallationRepositories({});
-        await Promise.all(repositories.data.repositories.map(async (repository: Github.Repository) => {
+        await Promise.all(repositories.data.repositories.map(async (repository: Github.AppsGetInstallationRepositoriesResponseRepositoriesItem) => {
           const context = new Context({payload: {repository}}, authGithub, this.robot.log);
           const config = await this.getConfig(context);
-          if (config.disabled) {
+          if(config.disabled) {
             return;
           }
           const {owner, repo} = context.repo();
@@ -38,18 +38,18 @@ export class TriageTask extends Task {
             repo,
             state: 'open',
             per_page: 100
-          }), page => page.data) as any as any[];
+          }), page => page.data);
 
-          issues.forEach(async (issue: Github.Issue) => {
+          issues.forEach(async (issue: Github.IssuesGetForRepoResponseItem) => {
             // PRs are issues for github, but we don't want them here
             if(!issue.pull_request) {
-              const isL1Triaged = this.isTriaged(config.l1TriageLabels, issue.labels.map((label: Github.Label) => label.name));
+              const isL1Triaged = this.isTriaged(config.l1TriageLabels, issue.labels.map((label: Github.IssuesGetForRepoResponseItemLabelsItem) => label.name));
               if(!isL1Triaged) {
                 if(issue.milestone) {
                   await this.setMilestone(null, context.github, owner, repo, issue);
                 }
               } else if(!issue.milestone || issue.milestone.number === config.defaultMilestone || issue.milestone.number === config.needsTriageMilestone) {
-                const isL2Triaged = this.isTriaged(config.l2TriageLabels || config.triagedLabels, issue.labels.map((label: Github.Label) => label.name));
+                const isL2Triaged = this.isTriaged(config.l2TriageLabels || config.triagedLabels, issue.labels.map((label: Github.IssuesGetForRepoResponseItemLabelsItem) => label.name));
                 if(isL2Triaged) {
                   if(!issue.milestone || issue.milestone.number !== config.defaultMilestone) {
                     await this.setMilestone(config.defaultMilestone, context.github, owner, repo, issue);
@@ -70,10 +70,10 @@ export class TriageTask extends Task {
     }
   }
 
-  async checkTriage(context: Context): Promise<any> {
-    const issue: any = context.payload.issue;
+  async checkTriage(context: Context): Promise<void> {
+    const issue: Github.IssuesGetResponse = context.payload.issue;
     const config = await this.getConfig(context);
-    if (config.disabled) {
+    if(config.disabled) {
       return;
     }
     const {owner, repo} = context.repo();
@@ -99,7 +99,7 @@ export class TriageTask extends Task {
     }
   }
 
-  setMilestone(milestoneNumber: number | null, github: Github, owner: string, repo: string, issue: Github.Issue): Promise<any> {
+  setMilestone(milestoneNumber: number | null, github: Github, owner: string, repo: string, issue: Github.IssuesGetForRepoResponseItem): Promise<Github.Response<Github.IssuesEditResponse>> {
     if(milestoneNumber) {
       this.log(`Adding milestone ${milestoneNumber} to issue ${issue.html_url}`);
     } else {
@@ -120,8 +120,8 @@ export class TriageTask extends Task {
   async getConfig(context: Context): Promise<TriageConfig> {
     const repositoryConfig = await context.config<AppConfig>(CONFIG_FILE, appConfig);
     const config = repositoryConfig.triage;
-    config.defaultMilestone = parseInt(<any>config.defaultMilestone, 10);
-    config.needsTriageMilestone = parseInt(<any>config.needsTriageMilestone, 10);
+    config.defaultMilestone = parseInt(config.defaultMilestone, 10);
+    config.needsTriageMilestone = parseInt(config.needsTriageMilestone, 10);
     return config;
   }
 }

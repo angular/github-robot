@@ -97,9 +97,6 @@
     // Warns if function overloads could be unified into a single function with optional or rest parameters.
     "unified-signatures": true,
 
-    // Warns if code has an import or variable that is unused.
-    "no-unused-variable": true,
-
     // Prefer const for values that will not change. This better documents code.
     "prefer-const": true,
 
@@ -130,7 +127,6 @@
     "no-console": [
       true,
       "debug",
-      "info",
       "time",
       "timeEnd",
       "trace"

@@ -1,5 +1,6 @@
 {
   "event": "installation",
+  "name": "installation",
   "payload": {
     "action": "created",
     "installation": {

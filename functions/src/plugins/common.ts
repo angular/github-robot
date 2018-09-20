@@ -1,13 +1,13 @@
-import {Context, Robot} from "probot";
-import * as Github from '@octokit/rest';
-import * as minimatch from "minimatch";
+import {Application, Context} from "probot";
+import Github from '@octokit/rest';
+import minimatch from "minimatch";
 import {AdminConfig} from "../default";
 import {Task} from "./task";
-import {OctokitWithPagination} from "probot/lib/github";
+import {GitHubAPI} from "probot/lib/github";
 import {firestore} from "firebase-admin";
 
 export class CommonTask extends Task {
-  constructor(robot: Robot, db: FirebaseFirestore.Firestore) {
+  constructor(robot: Application, db: FirebaseFirestore.Firestore) {
     super(robot, db);
     // App installations on a new repository
     this.dispatch([
@@ -28,7 +28,7 @@ export class CommonTask extends Task {
       await Promise.all(installations.map(async installation => {
         const authGithub = await this.robot.auth(installation.id);
         const repositories = await authGithub.apps.getInstallationRepositories({});
-        await Promise.all(repositories.data.repositories.map(async (repository: Github.Repository) => {
+        await Promise.all(repositories.data.repositories.map(async (repository: Github.AppsGetInstallationRepositoriesResponseRepositoriesItem) => {
           await this.repositories.doc(repository.id.toString()).set({
             id: repository.id,
             name: repository.name,
@@ -61,7 +61,7 @@ export class CommonTask extends Task {
    */
   async installInit(context: Context): Promise<void> {
     let repositories: Repository[];
-    switch(context['event']) {
+    switch(context.name) {
       case 'installation':
         repositories = context.payload.repositories;
         break;
@@ -84,7 +84,7 @@ export class CommonTask extends Task {
   /**
    * Updates the PRs in Firebase for a list of repositories
    */
-  async init(github: OctokitWithPagination, repositories: Repository[]): Promise<void> {
+  async init(github: GitHubAPI, repositories: Repository[]): Promise<void> {
     await Promise.all(repositories.map(async repository => {
       this.robot.log(`Starting init for repository "${repository.full_name}"`);
       const [owner, repo] = repository.full_name.split('/');
@@ -102,10 +102,10 @@ export class CommonTask extends Task {
         repo,
         state: 'open',
         per_page: 100
-      }), pages => pages.data) as any as any[];
+      }), pages => pages.data) as Github.PullRequestsGetAllResponse;
 
       ghPRs.forEach(async pr => {
-        const index = dbPRs.indexOf(pr.id);
+        const index = dbPRs.indexOf(pr.id.toString());
         if(index !== -1) {
           dbPRs.splice(index, 1);
         }
@@ -133,7 +133,7 @@ export class CommonTask extends Task {
 /**
  * Gets the PR labels from Github
  */
-export async function getGhLabels(github: OctokitWithPagination, owner: string, repo: string, number: number): Promise<Github.Label[]> {
+export async function getGhLabels(github: GitHubAPI, owner: string, repo: string, number: number): Promise<Github.IssuesGetResponseLabelsItem[]> {
   return (await github.issues.get({
     owner,
     repo,
@@ -141,9 +141,9 @@ export async function getGhLabels(github: OctokitWithPagination, owner: string, 
   })).data.labels;
 }
 
-export function getLabelsNames(labels: Github.Label[] | string[]): string[] {
+export function getLabelsNames(labels: Github.IssuesGetResponseLabelsItem[] | string[]): string[] {
   if(typeof labels[0] !== 'string') {
-    labels = (labels as any as Github.Label[]).map(label => label.name);
+    labels = (labels as Github.IssuesGetResponseLabelsItem[]).map(label => label.name);
   }
   return labels as string[];
 }
@@ -151,7 +151,7 @@ export function getLabelsNames(labels: Github.Label[] | string[]): string[] {
 /**
  * Adds a comment on a PR
  */
-export async function addComment(github: OctokitWithPagination, owner: string, repo: string, number: number, body: string): Promise<Github.AnyResponse> {
+export async function addComment(github: Github, owner: string, repo: string, number: number, body: string): Promise<Github.AnyResponse> {
   return github.issues.createComment({
     owner,
     repo,

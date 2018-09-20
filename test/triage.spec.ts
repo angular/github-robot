@@ -1,14 +1,13 @@
-import {Context, Robot} from "probot";
-import {createRobot} from "probot/lib/robot";
-import {EnhancedGitHubClient, OctokitWithPagination} from "probot/lib/github";
+import {Context, Application} from "probot";
+import {GitHubAPI} from "probot/lib/github";
 import {TriageTask} from "../functions/src/plugins/triage";
 import {appConfig} from "../functions/src/default";
 import {MockFirestore} from './mocks/firestore';
 import {mockGithub} from "./mocks/github";
 
 describe('triage', () => {
-  let robot: Robot;
-  let github: OctokitWithPagination;
+  let robot: Application;
+  let github: GitHubAPI;
   let triageTask: TriageTask;
   let store: FirebaseFirestore.Firestore;
 
@@ -19,10 +18,10 @@ describe('triage', () => {
     store = new MockFirestore();
 
     // Create a new Robot to run our plugin
-    robot = createRobot(undefined);
+    robot = new Application();
 
     // Mock out the GitHub API
-    github = EnhancedGitHubClient({
+    github = GitHubAPI({
       debug: true,
       logger: robot.log
     });

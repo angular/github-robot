@@ -1,5 +1,6 @@
 {
   "event": "status",
+  "name": "status",
   "payload": {
     "id": 4359170935,
     "sha": "f1ea7b6d00830786172bd0282e5c9f3d4424e79f",

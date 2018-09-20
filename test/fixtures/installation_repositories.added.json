@@ -1,5 +1,6 @@
 {
   "event": "installation_repositories",
+  "name": "installation_repositories",
   "payload": {
     "action": "added",
     "installation": {
