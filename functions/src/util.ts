@@ -3,8 +3,6 @@ import {CommonTask} from "./plugins/common";
 import {MergeTask} from "./plugins/merge";
 import {TriageTask} from "./plugins/triage";
 import {SizeTask} from "./plugins/size";
-import {HttpClient} from "./http";
-import {database} from "firebase-admin";
 
 class Stream {
   constructor(private store: FirebaseFirestore.Firestore) {
@@ -105,12 +103,12 @@ export interface Tasks {
   sizeTask: SizeTask;
 }
 
-export function registerTasks(robot: Robot, store: FirebaseFirestore.Firestore, sizeStore: database.Database, http: HttpClient): Tasks {
+export function registerTasks(robot: Robot, store: FirebaseFirestore.Firestore): Tasks {
   return {
     commonTask: new CommonTask(robot, store),
     mergeTask: new MergeTask(robot, store),
     triageTask: new TriageTask(robot, store),
-    sizeTask: new SizeTask(robot, store, sizeStore, http),
+    sizeTask: new SizeTask(robot, store),
   };
 }
 
@@ -138,16 +136,4 @@ export function loadFirebaseConfig(params?: string | object) {
   copyAttr(config, config, 'clientEmail', 'client_email');
   copyAttr(config, config, 'refreshToken', 'refresh_token');
   return config;
-}
-
-/**
- * Encode paths for Firebase Database
- * "." must be encoded for firebase or else it will throw when being saved into the DB
- */
-export function firebasePathEncode(s: string) {
-  return s.replace(/\./g, '_');
-}
-
-export function firebasePathDecode(s: string) {
-  return s.replace(/_/g, '.');
 }
