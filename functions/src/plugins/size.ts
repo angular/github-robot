@@ -59,6 +59,10 @@ export class SizeTask extends Task {
       return;
     }
 
+    if (config.status === undefined) {
+      config.status = { ...appConfig.size.status };
+    }
+
     const statusEvent = context.payload;
 
     // only check on PRs the status has that artifacts
