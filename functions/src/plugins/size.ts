@@ -1,7 +1,7 @@
 import fetch from 'node-fetch';
 import {Application, Context} from "probot";
 import {Task} from "./task";
-import {AppConfig, appConfig, SizeConfig} from "../default";
+import {SizeConfig, appConfig as defaultAppConfig } from "../default";
 import {STATUS_STATE} from "../typings";
 import Github from '@octokit/rest';
 
@@ -24,15 +24,17 @@ export interface BuildArtifact {
 }
 
 export interface BuildArtifactDiff {
-  artifact: BuildArtifact;
-  increase: number;
+  current: BuildArtifact;
+  baseline: BuildArtifact;
+  delta: number;
+  failed: boolean;
 }
 
 const byteUnits = 'KMGT';
 const byteBase = 1024;
 
 function formatBytes(value: number): string {
-  const i = Math.min(Math.trunc(Math.log(value) / Math.log(byteBase)), byteUnits.length);
+  const i = Math.min(Math.trunc(Math.log(Math.abs(value)) / Math.log(byteBase)), byteUnits.length);
   if(i === 0) {
     return value + ' bytes';
   }
@@ -44,24 +46,21 @@ export class SizeTask extends Task {
   constructor(robot: Application, db: FirebaseFirestore.Firestore) {
     super(robot, db);
 
-    this.dispatch(
-      [
-        'status',
-      ],
-      (context) => this.checkSize(context),
-    );
+    this.dispatch('status', (context) => this.checkSize(context));
   }
 
   async checkSize(context: Context): Promise<void> {
-    const config = await this.getConfig(context);
+    const appConfig = await context.config(CONFIG_FILE);
 
-    if(config.disabled) {
+    if(!appConfig.size || appConfig.size.disabled) {
       return;
     }
 
-    if (config.status === undefined) {
-      config.status = { ...appConfig.size.status };
-    }
+    const config: SizeConfig = {
+      ...defaultAppConfig.size,
+      ...appConfig.size,
+      status: { ...defaultAppConfig.size.status, ...appConfig.size.status },
+    };
 
     const statusEvent = context.payload;
 
@@ -147,16 +146,65 @@ export class SizeTask extends Task {
       return;
     }
 
-    const largestIncrease = await this.findLargestIncrease(targetBranchArtifacts, newArtifacts);
-    const failure = this.isFailure(config, largestIncrease.increase);
+    const comparisons = this.generateArtifactComparisons(targetBranchArtifacts, newArtifacts, config);
+    const largestIncrease = comparisons.length > 0 ? comparisons[0] : null;
+    const failure = largestIncrease && largestIncrease.failed;
 
     let description;
-    if(largestIncrease.increase === 0) {
+    if(!largestIncrease) {
+      description = 'No matching artifacts to compare.';
+    } else if(largestIncrease.delta === 0) {
       description = 'No size change against base branch.';
     } else {
-      const direction = largestIncrease.increase > 0 ? 'increased' : 'decreased';
-      const formattedBytes = formatBytes(Math.abs(largestIncrease.increase));
-      description = `${largestIncrease.artifact.path} ${direction} by ${formattedBytes}.`;
+      const direction = largestIncrease.delta > 0 ? 'increased' : 'decreased';
+      const formattedBytes = formatBytes(Math.abs(largestIncrease.delta));
+      description = `${largestIncrease.current.path} ${direction} by ${formattedBytes}.`;
+
+
+      // Add comment if enabled
+      if (config.comment) {
+        let body = '|| Artifact | Baseline | Current | Change |\n|-|-|-|-|-|\n';
+
+        for (const comparison of comparisons) {
+          const emoji = comparison.delta <= 0 ? ':white_check_mark:' : ':grey_exclamation:';
+          body += `| ${comparison.failed ? ':x:' : emoji}|${comparison.baseline.path}`;
+          body += `|[${formatBytes(comparison.baseline.size)}](${comparison.baseline.url})`;
+          body += `|[${formatBytes(comparison.current.size)}](${comparison.current.url})`;
+          body += `|${comparison.delta > 0 ? '+' : ''}${formatBytes(comparison.delta)}|`;
+        }
+
+        try {
+          const prDoc = await this.pullRequests.doc(pr.id.toString()).get();
+          let commentId = prDoc.exists ? prDoc.data().sizeCheckComment : undefined;
+
+          if (commentId !== undefined) {
+            try {
+              await context.github.issues.editComment({
+                owner,
+                repo,
+                comment_id: commentId,
+                body, 
+              });
+            } catch {
+              // Comment may have been deleted
+              commentId = undefined;
+            }
+          }
+
+          if (commentId === undefined) {
+            const response = await context.github.issues.createComment({
+              owner,
+              repo,
+              number: pr.number,
+              body,
+            });
+
+            prDoc.ref.update({ sizeCheckComment: response.data.id });
+          }
+        } catch (e) {
+          this.logError(`Unable to add size comment [${e.message}]`);
+        }
+      }
     }
 
     return this.setStatus(
@@ -237,33 +285,29 @@ export class SizeTask extends Task {
     return increase > config.maxSizeIncrease;
   }
 
-  /**
-   * finds the largest increase of the new artifacts from old ones
-   */
-  findLargestIncrease(oldArtifacts: BuildArtifact[], newArtifacts: BuildArtifact[]): BuildArtifactDiff {
-    let largestIncrease: BuildArtifact = null;
-    let largestIncreaseSize = 0;
+  generateArtifactComparisons(oldArtifacts: BuildArtifact[], newArtifacts: BuildArtifact[], config: SizeConfig) {
+    const baselines = new Map(oldArtifacts.map<[string, BuildArtifact]>(a => [a.path, a]));
 
-    for(const newArtifact of newArtifacts) {
-      const targetArtifact = oldArtifacts.find(a => a.path === newArtifact.path);
-      let increase = 0;
+    const comparisons: BuildArtifactDiff[] = [];
+    for (const current of newArtifacts) {
+      const baseline = baselines.get(current.path);
 
-      if(!targetArtifact) {
-        increase = newArtifact.size;
-      } else {
-        increase = newArtifact.size - targetArtifact.size;
+      if (!baseline) {
+        continue;
       }
 
-      if(increase > largestIncreaseSize || largestIncrease === null) {
-        largestIncreaseSize = increase;
-        largestIncrease = newArtifact;
-      }
+      const delta = current.size - baseline.size;
+      comparisons.push({
+        current,
+        baseline,
+        delta,
+        failed: this.isFailure(config, delta),
+      });
     }
 
-    return {
-      artifact: largestIncrease,
-      increase: largestIncreaseSize
-    };
+    comparisons.sort((a, b) => b.delta - a.delta);
+
+    return comparisons;
   }
 
   /**
@@ -323,11 +367,4 @@ export class SizeTask extends Task {
     }));
   }
 
-  /**
-   * Gets the config for the merge plugin from Github or uses default if necessary
-   */
-  async getConfig(context: Context): Promise<SizeConfig> {
-    const repositoryConfig = await context.config<AppConfig>(CONFIG_FILE, appConfig);
-    return repositoryConfig.size;
-  }
 }

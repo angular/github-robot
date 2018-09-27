@@ -10,6 +10,7 @@ export const appConfig: AppConfig = {
       disabled: false,
       context: "ci/angular: size",
     },
+    comment: false,
   },
 
   merge: {
@@ -150,6 +151,7 @@ export interface SizeConfig {
     disabled: boolean;
     context: string;
   };
+  comment: boolean;
 }
 
 export interface AdminConfig {
