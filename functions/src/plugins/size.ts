@@ -199,7 +199,9 @@ export class SizeTask extends Task {
               body,
             });
 
-            prDoc.ref.update({ sizeCheckComment: response.data.id });
+            prDoc.ref.update({ sizeCheckComment: response.data.id }).catch(err => {
+              throw err;
+            });
           }
         } catch (e) {
           this.logError(`Unable to add size comment [${e.message}]`);
@@ -366,5 +368,4 @@ export class SizeTask extends Task {
       };
     }));
   }
-
 }
