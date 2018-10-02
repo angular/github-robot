@@ -280,15 +280,42 @@ export class SizeTask extends Task {
     }
   }
 
-  /**
-   * determines if the increase is a failure based off the config values
-   */
-  isFailure(config: SizeConfig, increase: number): boolean {
-    return increase > config.maxSizeIncrease;
+  parseBytes(input: number | string): [number, boolean] {
+    if (typeof input === 'number') {
+      return [input, false];
+    }
+
+    const matches = input.match(/^\s*(\d+(?:\.\d+)?)\s*(%|(?:[mM]|[kK]|[gG])?[bB])?\s*$/);
+    if (!matches) {
+      return [NaN, false];
+    }
+  
+    let value = Number(matches[1]);
+    switch (matches[2] && matches[2].toLowerCase()) {
+      case '%':
+        return [value / 100, true];
+      case 'kb':
+        value *= 1024;
+        break;
+      case 'mb':
+        value *= 1024 ** 2;
+        break;
+      case 'gb':
+        value *= 1024 ** 3;
+        break;
+    }
+  
+    return [value, false];
   }
 
   generateArtifactComparisons(oldArtifacts: BuildArtifact[], newArtifacts: BuildArtifact[], config: SizeConfig) {
     const baselines = new Map(oldArtifacts.map<[string, BuildArtifact]>(a => [a.path, a]));
+    const [threshold, percentage] = this.parseBytes(config.maxSizeIncrease);
+
+    if (threshold === NaN) {
+      this.logError('Invalid size configuration');
+      return [];
+    }
 
     const comparisons: BuildArtifactDiff[] = [];
     for (const current of newArtifacts) {
@@ -303,7 +330,7 @@ export class SizeTask extends Task {
         current,
         baseline,
         delta,
-        failed: this.isFailure(config, delta),
+        failed: delta > (percentage ? threshold * baseline.size : threshold),
       });
     }
 

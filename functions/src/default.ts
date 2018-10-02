@@ -145,7 +145,7 @@ export interface TriageConfig {
 
 export interface SizeConfig {
   disabled: boolean;
-  maxSizeIncrease: number;
+  maxSizeIncrease: number | string;
   circleCiStatusName: string;
   status: {
     disabled: boolean;
