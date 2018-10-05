@@ -2,10 +2,17 @@
 
 #options for the size plugin
 size:
+  # set to true to disable; or remove the size section completely
   disabled: false
+  # byte value of maximum allowed change in size
+  # can be an absolute number with optional units (kb, mb, gb) or a percentage 0-100%
   maxSizeIncrease: 1000
-  status: 
-    disabled: false
+  # set to true (default: false) to enable PR comments with size change details
+  # only comments if there is an actual change
+  comment: false
+  status:
+    # the name of the status shown in GitHub
+    # the following is the default value
     context: "ci/angular: size"
 
 # options for the merge plugin
