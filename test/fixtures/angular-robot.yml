@@ -10,6 +10,21 @@ size:
   # set to true (default: false) to enable PR comments with size change details
   # only comments if there is an actual change
   comment: false
+  # set to control the set of artifacts
+  # `include` acts as a whitelist (only matching artifacts are analyzed)
+  # if `include` is not provided all artifacts are included
+  # `exclude` acts as a blacklist (matching artifacts will not be analyzed)
+  # `exclude` takes priority over `include`
+  # Both options can be a partial path or a full path of an artifact
+  # if a partial path, all artifacts within that path will be matched
+  # 
+  # The below configuration will include `/path/to/one/artifact.js` and all artifacts
+  # within `/path/to/two/` except `/path/to/two/artifact2.js`
+  # include:
+  #  - "/path/to/one/artifact.js"
+  #  - "/path/to/two/"
+  # exclude:
+  #   - "/path/to/two/artifact2.js"
   status:
     # the name of the status shown in GitHub
     # the following is the default value
