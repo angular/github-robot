@@ -100,7 +100,7 @@
     // Prefer const for values that will not change. This better documents code.
     "prefer-const": true,
 
-    // Multi-line object liiterals and function calls should have a trailing comma. This helps avoid merge conflicts.
+    // Multi-line object literals and function calls should have a trailing comma. This helps avoid merge conflicts.
     "trailing-comma": true,
     "arrow-return-shorthand": true,
     "callable-types": true,

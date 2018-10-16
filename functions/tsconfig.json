@@ -1,11 +1,11 @@
 {
   "compilerOptions": {
-    "lib": ["es2017"],
+    "lib": ["es6", "es2017"],
     "module": "commonjs",
     "noImplicitReturns": true,
-    "outDir": "dist",
+    "outDir": "lib",
     "sourceMap": true,
-    "target": "es2015",
+    "target": "es6",
     "skipLibCheck": true,
     "esModuleInterop": true,
     "noUnusedLocals": true,

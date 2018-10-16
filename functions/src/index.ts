@@ -10,13 +10,13 @@ let tasks: Tasks;
 let probotConfig: Options = config().probot;
 
 // Check if we are in Firebase or in development
-if(probotConfig) {
-  // Init Firebase
-  initializeApp();
-} else {
+if(!probotConfig) {
   // Use dev config
   probotConfig = require('../private/env.json');
 }
+
+// Init Firebase
+initializeApp();
 
 const store: FirebaseFirestore.Firestore = firestoreAdmin();
 // Create the bot using Firebase's probot config (see Readme.md)
