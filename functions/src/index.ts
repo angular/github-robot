@@ -83,9 +83,9 @@ exports.init = https.onRequest(async (request: Request, response: Response) => {
 });
 
 /**
- * Manually trigger init for triage issues, you shouldn't need to use that unless you clean the database
+ * Manually trigger init to triage issues, you shouldn't need to use that unless you clean the database
  */
-exports.initIssues = https.onRequest(async (request: Request, response: Response) => {
+exports.initTriage = https.onRequest(async (request: Request, response: Response) => {
   try {
     await tasks.triageTask.manualInit().catch(err => {
       console.error(err);
@@ -94,6 +94,26 @@ exports.initIssues = https.onRequest(async (request: Request, response: Response
       statusCode: 200,
       body: JSON.stringify({
         message: 'Init triage issues function started'
+      })
+    });
+  } catch(err) {
+    console.error(err);
+    response.sendStatus(500);
+  }
+});
+
+/**
+ * Manually trigger init to triage PR, you shouldn't need to use that unless you clean the database
+ */
+exports.initTriagePR = https.onRequest(async (request: Request, response: Response) => {
+  try {
+    await tasks.triagePRTask.manualInit().catch(err => {
+      console.error(err);
+    });
+    response.send({
+      statusCode: 200,
+      body: JSON.stringify({
+        message: 'Init triage PRs function started'
       })
     });
   } catch(err) {

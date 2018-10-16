@@ -84,6 +84,7 @@ Please help to unblock it by resolving these conflicts. Thanks!`,
 If you can't get the PR to a green state due to flakes or broken master, please try rebasing to master and/or restarting the CI job. If that fails and you believe that the issue is not due to your change, please contact the caretaker and ask for help.`
   },
 
+  // triage for issues
   triage: {    
     // set to true to disable
     disabled: true,
@@ -95,12 +96,27 @@ If you can't get the PR to a green state due to flakes or broken master, please 
     l1TriageLabels: [["comp: *"]],
     // arrays of labels that determine if an issue has been fully triaged
     l2TriageLabels: [["type: bug/fix", "severity*", "freq*", "comp: *"], ["type: feature", "comp: *"], ["type: refactor", "comp: *"], ["type: RFC / Discussion / question", "comp: *"]]
+  },
+
+  // triage for PRs
+  triagePR: {
+    // set to true to disable
+    disabled: true,
+    // number of the milestone to apply when the PR has not been triaged yet
+    needsTriageMilestone: 83,
+    // number of the milestone to apply when the PR is triaged
+    defaultMilestone: 82,
+    // arrays of labels that determine if a PR has been triaged by the caretaker
+    l1TriageLabels: [["comp: *"]],
+    // arrays of labels that determine if a PR has been fully triaged
+    l2TriageLabels: [["type: *", "effort*", "risk*", "comp: *"]]
   }
 };
 
 export interface AppConfig {
   merge: MergeConfig;
   triage: TriageConfig;
+  triagePR: TriagePRConfig;
   size: SizeConfig;
 }
 
@@ -141,6 +157,14 @@ export interface TriageConfig {
   l2TriageLabels: string[][];
   /** @deprecated use l2TriageLabels instead */
   triagedLabels?: string[][];
+}
+
+export interface TriagePRConfig {
+  disabled: boolean;
+  needsTriageMilestone: number;
+  defaultMilestone: number;
+  l1TriageLabels: string[][];
+  l2TriageLabels: string[][];
 }
 
 export interface SizeConfig {
