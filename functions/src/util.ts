@@ -3,6 +3,7 @@ import {CommonTask} from "./plugins/common";
 import {MergeTask} from "./plugins/merge";
 import {TriageTask} from "./plugins/triage";
 import {SizeTask} from "./plugins/size";
+import {TriagePRTask} from "./plugins/triagePR";
 
 class Stream {
   constructor(private store: FirebaseFirestore.Firestore) {
@@ -93,6 +94,7 @@ export interface Tasks {
   commonTask: CommonTask;
   mergeTask: MergeTask;
   triageTask: TriageTask;
+  triagePRTask: TriagePRTask;
   sizeTask: SizeTask;
 }
 
@@ -102,6 +104,7 @@ export function registerTasks(robot: Application, store: FirebaseFirestore.Fires
     commonTask: new CommonTask(robot, store),
     mergeTask: new MergeTask(robot, store),
     triageTask: new TriageTask(robot, store),
+    triagePRTask: new TriagePRTask(robot, store),
     sizeTask: new SizeTask(robot, store),
   };
 }
