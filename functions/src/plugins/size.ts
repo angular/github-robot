@@ -94,7 +94,7 @@ export class SizeTask extends Task {
 
     let newArtifacts;
     try {
-      newArtifacts = await this.getCircleCIArtifacts(owner, repo, buildNumber);
+      newArtifacts = await this.getCircleCIArtifacts(owner, repo, buildNumber, config.exclude, config.include);
     } catch(e) {
       this.logError('CircleCI Artifact retrieval error: ' + e.message);
       await this.setStatus(
@@ -199,9 +199,7 @@ export class SizeTask extends Task {
               body,
             });
 
-            prDoc.ref.update({ sizeCheckComment: response.data.id }).catch(err => {
-              throw err;
-            });
+            await prDoc.ref.update({ sizeCheckComment: response.data.id });
           }
         } catch (e) {
           this.logError(`Unable to add size comment [${e.message}]`);
@@ -362,13 +360,19 @@ export class SizeTask extends Task {
   /**
    * Retrieves the build artifacts from circleci
    */
-  async getCircleCIArtifacts(username: string, project: string, buildNumber: number): Promise<BuildArtifact[]> {
+  async getCircleCIArtifacts(username: string, project: string, buildNumber: number, exclude?: string[], include?: string[]): Promise<BuildArtifact[]> {
     const artifactUrl = `https://circleci.com/api/v1.1/project/github/${username}/${project}/${buildNumber}/artifacts`;
     this.logDebug(`[size] Fetching artifacts for ${artifactUrl}`);
 
     const artifactsResponse = await fetch(artifactUrl);
 
-    const artifacts = await artifactsResponse.json() as CircleCiArtifact[];
+    let artifacts = (await artifactsResponse.json() as CircleCiArtifact[]);
+    if (include) {
+      artifacts = artifacts.filter(ca => include.some(path => ca.path.startsWith(path)));
+    }
+    if (exclude && exclude.length > 0) {
+      artifacts = artifacts.filter(ca => !exclude.some(path => ca.path.startsWith(path)));
+    }
 
     return Promise.all(artifacts.map(async artifact => {
       const contentResponse = await fetch(

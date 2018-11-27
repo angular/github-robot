@@ -176,6 +176,8 @@ export interface SizeConfig {
     context: string;
   };
   comment: boolean;
+  include?: string[];
+  exclude?: string[];
 }
 
 export interface AdminConfig {
