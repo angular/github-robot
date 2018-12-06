@@ -1,7 +1,7 @@
 import Github from '@octokit/rest';
 import {Application, Context} from "probot";
 import {AppConfig, appConfig, MergeConfig} from "../default";
-import {addComment, getGhLabels, getLabelsNames, matchAny, matchAnyFile} from "./common";
+import {addComment, addLabels, getGhLabels, getLabelsNames, matchAny, matchAnyFile} from "./common";
 import {Task} from "./task";
 import {REVIEW_STATE, STATUS_STATE} from "../typings";
 
@@ -80,6 +80,10 @@ export class MergeTask extends Task {
       }
 
       updateG3Status = true;
+    } else if(config.mergeLinkedLabels.includes(newLabel) && !getLabelsNames(labels).includes(config.mergeLabel)) {
+      // add the merge label when we we add a linked label
+      addLabels(context.github, owner, repo, pr.number, [config.mergeLabel])
+        .catch(); // if it fails it's because we're trying to add a label that already exists
     }
 
     if(this.matchLabel(newLabel, labels, config)) {

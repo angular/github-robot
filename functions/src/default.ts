@@ -57,6 +57,9 @@ Please help to unblock it by resolving these conflicts. Thanks!`,
     // label to monitor
     mergeLabel: "PR action: merge",
 
+    // adding any of these labels will also add the merge label
+    mergeLinkedLabels: ["PR action: merge-assistance"],
+
     // list of checks that will determine if the merge label can be added
     checks: {
       // whether the PR shouldn't have a conflict with the base branch
@@ -138,6 +141,7 @@ export interface MergeConfig {
   };
   mergeConflictComment: string;
   mergeLabel: string;
+  mergeLinkedLabels: string[];
   checks: {
     noConflict: boolean;
     requireReviews: boolean;

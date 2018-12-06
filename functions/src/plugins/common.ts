@@ -160,6 +160,15 @@ export async function addComment(github: Github, owner: string, repo: string, nu
   });
 }
 
+export async function addLabels(github: Github, owner: string, repo: string, number: number, labels: string[]): Promise<Github.AnyResponse> {
+  return github.issues.addLabels({
+    owner,
+    repo,
+    number,
+    labels
+  });
+}
+
 interface Repository {
   id: number;
   name: string;
