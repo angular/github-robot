@@ -3,7 +3,7 @@ import {Application, Context} from "probot";
 import {AppConfig, appConfig, MergeConfig} from "../default";
 import {addComment, addLabels, getGhLabels, getLabelsNames, matchAny, matchAnyFile} from "./common";
 import {Task} from "./task";
-import {REVIEW_STATE, STATUS_STATE} from "../typings";
+import {AUTHOR_ASSOCIATION, REVIEW_STATE, STATUS_STATE} from "../typings";
 
 export const CONFIG_FILE = "angular-robot.yml";
 
@@ -257,56 +257,27 @@ export class MergeTask extends Task {
    */
   async getPendingReviews(context: Context, pr: Github.PullRequestsGetResponse): Promise<number> {
     const {owner, repo} = context.repo();
-    // we only want reviews with state: PENDING, APPROVED, CHANGES_REQUESTED, DISMISSED
-    // we ignore comments because they can be done after a review was approved / refused
-    // also anyone can add comments, it doesn't mean that it's someone who is actually reviewing the PR
-    const query = `
-      reviews(last: 50, states: [PENDING, APPROVED, CHANGES_REQUESTED, DISMISSED]) {
-        nodes {
-          authorAssociation
-          author {
-            ... on User {
-              userId: id
-            }
-          }
-          state
-          createdAt
-        }
-      }
-      reviewRequests(last: 10) {
-        nodes {
-          requestedReviewer {
-            ... on User {
-              userId: id
-            }
-            ... on Team {
-              teamId: id
-            }
-          }
-        }
-      }
-    `;
-
-    const prData = await this.queryPR<ReviewQuery>(context, query, {
-      owner,
-      repo,
-      number: pr.number
-    });
-
-    const reviews = prData.reviews.nodes
-    // order by latest review first
-      .sort((review1, review2) => new Date(review2.createdAt).getTime() - new Date(review1.createdAt).getTime());
+    const reviews = ((await context.github.pullRequests.getReviews({owner, repo, number: pr.number})).data as any as Review[])
+      // we only want reviews with state: PENDING, APPROVED, CHANGES_REQUESTED, DISMISSED
+      // we ignore comments because they can be done after a review was approved / refused
+      // also anyone can add comments, it doesn't mean that it's someone who is actually reviewing the PR
+      .filter(review => review.state !== REVIEW_STATE.Commented)
+      // we ignore reviews from people who aren't members of the repo
+      .filter(review => review.author_association !== AUTHOR_ASSOCIATION.None)
+      // order by latest review first
+      .sort((review1, review2) => new Date(review2.submitted_at).getTime() - new Date(review1.submitted_at).getTime());
 
     // the list of requested reviewers only contains people that have been requested for review but have not
     // given the review yet. Once he does, he disappears from this list, and we need to check the reviews
-    const reviewRequests = prData.reviewRequests.nodes.length;
-    const usersReviews: string[] = [];
+    const reviewRequests =(await context.github.pullRequests.getReviewRequests({owner, repo, number: pr.number})).data.users;
+
+    const usersReviews: number[] = [];
     // for each user that reviewed this PR, we get the latest review
     const finalReviews: any[] = [];
 
     // for each user that reviewed this PR, we get the latest review
     reviews.forEach(review => {
-      const reviewUser = review.author.userId;
+      const reviewUser = review.user.id;
       if(!usersReviews.includes(reviewUser)) {
         usersReviews.push(reviewUser);
         finalReviews.push(review);
@@ -316,7 +287,7 @@ export class MergeTask extends Task {
     // we only keep the reviews that are pending / requested changes
     const nonApprovedReviews = finalReviews.filter(review => review.state === REVIEW_STATE.Pending || review.state === REVIEW_STATE.ChangesRequest);
 
-    return reviewRequests + nonApprovedReviews.length;
+    return reviewRequests.length + nonApprovedReviews.length;
   }
 
   /**
@@ -566,27 +537,15 @@ interface ChecksStatus {
   failure: string[];
 }
 
-interface ReviewQuery {
-  reviews: {
-    nodes: {
-      authorAssociation: string;
-      author: {
-        userId: string;
-      }
-      state: REVIEW_STATE
-      createdAt: string;
-    }[];
-  };
-
-  reviewRequests: {
-    nodes: {
-      requestedReviewer: {
-        userId: string;
-        teamId?: undefined;
-      } | {
-        userId?: undefined;
-        teamId: string;
-      }
-    }[];
-  };
+interface Review {
+  id: number;
+  node_id: string;
+  user: Github.PullRequestsGetReviewsResponseItemUser;
+  body: string;
+  commit_id: string;
+  state: REVIEW_STATE;
+  html_url: string;
+  pull_request_url: string;
+  author_association: AUTHOR_ASSOCIATION;
+  submitted_at: string;
 }
