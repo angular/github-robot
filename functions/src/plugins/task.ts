@@ -108,14 +108,4 @@ export class Task {
 
     return context.github.query(getResource, {url: resource.html_url});
   }
-
-  async queryPR<T>(context: Context, query: string, params: { [key: string]: any, owner: string, repo: string, number: number }): Promise<T> {
-    return (await context.github.query(`query($owner: String!, $repo: String!, $number: Int!) {
-      repository(owner: $owner, name: $repo) {
-        pullRequest(number: $number) {
-          ${query}
-        }
-      }
-    }`, params) as any).repository.pullRequest;
-  }
 }

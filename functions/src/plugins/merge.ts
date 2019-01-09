@@ -257,7 +257,7 @@ export class MergeTask extends Task {
    */
   async getPendingReviews(context: Context, pr: Github.PullRequestsGetResponse): Promise<number> {
     const {owner, repo} = context.repo();
-    const reviews = ((await context.github.pullRequests.getReviews({owner, repo, number: pr.number})).data as any as Review[])
+    const reviews = ((await context.github.pullRequests.listReviews({owner, repo, number: pr.number})).data as any as Review[])
       // we only want reviews with state: PENDING, APPROVED, CHANGES_REQUESTED, DISMISSED
       // we ignore comments because they can be done after a review was approved / refused
       // also anyone can add comments, it doesn't mean that it's someone who is actually reviewing the PR
@@ -269,7 +269,7 @@ export class MergeTask extends Task {
 
     // the list of requested reviewers only contains people that have been requested for review but have not
     // given the review yet. Once he does, he disappears from this list, and we need to check the reviews
-    const reviewRequests =(await context.github.pullRequests.getReviewRequests({owner, repo, number: pr.number})).data.users;
+    const reviewRequests =(await context.github.pullRequests.listReviewRequests({owner, repo, number: pr.number})).data.users;
 
     const usersReviews: number[] = [];
     // for each user that reviewed this PR, we get the latest review
@@ -440,7 +440,7 @@ export class MergeTask extends Task {
 
     if(updateG3Status && config.g3Status && !config.g3Status.disabled) {
       // checking if we need to add g3 status
-      const files: Github.PullRequestsGetFilesResponse = (await context.github.pullRequests.getFiles({owner, repo, number: pr.number})).data;
+      const files: Github.PullRequestsListFilesResponse = (await context.github.pullRequests.listFiles({owner, repo, number: pr.number})).data;
       if(matchAnyFile(files.map(file => file.filename), config.g3Status.include, config.g3Status.exclude)) {
         // only update g3 status if a commit was just pushed, or there was no g3 status
         if(context.payload.action === "synchronize" || !statuses.some(status => status.context === config.g3Status.context)) {
@@ -540,7 +540,7 @@ interface ChecksStatus {
 interface Review {
   id: number;
   node_id: string;
-  user: Github.PullRequestsGetReviewsResponseItemUser;
+  user: Github.PullRequestsListReviewsResponseItemUser;
   body: string;
   commit_id: string;
   state: REVIEW_STATE;

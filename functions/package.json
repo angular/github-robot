@@ -16,7 +16,7 @@
     "firebase-functions": "2.1.0",
     "minimatch": "3.0.4",
     "node-fetch": "2.2.0",
-    "probot": "7.3.1"
+    "probot": "7.4.0"
   },
   "devDependencies": {
     "tslint": "5.11.0",

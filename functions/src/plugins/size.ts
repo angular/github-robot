@@ -1,7 +1,7 @@
 import fetch from 'node-fetch';
 import {Application, Context} from "probot";
 import {Task} from "./task";
-import {SizeConfig, appConfig as defaultAppConfig } from "../default";
+import {SizeConfig, appConfig as defaultAppConfig, AppConfig} from "../default";
 import {STATUS_STATE} from "../typings";
 import Github from '@octokit/rest';
 
@@ -50,7 +50,7 @@ export class SizeTask extends Task {
   }
 
   async checkSize(context: Context): Promise<void> {
-    const appConfig = await context.config(CONFIG_FILE);
+    const appConfig = await context.config<AppConfig>(CONFIG_FILE);
 
     if(!appConfig.size || appConfig.size.disabled) {
       return;
@@ -179,7 +179,7 @@ export class SizeTask extends Task {
 
           if (commentId !== undefined) {
             try {
-              await context.github.issues.editComment({
+              await context.github.issues.updateComment({
                 owner,
                 repo,
                 comment_id: commentId,
@@ -223,11 +223,11 @@ export class SizeTask extends Task {
    * @param artifacts
    */
   async upsertNewArtifacts(context: Context, artifacts: BuildArtifact[]): Promise<void> {
-    this.logDebug(`[size] Storing artifacts for: ${context.payload.sha}, on branches [${context.payload.branches.map((b: Github.ReposGetBranchesResponseItem) => b.commit.url).join(', ')}]`);
+    this.logDebug(`[size] Storing artifacts for: ${context.payload.sha}, on branches [${context.payload.branches.map((b: Github.ReposListBranchesResponseItem) => b.commit.url).join(', ')}]`);
 
     const updatedAt = context.payload.updated_at;
     const branch = context.payload.branches
-      .find((b: Github.ReposGetBranchesResponseItem) => b.commit.sha === context.payload.commit.sha);
+      .find((b: Github.ReposListBranchesResponseItem) => b.commit.sha === context.payload.commit.sha);
     const sizeArtifacts = this.repositories
       .doc(context.payload.repository.id.toString())
       .collection('sizeArtifacts');
