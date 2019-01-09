@@ -238,7 +238,7 @@ export class SizeTask extends Task {
     ));
 
     return sizeArtifacts.firestore.runTransaction(async transaction => {
-      const results = await transaction.getAll(...artifactDocs);
+      const results = await transaction.getAll(...artifactDocs as [any]);
 
       for(let i = 0; i < results.length; ++i) {
         if(results[i].exists) {
