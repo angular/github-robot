@@ -24,11 +24,11 @@ export class CommonTask extends Task {
     const adminConfig = await this.admin.doc('config').get();
     if(adminConfig.exists && (<AdminConfig>adminConfig.data()).allowInit) {
       const github = await this.robot.auth();
-      const installations = await github.paginate(github.apps.getInstallations({}), pages => pages.data);
+      const installations = await github.paginate(github.apps.listInstallations({}), pages => (pages as any as Github.AnyResponse).data);
       await Promise.all(installations.map(async installation => {
         const authGithub = await this.robot.auth(installation.id);
-        const repositories = await authGithub.apps.getInstallationRepositories({});
-        await Promise.all(repositories.data.repositories.map(async (repository: Github.AppsGetInstallationRepositoriesResponseRepositoriesItem) => {
+        const repositories = await authGithub.apps.listRepos({});
+        await Promise.all(repositories.data.repositories.map(async (repository: Github.AppsListReposResponseRepositoriesItem) => {
           await this.repositories.doc(repository.id.toString()).set({
             id: repository.id,
             name: repository.name,
@@ -97,12 +97,12 @@ export class CommonTask extends Task {
       // list of existing opened PRs in the db
       const dbPRs = dbPRSnapshots.docs.map(doc => doc.id);
 
-      const ghPRs = await github.paginate(github.pullRequests.getAll({
+      const ghPRs = await github.paginate(github.pullRequests.list({
         owner,
         repo,
         state: 'open',
         per_page: 100
-      }), pages => pages.data) as Github.PullRequestsGetAllResponse;
+      }), pages => (pages as any as Github.AnyResponse).data) as Github.PullRequestsListResponse;
 
       ghPRs.forEach(async pr => {
         const index = dbPRs.indexOf(pr.id.toString());
