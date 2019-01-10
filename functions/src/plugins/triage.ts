@@ -123,8 +123,8 @@ export class TriageTask extends Task {
   async getConfig(context: Context): Promise<TriageConfig> {
     const repositoryConfig = await context.config<AppConfig>(CONFIG_FILE, appConfig);
     const config = repositoryConfig.triage;
-    config.defaultMilestone = parseInt(config.defaultMilestone as unknown as string, 10);
-    config.needsTriageMilestone = parseInt(config.needsTriageMilestone as unknown as string, 10);
+    config.defaultMilestone = parseInt(<unknown>config.defaultMilestone as string, 10);
+    config.needsTriageMilestone = parseInt(<unknown>config.needsTriageMilestone as string, 10);
     return config;
   }
 }
