@@ -12,7 +12,7 @@ export class MergeTask extends Task {
   constructor(robot: Application, db: FirebaseFirestore.Firestore) {
     super(robot, db);
 
-    // Pushs to the repository to check for merge conflicts
+    // Pushes to the repository to check for merge conflicts
     this.dispatch('push', this.onPush.bind(this));
     // PR receives a new label
     this.dispatch('pull_request.labeled', this.onLabeled.bind(this));
@@ -26,7 +26,7 @@ export class MergeTask extends Task {
       'pull_request.review_request_removed',
       'pull_request_review.submitted',
       'pull_request_review.dismissed',
-      'pull_request.edited' // editing a PR can change the base branch (not just text content)
+      'pull_request.edited' // Editing a PR can change the base branch (not just text content)
     ], this.updateStatus.bind(this));
     // PR created or updated
     this.dispatch([
@@ -42,15 +42,15 @@ export class MergeTask extends Task {
 
   /**
    * Checks whether the label can be added or not, and removes it if necessary. It also updates Firebase.
-   * Triggered by event
+   * Triggered by event.
    */
   async onLabeled(context: Context): Promise<void> {
     const newLabel = context.payload.label.name;
     const pr: Github.PullRequestsGetResponse = context.payload.pull_request;
     const config = await this.getConfig(context);
     const {owner, repo} = context.repo();
-    // we need the list of labels from Github because we might be adding multiple labels at once
-    // and we could overwrite some labels because of a race condition
+    // We need the list of labels from Github because we might be adding multiple labels at once
+    // and we could overwrite some labels because of a race condition.
     const labels = await getGhLabels(context.github, owner, repo, pr.number);
     pr.labels = labels;
     this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id, pr).catch(err => {
@@ -81,9 +81,9 @@ export class MergeTask extends Task {
 
       updateG3Status = true;
     } else if(config.mergeLinkedLabels.includes(newLabel) && !getLabelsNames(labels).includes(config.mergeLabel)) {
-      // add the merge label when we we add a linked label
+      // Add the merge label when we add a linked label
       addLabels(context.github, owner, repo, pr.number, [config.mergeLabel])
-        .catch(); // if it fails it's because we're trying to add a label that already exists
+        .catch(); // If it fails it's because we're trying to add a label that already exists
     }
 
     if(this.matchLabel(newLabel, labels, config)) {
@@ -96,8 +96,8 @@ export class MergeTask extends Task {
   }
 
   /**
-   * Checks what label was removed and updates the PR status if necessary. It also updates Firebase.
-   * Triggered by event
+   * Checks which label was removed and updates the PR status if necessary. It also updates Firebase.
+   * Triggered by event.
    */
   async onUnlabeled(context: Context): Promise<void> {
     const config = await this.getConfig(context);
@@ -126,7 +126,7 @@ export class MergeTask extends Task {
   }
 
   /**
-   * Gets the list of labels from a PR
+   * Gets the list of labels from a PR.
    */
   private async getLabels(context: Context, pr?: Github.PullRequestsGetResponse): Promise<Github.PullRequestsGetResponseLabelsItem[]> {
     const {owner, repo} = context.repo();
@@ -152,7 +152,7 @@ export class MergeTask extends Task {
   }
 
   /**
-   * Based on the repo config, returns the list of checks that failed for this PR
+   * Based on the repository config, returns the list of checks that failed for this PR.
    */
   private async getChecksStatus(context: Context, pr: Github.PullRequestsGetResponse, config: MergeConfig, labels: Github.PullRequestsGetResponseLabelsItem[] = [], statuses?: Github.ReposGetCombinedStatusForRefResponseStatusesItem[]): Promise<ChecksStatus> {
     const checksStatus: ChecksStatus = {
@@ -163,7 +163,7 @@ export class MergeTask extends Task {
 
     // Check if there is any merge conflict
     if(config.checks.noConflict) {
-      // if mergeable is null, we need to get the updated status
+      // If mergeable is null, we need to get the updated status
       if(pr.mergeable === null) {
         const {owner, repo} = context.repo();
         pr = await this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id);
@@ -239,8 +239,7 @@ export class MergeTask extends Task {
       });
     }
 
-    // check if there is any review pending or that requested changes
-    // pr.requested_reviewers == users that have been requested but haven't reviewed yet
+    // Check if there is any review pending or that requested changes
     if(config.checks.requireReviews) {
       const nbPendingReviews = await this.getPendingReviews(context, pr);
       if(nbPendingReviews > 0) {
@@ -252,30 +251,33 @@ export class MergeTask extends Task {
   }
 
   /**
-   * Returns the number of "non approved" reviews (requested, pending or changes requested)
-   * (we only take into account the final review for each user)
+   * Returns the number of "non approved" reviews (requested, pending or changes requested).
+   * We only take into account the final review for each user.
+   * We ignore team reviews and reviews by individuals who are not members of the repository.
    */
   async getPendingReviews(context: Context, pr: Github.PullRequestsGetResponse): Promise<number> {
     const {owner, repo} = context.repo();
     const reviews = ((await context.github.pullRequests.listReviews({owner, repo, number: pr.number})).data as any as Review[])
-      // we only want reviews with state: PENDING, APPROVED, CHANGES_REQUESTED, DISMISSED
-      // we ignore comments because they can be done after a review was approved / refused
-      // also anyone can add comments, it doesn't mean that it's someone who is actually reviewing the PR
+      // We only want reviews with state: PENDING, APPROVED, CHANGES_REQUESTED, DISMISSED.
+      // We ignore comments because they can be done after a review was approved / refused, and also because
+      // anyone can add comments, it doesn't mean that it's someone who is actually reviewing the PR
       .filter(review => review.state !== REVIEW_STATE.Commented)
-      // we ignore reviews from people who aren't members of the repo
+      // We ignore reviews from individuals who aren't members of the repository
       .filter(review => review.author_association !== AUTHOR_ASSOCIATION.None)
-      // order by latest review first
+      // Order by latest review first
       .sort((review1, review2) => new Date(review2.submitted_at).getTime() - new Date(review1.submitted_at).getTime());
 
-    // the list of requested reviewers only contains people that have been requested for review but have not
-    // given the review yet. Once he does, he disappears from this list, and we need to check the reviews
+    // The list of requested reviewers only contains people that have been requested for review but have not
+    // given the review yet. Once they do, they disappear from this list, and we need to check the reviews.
+    // We only take the reviews from users and ignore team reviews so that we don't conflict with Github code owners
+    // that automatically add team to the reviewers list
     const reviewRequests =(await context.github.pullRequests.listReviewRequests({owner, repo, number: pr.number})).data.users;
 
     const usersReviews: number[] = [];
-    // for each user that reviewed this PR, we get the latest review
     const finalReviews: any[] = [];
 
-    // for each user that reviewed this PR, we get the latest review
+    // For each individual that reviewed this PR, we only keep the latest review (it can either be pending, approved,
+    // changes_requested or dismissed)
     reviews.forEach(review => {
       const reviewUser = review.user.id;
       if(!usersReviews.includes(reviewUser)) {
@@ -284,15 +286,15 @@ export class MergeTask extends Task {
       }
     });
 
-    // we only keep the reviews that are pending / requested changes
+    // We want the list of "non-approved" reviews, so we only keep the reviews that are pending / requested changes
     const nonApprovedReviews = finalReviews.filter(review => review.state === REVIEW_STATE.Pending || review.state === REVIEW_STATE.ChangesRequest);
 
     return reviewRequests.length + nonApprovedReviews.length;
   }
 
   /**
-   * Updates the database when the PR is synchronized (new commit or commit force pushed)
-   * Triggered by event
+   * Updates the database when the PR is synchronized (new commit or commit force pushed).
+   * Triggered by event.
    */
   async onSynchronize(context: Context): Promise<void> {
     const pr = context.payload.pull_request;
@@ -306,8 +308,8 @@ export class MergeTask extends Task {
   }
 
   /**
-   * Updates Firebase data when the PR is updated
-   * Triggered by event
+   * Updates Firebase data when the PR is updated.
+   * Triggered by event.
    */
   async onUpdate(context: Context): Promise<void> {
     const pr = context.payload.pull_request;
@@ -318,8 +320,8 @@ export class MergeTask extends Task {
   }
 
   /**
-   * Checks/updates the status of all opened PRs when the main repository gets a push update
-   * Triggered by event
+   * Checks/updates the status of all opened PRs when the main repository gets a push update.
+   * Triggered by event.
    */
   // todo(OCOMBE): change it to use database trigger
   async onPush(context: Context): Promise<void> {
@@ -344,7 +346,7 @@ export class MergeTask extends Task {
       pr = await this.updateDbPR(context.github, owner, repo, pr.number, repoId);
 
       if(pr.mergeable === false) {
-        // get the comments since the last time the PR was synchronized
+        // Get the comments since the last time the PR was synchronized
         if((pr.conflict_comment_at && pr.synchronized_at && pr.conflict_comment_at >= pr.synchronized_at) || (!pr.synchronized_at && pr.conflict_comment_at)) {
           this.logDebug({context}, `This PR already contains a merge conflict comment since the last synchronized date, skipping it`);
           return;
@@ -367,7 +369,7 @@ export class MergeTask extends Task {
   }
 
   /**
-   * Updates the status of a PR
+   * Updates the status of a PR.
    */
   private async updateStatus(context: Context, updateStatus = true, updateG3Status = false, labels?: Github.IssuesGetResponseLabelsItem[]): Promise<void> {
     if(context.payload.action === "synchronize") {
@@ -396,12 +398,12 @@ export class MergeTask extends Task {
         }
         break;
       case 'status':
-        // ignore status update events that are coming from this bot
+        // Ignore status update events that are coming from this bot
         if(context.payload.context === config.status.context) {
           this.logDebug({context}, `Update status coming from this bot, ignored`);
           return;
         }
-        // ignore status events for commits coming directly from the default branch (most likely using github edit)
+        // Ignore status events for commits coming directly from the default branch (most likely using github edit)
         // because they are not coming from a PR (e.g. travis runs for all commits and triggers a status update)
         if(context.payload.branches.name === context.payload.repository.default_branch) {
           this.logDebug({context}, `Update status coming directly from the default branch (${context.payload.branches.name}), ignored`);
@@ -411,7 +413,7 @@ export class MergeTask extends Task {
         pr = await this.findPrBySha(sha, context.payload.repository.id);
 
         if(!pr) {
-          // the repository data was previously stored as a simple id, checking if this PR still has old data
+          // The repository data was previously stored as a simple id, checking if this PR still has old data
           const matches = (await this.pullRequests.where('head.sha', '==', sha)
             .where('repository', '==', context.payload.repository.id)
             .get());
@@ -419,7 +421,7 @@ export class MergeTask extends Task {
             pr = doc.data();
           });
         }
-        // either init has not finished yet and we don't have this PR in the DB, or it's a status update for a commit
+        // Either init has not finished yet and we don't have this PR in the DB, or it's a status update for a commit
         // made directly on a branch without a PR (e.g. travis runs for all commits and triggers a status update)
         if(!pr) {
           this.logWarn({context}, `Update status for unknown PR, ignored. Head sha == ${sha}, repository == ${context.payload.repository.id}`);
@@ -439,10 +441,10 @@ export class MergeTask extends Task {
     const statuses = await this.getStatuses(context, sha);
 
     if(updateG3Status && config.g3Status && !config.g3Status.disabled) {
-      // checking if we need to add g3 status
+      // Checking if we need to add g3 status
       const files: Github.PullRequestsListFilesResponse = (await context.github.pullRequests.listFiles({owner, repo, number: pr.number})).data;
       if(matchAnyFile(files.map(file => file.filename), config.g3Status.include, config.g3Status.exclude)) {
-        // only update g3 status if a commit was just pushed, or there was no g3 status
+        // Only update g3 status if a commit was just pushed, or there was no g3 status
         if(context.payload.action === "synchronize" || !statuses.some(status => status.context === config.g3Status.context)) {
           const status = (await context.github.repos.createStatus({
             owner,
