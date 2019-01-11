@@ -141,7 +141,7 @@ export interface MergeConfig {
   };
   mergeConflictComment: string;
   mergeLabel: string;
-  mergeLinkedLabels: string[];
+  mergeLinkedLabels?: string[];
   checks: {
     noConflict: boolean;
     requireReviews: boolean;

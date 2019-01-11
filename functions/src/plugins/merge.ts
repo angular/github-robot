@@ -80,7 +80,7 @@ export class MergeTask extends Task {
       }
 
       updateG3Status = true;
-    } else if(config.mergeLinkedLabels.includes(newLabel) && !getLabelsNames(labels).includes(config.mergeLabel)) {
+    } else if(config.mergeLinkedLabels && config.mergeLinkedLabels.includes(newLabel) && !getLabelsNames(labels).includes(config.mergeLabel)) {
       // Add the merge label when we add a linked label
       addLabels(context.github, owner, repo, pr.number, [config.mergeLabel])
         .catch(); // If it fails it's because we're trying to add a label that already exists
@@ -257,7 +257,13 @@ export class MergeTask extends Task {
    */
   async getPendingReviews(context: Context, pr: Github.PullRequestsGetResponse): Promise<number> {
     const {owner, repo} = context.repo();
-    const reviews = ((await context.github.pullRequests.listReviews({owner, repo, number: pr.number})).data as any as Review[])
+    // We can have a lot of reviews on a PR, we need to paginate to get all of them
+    const reviews = (await context.github.paginate(context.github.pullRequests.listReviews({
+      owner,
+      repo,
+      number: pr.number,
+      per_page: 100
+    }), pages => (pages as any).data) as Review[])
       // We only want reviews with state: PENDING, APPROVED, CHANGES_REQUESTED, DISMISSED.
       // We ignore comments because they can be done after a review was approved / refused, and also because
       // anyone can add comments, it doesn't mean that it's someone who is actually reviewing the PR
