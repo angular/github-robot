@@ -2,46 +2,48 @@
   "event": "status",
   "name": "status",
   "payload": {
-    "id": 4359170935,
-    "sha": "f1ea7b6d00830786172bd0282e5c9f3d4424e79f",
+    "id": 6165533824,
+    "sha": "271ca8b3df57eced0de9cc99a9cd58f7cbf17f64",
     "name": "ocombe/test",
-    "target_url": "https://travis-ci.org/ocombe/test/builds/309021210?utm_source=github_status&utm_medium=notification",
-    "context": "continuous-integration/travis-ci/push",
-    "description": "The Travis CI build failed",
+    "target_url": null,
+    "context": "ci/angular: merge status",
+    "description": "Conflicts with base branch \"master\", status \"continuous-integration/travis-ci/push\" is failing, status \"continuous-integration/travis-ci/...",
     "state": "failure",
     "commit": {
-      "sha": "f1ea7b6d00830786172bd0282e5c9f3d4424e79f",
+      "sha": "271ca8b3df57eced0de9cc99a9cd58f7cbf17f64",
+      "node_id": "MDY6Q29tbWl0MTA4OTc2MjQwOjI3MWNhOGIzZGY1N2VjZWQwZGU5Y2M5OWE5Y2Q1OGY3Y2JmMTdmNjQ=",
       "commit": {
         "author": {
           "name": "Olivier Combe",
           "email": "olivier.combe@gmail.com",
-          "date": "2017-11-29T15:13:03Z"
+          "date": "2017-12-04T14:41:51Z"
         },
         "committer": {
           "name": "GitHub",
           "email": "noreply@github.com",
-          "date": "2017-11-29T15:13:03Z"
+          "date": "2017-12-04T14:41:51Z"
         },
-        "message": "Update README.md",
+        "message": "Update .gitignore",
         "tree": {
-          "sha": "7d70a9df66d66cabe2d5917a5895e6cc7e10a1fb",
-          "url": "https://api.github.com/repos/ocombe/test/git/trees/7d70a9df66d66cabe2d5917a5895e6cc7e10a1fb"
+          "sha": "7c5aff0d2813db3153c3936f276e3876f9280d61",
+          "url": "https://api.github.com/repos/ocombe/test/git/trees/7c5aff0d2813db3153c3936f276e3876f9280d61"
         },
-        "url": "https://api.github.com/repos/ocombe/test/git/commits/f1ea7b6d00830786172bd0282e5c9f3d4424e79f",
+        "url": "https://api.github.com/repos/ocombe/test/git/commits/271ca8b3df57eced0de9cc99a9cd58f7cbf17f64",
         "comment_count": 0,
         "verification": {
           "verified": true,
           "reason": "valid",
-          "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsBcBAABCAAQBQJaHs5/CRBK7hj4Ov3rIwAAdHIIABmm3vmU0c+oPRQ0nozoWT0m\nJ1u7+gAoiYkNFRKkmlDiO0mkG+FZzJrbtDzDQs9XN9Oq2LUdNAeE/OI7qClE0k2i\n9SjGOTPlNyK6bPOb3FDkwZc4t66Lyor/Rdmf9jHUWPBDDrBKV7IZe6s4KHSFBm5/\nHzdIYKcPvLjlJ11JvnMlN3sCTSxCnVZYAXLaPmsUeopGns7xEKKf2iNJw2NS0Fxb\nsA7msPolzQc2Rg4hERD9sJEGV/Tb23qMRH8gEp0+9VkrFpqHVTHFLhh0vqUSsv+a\nvBW3fnou80IKRRcBiu5VE1eVoH6bletqQu1l+g8nNEAZBG9pvAR5iQicKkdOss0=\n=5H7d\n-----END PGP SIGNATURE-----\n",
-          "payload": "tree 7d70a9df66d66cabe2d5917a5895e6cc7e10a1fb\nparent c3e38743a48bee758da38edb666c30dfad12541f\nauthor Olivier Combe <olivier.combe@gmail.com> 1511968383 +0100\ncommitter GitHub <noreply@github.com> 1511968383 +0100\n\nUpdate README.md"
+          "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsBcBAABCAAQBQJaJV6vCRBK7hj4Ov3rIwAAdHIIACl+7WBQAQ3NPQayHmw/xlmO\nHjHKHs6nlAJ3jDZYCjilAvOSMeQrpSnfDoj+Nh3U0O+5kxWFDqwHPfb0LKGcN6qK\noS0pdPnEZInpTFlLMQETSjpVe8s54vPsynqRjxtQOhTAsknc7ft6OG+TIeSRSVKT\noE+CkLhXfO81IFh8hVtFVqHJc8xqUQd0XPULNRHg14ZSt9SSDMcLGCRcJTu5nIUc\nwVncDo0/byvu58he0e3rxG4vbpLG3Y/IfI338OZfOoAzEWgq8SJ3CHXPSbTiHaPn\nnxF3MLp6RpdiSYaxvAjCKhsCXbElfE6Sj4YZkE2WGEhpvFNdgDrCBSH+fWkQZxk=\n=Y7l8\n-----END PGP SIGNATURE-----\n",
+          "payload": "tree 7c5aff0d2813db3153c3936f276e3876f9280d61\nparent 0a2c6dee860d0cf99b03c3f891a432187219080d\nauthor Olivier Combe <olivier.combe@gmail.com> 1512398511 +0100\ncommitter GitHub <noreply@github.com> 1512398511 +0100\n\nUpdate .gitignore"
         }
       },
-      "url": "https://api.github.com/repos/ocombe/test/commits/f1ea7b6d00830786172bd0282e5c9f3d4424e79f",
-      "html_url": "https://github.com/ocombe/test/commit/f1ea7b6d00830786172bd0282e5c9f3d4424e79f",
-      "comments_url": "https://api.github.com/repos/ocombe/test/commits/f1ea7b6d00830786172bd0282e5c9f3d4424e79f/comments",
+      "url": "https://api.github.com/repos/ocombe/test/commits/271ca8b3df57eced0de9cc99a9cd58f7cbf17f64",
+      "html_url": "https://github.com/ocombe/test/commit/271ca8b3df57eced0de9cc99a9cd58f7cbf17f64",
+      "comments_url": "https://api.github.com/repos/ocombe/test/commits/271ca8b3df57eced0de9cc99a9cd58f7cbf17f64/comments",
       "author": {
         "login": "ocombe",
         "id": 265378,
+        "node_id": "MDQ6VXNlcjI2NTM3OA==",
         "avatar_url": "https://avatars0.githubusercontent.com/u/265378?v=4",
         "gravatar_id": "",
         "url": "https://api.github.com/users/ocombe",
@@ -61,6 +63,7 @@
       "committer": {
         "login": "web-flow",
         "id": 19864447,
+        "node_id": "MDQ6VXNlcjE5ODY0NDQ3",
         "avatar_url": "https://avatars3.githubusercontent.com/u/19864447?v=4",
         "gravatar_id": "",
         "url": "https://api.github.com/users/web-flow",
@@ -79,30 +82,34 @@
       },
       "parents": [
         {
-          "sha": "c3e38743a48bee758da38edb666c30dfad12541f",
-          "url": "https://api.github.com/repos/ocombe/test/commits/c3e38743a48bee758da38edb666c30dfad12541f",
-          "html_url": "https://github.com/ocombe/test/commit/c3e38743a48bee758da38edb666c30dfad12541f"
+          "sha": "0a2c6dee860d0cf99b03c3f891a432187219080d",
+          "url": "https://api.github.com/repos/ocombe/test/commits/0a2c6dee860d0cf99b03c3f891a432187219080d",
+          "html_url": "https://github.com/ocombe/test/commit/0a2c6dee860d0cf99b03c3f891a432187219080d"
         }
       ]
     },
     "branches": [
       {
-        "name": "master",
+        "name": "ocombe-patch-3",
         "commit": {
-          "sha": "f1ea7b6d00830786172bd0282e5c9f3d4424e79f",
-          "url": "https://api.github.com/repos/ocombe/test/commits/f1ea7b6d00830786172bd0282e5c9f3d4424e79f"
-        }
+          "sha": "271ca8b3df57eced0de9cc99a9cd58f7cbf17f64",
+          "url": "https://api.github.com/repos/ocombe/test/commits/271ca8b3df57eced0de9cc99a9cd58f7cbf17f64"
+        },
+        "protected": false
       }
     ],
-    "created_at": "2017-11-29T15:14:27Z",
-    "updated_at": "2017-11-29T15:14:27Z",
+    "created_at": "2019-01-30T13:56:48+00:00",
+    "updated_at": "2019-01-30T13:56:48+00:00",
     "repository": {
       "id": 108976240,
+      "node_id": "MDEwOlJlcG9zaXRvcnkxMDg5NzYyNDA=",
       "name": "test",
       "full_name": "ocombe/test",
+      "private": false,
       "owner": {
         "login": "ocombe",
         "id": 265378,
+        "node_id": "MDQ6VXNlcjI2NTM3OA==",
         "avatar_url": "https://avatars0.githubusercontent.com/u/265378?v=4",
         "gravatar_id": "",
         "url": "https://api.github.com/users/ocombe",
@@ -119,7 +126,6 @@
         "type": "User",
         "site_admin": false
       },
-      "private": false,
       "html_url": "https://github.com/ocombe/test",
       "description": "Repository used to test things",
       "fork": false,
@@ -161,58 +167,61 @@
       "releases_url": "https://api.github.com/repos/ocombe/test/releases{/id}",
       "deployments_url": "https://api.github.com/repos/ocombe/test/deployments",
       "created_at": "2017-10-31T09:52:22Z",
-      "updated_at": "2017-10-31T09:52:22Z",
-      "pushed_at": "2017-11-29T15:13:04Z",
+      "updated_at": "2019-01-09T13:06:16Z",
+      "pushed_at": "2019-01-09T13:06:13Z",
       "git_url": "git://github.com/ocombe/test.git",
       "ssh_url": "git@github.com:ocombe/test.git",
       "clone_url": "https://github.com/ocombe/test.git",
       "svn_url": "https://github.com/ocombe/test",
       "homepage": null,
-      "size": 3,
+      "size": 105,
       "stargazers_count": 0,
       "watchers_count": 0,
-      "language": null,
+      "language": "JavaScript",
       "has_issues": true,
       "has_projects": true,
       "has_downloads": true,
       "has_wiki": true,
       "has_pages": false,
-      "forks_count": 0,
+      "forks_count": 2,
       "mirror_url": null,
       "archived": false,
-      "open_issues_count": 9,
+      "open_issues_count": 25,
       "license": {
         "key": "mit",
         "name": "MIT License",
         "spdx_id": "MIT",
-        "url": "https://api.github.com/licenses/mit"
+        "url": "https://api.github.com/licenses/mit",
+        "node_id": "MDc6TGljZW5zZTEz"
       },
-      "forks": 0,
-      "open_issues": 9,
+      "forks": 2,
+      "open_issues": 25,
       "watchers": 0,
       "default_branch": "master"
     },
     "sender": {
-      "login": "ocombe",
-      "id": 265378,
-      "avatar_url": "https://avatars0.githubusercontent.com/u/265378?v=4",
+      "login": "wheatley-dev[bot]",
+      "id": 35229909,
+      "node_id": "MDM6Qm90MzUyMjk5MDk=",
+      "avatar_url": "https://avatars2.githubusercontent.com/in/7968?v=4",
       "gravatar_id": "",
-      "url": "https://api.github.com/users/ocombe",
-      "html_url": "https://github.com/ocombe",
-      "followers_url": "https://api.github.com/users/ocombe/followers",
-      "following_url": "https://api.github.com/users/ocombe/following{/other_user}",
-      "gists_url": "https://api.github.com/users/ocombe/gists{/gist_id}",
-      "starred_url": "https://api.github.com/users/ocombe/starred{/owner}{/repo}",
-      "subscriptions_url": "https://api.github.com/users/ocombe/subscriptions",
-      "organizations_url": "https://api.github.com/users/ocombe/orgs",
-      "repos_url": "https://api.github.com/users/ocombe/repos",
-      "events_url": "https://api.github.com/users/ocombe/events{/privacy}",
-      "received_events_url": "https://api.github.com/users/ocombe/received_events",
-      "type": "User",
+      "url": "https://api.github.com/users/wheatley-dev%5Bbot%5D",
+      "html_url": "https://github.com/apps/wheatley-dev",
+      "followers_url": "https://api.github.com/users/wheatley-dev%5Bbot%5D/followers",
+      "following_url": "https://api.github.com/users/wheatley-dev%5Bbot%5D/following{/other_user}",
+      "gists_url": "https://api.github.com/users/wheatley-dev%5Bbot%5D/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/wheatley-dev%5Bbot%5D/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/wheatley-dev%5Bbot%5D/subscriptions",
+      "organizations_url": "https://api.github.com/users/wheatley-dev%5Bbot%5D/orgs",
+      "repos_url": "https://api.github.com/users/wheatley-dev%5Bbot%5D/repos",
+      "events_url": "https://api.github.com/users/wheatley-dev%5Bbot%5D/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/wheatley-dev%5Bbot%5D/received_events",
+      "type": "Bot",
       "site_admin": false
     },
     "installation": {
-      "id": 63922
+      "id": 78813,
+      "node_id": "MDIzOkludGVncmF0aW9uSW5zdGFsbGF0aW9uNzg4MTM="
     }
   }
 }

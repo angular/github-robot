@@ -5,6 +5,7 @@ import {AdminConfig} from "../default";
 import {Task} from "./task";
 import {GitHubAPI} from "probot/lib/github";
 import {firestore} from "firebase-admin";
+import GithubGQL from "../typings";
 
 export class CommonTask extends Task {
   constructor(robot: Application, db: FirebaseFirestore.Firestore) {
@@ -131,17 +132,29 @@ export class CommonTask extends Task {
 }
 
 /**
- * Gets the PR labels from Github
+ * Gets the PR labels from Github.
+ * Uses GraphQL API.
  */
-export async function getGhLabels(github: GitHubAPI, owner: string, repo: string, number: number): Promise<Github.IssuesGetResponseLabelsItem[]> {
-  return (await github.issues.get({
+export async function getGhPRLabels(github: GitHubAPI, owner: string, repo: string, number: number): Promise<Github.PullRequestsGetResponseLabelsItem[]> {
+  return (await queryPR<GithubGQL.PullRequest>(github, `
+      labels(first: 50) {
+        nodes {
+          id,
+          url,
+          name,
+          description,
+          color,
+        }
+      }
+    `,
+  {
     owner,
     repo,
     number
-  })).data.labels;
+  })).labels.nodes;
 }
 
-export function getLabelsNames(labels: Github.IssuesGetResponseLabelsItem[] | string[]): string[] {
+export function getLabelsNames(labels: Github.IssuesGetResponseLabelsItem[] | string[] | GithubGQL.Labels['nodes']): string[] {
   if(typeof labels[0] !== 'string') {
     labels = (labels as Github.IssuesGetResponseLabelsItem[]).map(label => label.name);
   }
@@ -221,4 +234,33 @@ export function matchAllOfAny(names: string[], patternsArray: string[][]): boole
         // are they all matching or is at least one of them not a match
         .reduce((previous: boolean, current: boolean) => previous && current)
     );
+}
+
+export async function queryPR<T>(github: GitHubAPI, query: string, params: { [key: string]: any, owner: string, repo: string, number: number }): Promise<T> {
+  return (await github.query(`query($owner: String!, $repo: String!, $number: Int!) {
+      repository(owner: $owner, name: $repo) {
+        pullRequest(number: $number) {
+          ${query}
+        }
+      }
+    }`, params)).repository.pullRequest;
+}
+
+export async function queryIssue<T>(github: GitHubAPI, query: string, params: { [key: string]: any, owner: string, repo: string, number: number }): Promise<T> {
+  return (await github.query(`query($owner: String!, $repo: String!, $number: Int!) {
+      repository(owner: $owner, name: $repo) {
+        issue(number: $number) {
+          ${query}
+        }
+      }
+    }`, params)).repository.issue;
+}
+
+
+export async function queryNode<T>(github: GitHubAPI, query: string, params: { [key: string]: any, owner: string, repo: string, number: number, nodeId: string }): Promise<T> {
+  return (await github.query(`query($owner: String!, $repo: String!, $number: Int!) {
+      node(id: $nodeId) {
+        ${query}
+      }
+    }`, params)).node;
 }
