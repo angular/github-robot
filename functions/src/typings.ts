@@ -1,3 +1,5 @@
+import Github from '@octokit/rest';
+
 export const enum FILE_STATUS {
   Added = 'added',
   Modified = 'modified',
@@ -35,3 +37,45 @@ export const enum AUTHOR_ASSOCIATION {
   // Author is the owner of the repository.
   Owner = 'OWNER'
 }
+
+declare namespace GithubGQL {
+  export interface PullRequest {
+    labels: Labels;
+    commits: Commits;
+  }
+
+  export interface Labels {
+    nodes: Github.PullRequestsGetResponseLabelsItem[];
+  }
+
+  export interface Commits {
+    nodes: {
+      id: string;
+      commit: Commit;
+      pullRequest: PullRequest;
+      resourcePath: string;
+      url: string;
+    }[];
+  }
+
+  export interface Commit {
+    status: Status;
+  }
+
+  export interface Status {
+    contexts: StatusContext[];
+  }
+
+  interface StatusContext {
+    // node id
+    id: string;
+    state: STATUS_STATE;
+    description: string;
+    // name of the status, e.g. "ci/angular: merge status"
+    context: string;
+    // e.g. "2019-01-30T13:56:48Z"
+    createdAt: string;
+  }
+}
+
+export default GithubGQL;

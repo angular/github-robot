@@ -2,7 +2,7 @@ import {Application, Context} from "probot";
 import {Task} from "./task";
 import {CONFIG_FILE} from "./merge";
 import {AdminConfig, AppConfig, appConfig, TriageConfig} from "../default";
-import {getGhLabels, getLabelsNames, matchAllOfAny} from "./common";
+import {getLabelsNames, matchAllOfAny} from "./common";
 import Github from '@octokit/rest';
 
 export class TriageTask extends Task {
@@ -80,14 +80,13 @@ export class TriageTask extends Task {
       }
       const {owner, repo} = context.repo();
       // getting labels from Github because we might be adding multiple labels at once
-      const labels = await getGhLabels(context.github, owner, repo, issue.number);
-      const isL1Triaged = this.isTriaged(config.l1TriageLabels, getLabelsNames(labels));
+      const isL1Triaged = this.isTriaged(config.l1TriageLabels, getLabelsNames(issue.labels));
       if(!isL1Triaged) {
         if(issue.milestone) {
           await this.setMilestone(null, context.github, owner, repo, issue);
         }
       } else if(!issue.milestone || issue.milestone.number === config.defaultMilestone || issue.milestone.number === config.needsTriageMilestone) {
-        const isL2Triaged = this.isTriaged(config.l2TriageLabels || config.triagedLabels, getLabelsNames(labels));
+        const isL2Triaged = this.isTriaged(config.l2TriageLabels || config.triagedLabels, getLabelsNames(issue.labels));
         if(isL2Triaged) {
           if(!issue.milestone || issue.milestone.number !== config.defaultMilestone) {
             await this.setMilestone(config.defaultMilestone, context.github, owner, repo, issue);

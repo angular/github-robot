@@ -1,9 +1,9 @@
 import Github from '@octokit/rest';
 import {Application, Context} from "probot";
 import {AppConfig, appConfig, MergeConfig} from "../default";
-import {addComment, addLabels, getGhLabels, getLabelsNames, matchAny, matchAnyFile} from "./common";
+import {addComment, addLabels, getGhPRLabels, getLabelsNames, matchAny, matchAnyFile, queryPR} from "./common";
 import {Task} from "./task";
-import {AUTHOR_ASSOCIATION, REVIEW_STATE, STATUS_STATE} from "../typings";
+import {default as GithubGQL, AUTHOR_ASSOCIATION, REVIEW_STATE, STATUS_STATE} from "../typings";
 
 export const CONFIG_FILE = "angular-robot.yml";
 
@@ -15,9 +15,9 @@ export class MergeTask extends Task {
     // Pushes to the repository to check for merge conflicts
     this.dispatch('push', this.onPush.bind(this));
     // PR receives a new label
-    this.dispatch('pull_request.labeled', this.onLabeled.bind(this));
+    this.dispatch('pull_request.labeled', this.onPRLabeled.bind(this));
     // PR looses a label
-    this.dispatch('pull_request.unlabeled', this.onUnlabeled.bind(this));
+    this.dispatch('pull_request.unlabeled', this.onPRUnlabeled.bind(this));
     // PR updated or received a new status update from another app
     this.dispatch([
       'status',
@@ -44,15 +44,11 @@ export class MergeTask extends Task {
    * Checks whether the label can be added or not, and removes it if necessary. It also updates Firebase.
    * Triggered by event.
    */
-  async onLabeled(context: Context): Promise<void> {
+  async onPRLabeled(context: Context): Promise<void> {
     const newLabel = context.payload.label.name;
     const pr: Github.PullRequestsGetResponse = context.payload.pull_request;
     const config = await this.getConfig(context);
     const {owner, repo} = context.repo();
-    // We need the list of labels from Github because we might be adding multiple labels at once
-    // and we could overwrite some labels because of a race condition.
-    const labels = await getGhLabels(context.github, owner, repo, pr.number);
-    pr.labels = labels;
     this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id, pr).catch(err => {
       throw err;
     });
@@ -63,7 +59,7 @@ export class MergeTask extends Task {
     if(newLabel === config.mergeLabel) {
       this.logDebug({context}, `Checking merge label`);
 
-      const checks = await this.getChecksStatus(context, pr, config, labels);
+      const checks = await this.getChecksStatus(context, pr, config, pr.labels);
 
       if(checks.failure.length > 0) {
         const failures = checks.failure.map(check => `&nbsp;&nbsp;&nbsp;&nbsp;![failure](https://raw.githubusercontent.com/angular/github-robot/master/assets/failing.png) ${check}`);
@@ -80,17 +76,17 @@ export class MergeTask extends Task {
       }
 
       updateG3Status = true;
-    } else if(config.mergeLinkedLabels && config.mergeLinkedLabels.includes(newLabel) && !getLabelsNames(labels).includes(config.mergeLabel)) {
+    } else if(config.mergeLinkedLabels && config.mergeLinkedLabels.includes(newLabel) && !getLabelsNames(pr.labels).includes(config.mergeLabel)) {
       // Add the merge label when we add a linked label
       addLabels(context.github, owner, repo, pr.number, [config.mergeLabel])
         .catch(); // If it fails it's because we're trying to add a label that already exists
     }
 
-    if(this.matchLabel(newLabel, labels, config)) {
+    if(this.matchLabel(newLabel, pr.labels, config)) {
       updateStatus = true;
     }
 
-    this.updateStatus(context, updateStatus, updateG3Status, labels).catch(err => {
+    this.updateStatus(context, updateStatus, updateG3Status, pr.labels).catch(err => {
       throw err;
     });
   }
@@ -99,27 +95,25 @@ export class MergeTask extends Task {
    * Checks which label was removed and updates the PR status if necessary. It also updates Firebase.
    * Triggered by event.
    */
-  async onUnlabeled(context: Context): Promise<void> {
+  async onPRUnlabeled(context: Context): Promise<void> {
     const config = await this.getConfig(context);
     const {owner, repo} = context.repo();
     const removedLabel = context.payload.label.name;
     const pr = context.payload.pull_request;
     // we need the list of labels from Github because we might be adding multiple labels at once
     // and we could overwrite some labels because of a race condition
-    const labels = await getGhLabels(context.github, owner, repo, pr.number);
-    pr.labels = labels;
     this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id, pr).catch(err => {
       throw err;
     });
 
-    if(this.matchLabel(removedLabel, labels, config)) {
-      this.updateStatus(context, true, false, labels).catch(err => {
+    if(this.matchLabel(removedLabel, pr.labels, config)) {
+      this.updateStatus(context, true, false, pr.labels).catch(err => {
         throw err;
       });
     }
   }
 
-  private matchLabel(label: string, labels: Github.PullRequestsGetResponseLabelsItem[], config: MergeConfig): boolean {
+  private matchLabel(label: string, labels: GithubGQL.Labels['nodes'], config: MergeConfig): boolean {
     return matchAny([label], config.checks.requiredLabels)
       || matchAny([label], config.checks.forbiddenLabels)
       || (getLabelsNames(labels).includes(config.mergeLabel) && matchAny([label], config.checks.requiredLabelsWhenMergeReady || []));
@@ -128,12 +122,12 @@ export class MergeTask extends Task {
   /**
    * Gets the list of labels from a PR.
    */
-  private async getLabels(context: Context, pr?: Github.PullRequestsGetResponse): Promise<Github.PullRequestsGetResponseLabelsItem[]> {
+  private async getPRLabels(context: Context, pr?: Github.PullRequestsGetResponse): Promise<GithubGQL.Labels['nodes']> {
     const {owner, repo} = context.repo();
     pr = pr || context.payload.pull_request;
     const doc = this.pullRequests.doc(pr.id.toString());
     const dbPR = await doc.get();
-    let labels: Github.PullRequestsGetResponseLabelsItem[];
+    let labels: GithubGQL.Labels['nodes'];
 
     // if the PR is already in Firebase
     if(dbPR.exists) {
@@ -146,7 +140,7 @@ export class MergeTask extends Task {
     }
 
     // otherwise get the labels from Github and update Firebase
-    labels = await getGhLabels(context.github, owner, repo, pr.number);
+    labels = await getGhPRLabels(context.github, owner, repo, pr.number);
     await this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id, {...pr, labels});
     return labels;
   }
@@ -154,7 +148,7 @@ export class MergeTask extends Task {
   /**
    * Based on the repository config, returns the list of checks that failed for this PR.
    */
-  private async getChecksStatus(context: Context, pr: Github.PullRequestsGetResponse, config: MergeConfig, labels: Github.PullRequestsGetResponseLabelsItem[] = [], statuses?: Github.ReposGetCombinedStatusForRefResponseStatusesItem[]): Promise<ChecksStatus> {
+  private async getChecksStatus(context: Context, pr: Github.PullRequestsGetResponse, config: MergeConfig, labels: Github.PullRequestsGetResponseLabelsItem[] = [], statuses?: GithubGQL.StatusContext[]): Promise<ChecksStatus> {
     const checksStatus: ChecksStatus = {
       pending: [],
       failure: []
@@ -217,7 +211,7 @@ export class MergeTask extends Task {
     }
 
     // Check if we have any failed/pending external status
-    statuses = statuses || await this.getStatuses(context, pr.head.sha);
+    statuses = statuses || await this.getStatuses(context, pr.number);
     statuses.forEach(status => {
       switch(status.state) {
         case STATUS_STATE.Failure:
@@ -377,7 +371,7 @@ export class MergeTask extends Task {
   /**
    * Updates the status of a PR.
    */
-  private async updateStatus(context: Context, updateStatus = true, updateG3Status = false, labels?: Github.IssuesGetResponseLabelsItem[]): Promise<void> {
+  private async updateStatus(context: Context, updateStatus = true, updateG3Status = false, labels?: Github.PullRequestsGetResponseLabelsItem[]): Promise<void> {
     if(context.payload.action === "synchronize") {
       updateG3Status = true;
     }
@@ -400,7 +394,7 @@ export class MergeTask extends Task {
           throw err;
         });
         if(!labels) {
-          labels = await this.getLabels(context);
+          labels = pr.labels || await this.getPRLabels(context);
         }
         break;
       case 'status':
@@ -437,14 +431,14 @@ export class MergeTask extends Task {
           pr = await this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id);
         }
         if(!labels) {
-          labels = pr.labels || await getGhLabels(context.github, owner, repo, pr.number);
+          labels = pr.labels || await getGhPRLabels(context.github, owner, repo, pr.number);
         }
         break;
       default:
         throw new Error(`Unhandled event ${context.name} in updateStatus`);
     }
 
-    const statuses = await this.getStatuses(context, sha);
+    const statuses = await this.getStatuses(context, pr.number);
 
     if(updateG3Status && config.g3Status && !config.g3Status.disabled) {
       // Checking if we need to add g3 status
@@ -460,7 +454,7 @@ export class MergeTask extends Task {
             state: STATUS_STATE.Pending,
             description: config.g3Status.pendingDesc.replace("{{PRNumber}}", pr.number),
             target_url: config.g3Status.url
-          })).data;
+          })).data as any as GithubGQL.StatusContext;
           statuses.push(status);
           this.log({context}, `Updated g3 status to pending`);
         }
@@ -472,7 +466,7 @@ export class MergeTask extends Task {
           context: config.g3Status.context,
           state: STATUS_STATE.Success,
           description: config.g3Status.successDesc
-        })).data;
+        })).data as any as GithubGQL.StatusContext;
         statuses.push(status);
         this.log({context}, `Updated g3 status to success`);
       }
@@ -517,18 +511,30 @@ export class MergeTask extends Task {
   /**
    * Get all external statuses except for the one added by this bot
    */
-  // TODO(ocombe): use Firebase instead
-  private async getStatuses(context: Context, ref: string): Promise<Github.ReposGetCombinedStatusForRefResponseStatusesItem[]> {
+  private async getStatuses(context: Context, number: number): Promise<GithubGQL.StatusContext[]> {
     const {owner, repo} = context.repo();
     const config = await this.getConfig(context);
 
-    const res = await context.github.repos.getCombinedStatusForRef({
-      owner,
-      repo,
-      ref
-    });
+    const res = (await queryPR<GithubGQL.PullRequest>(context.github, `
+      commits(last: 1) {
+        nodes {
+          commit {
+            status {
+              contexts {
+                targetUrl,
+                id,
+                state,
+                description,
+                context,
+                createdAt
+              }
+            }
+          }
+        }
+      }
+    `, {owner, repo, number})).commits.nodes[0].commit.status.contexts;
 
-    return res.data.statuses.filter((status: Github.ReposGetCombinedStatusForRefResponseStatusesItem) => status.context !== config.status.context);
+    return res.filter((status: GithubGQL.StatusContext) => status.context !== config.status.context);
   }
 
   /**
