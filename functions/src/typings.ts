@@ -38,6 +38,10 @@ export const enum AUTHOR_ASSOCIATION {
   Owner = 'OWNER'
 }
 
+export interface CachedPullRequest extends Github.PullRequestsGetResponse {
+  pendingReviews?: number;
+}
+
 declare namespace GithubGQL {
   export interface PullRequest {
     labels: Labels;
