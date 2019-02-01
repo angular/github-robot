@@ -90,7 +90,7 @@ export class MergeTask extends Task {
       updateStatus = true;
     }
 
-    this.updateStatus(context, updateStatus, updateG3Status, pr.labels).catch(err => {
+    this.updateStatus(context, config, updateStatus, updateG3Status, pr.labels).catch(err => {
       throw err;
     });
   }
@@ -111,7 +111,7 @@ export class MergeTask extends Task {
     });
 
     if(this.matchLabel(removedLabel, pr.labels, config)) {
-      this.updateStatus(context, true, false, pr.labels).catch(err => {
+      this.updateStatus(context, config, true, false, pr.labels).catch(err => {
         throw err;
       });
     }
@@ -215,7 +215,7 @@ export class MergeTask extends Task {
     }
 
     // Check if we have any failed/pending external status
-    statuses = statuses || await this.getStatuses(context, pr.number);
+    statuses = statuses || await this.getStatuses(context, pr.number, config);
     statuses.forEach(status => {
       switch(status.state) {
         case STATUS_STATE.Failure:
@@ -388,11 +388,11 @@ export class MergeTask extends Task {
     if(config.status.disabled || !config.checks.requireReviews) {
       return;
     }
-    const pr: Github.PullRequestsGetResponse  = context.payload.pull_request;
+    const pr: Github.PullRequestsGetResponse = context.payload.pull_request;
     // Get the number of pending reviews and update the context, it will be cached in `updateStatus`
     context.payload.pull_request.pendingReviews = await this.getPendingReviews(context, pr);
 
-    this.updateStatus(context).catch(err => {
+    this.updateStatus(context, config).catch(err => {
       throw err;
     });
   }
@@ -400,14 +400,14 @@ export class MergeTask extends Task {
   /**
    * Updates the status of a PR.
    */
-  private async updateStatus(context: Context, updateStatus = true, updateG3Status = false, labels?: Github.PullRequestsGetResponseLabelsItem[]): Promise<void> {
+  private async updateStatus(context: Context, config?: MergeConfig, updateStatus = true, updateG3Status = false, labels?: Github.PullRequestsGetResponseLabelsItem[]): Promise<void> {
     if(context.payload.action === "synchronize") {
       updateG3Status = true;
     }
     if(!updateStatus && !updateG3Status) {
       return;
     }
-    const config = await this.getConfig(context);
+    config = config || await this.getConfig(context);
     if(config.status.disabled) {
       return;
     }
@@ -467,7 +467,7 @@ export class MergeTask extends Task {
         throw new Error(`Unhandled event ${context.name} in updateStatus`);
     }
 
-    const statuses = await this.getStatuses(context, pr.number);
+    const statuses = await this.getStatuses(context, pr.number, config);
 
     if(updateG3Status && config.g3Status && !config.g3Status.disabled) {
       // Checking if we need to add g3 status
@@ -540,11 +540,11 @@ export class MergeTask extends Task {
   /**
    * Get all external statuses except for the one added by this bot
    */
-  private async getStatuses(context: Context, number: number): Promise<GithubGQL.StatusContext[]> {
+  private async getStatuses(context: Context, number: number, config?: MergeConfig): Promise<GithubGQL.StatusContext[]> {
     const {owner, repo} = context.repo();
-    const config = await this.getConfig(context);
+    config = config || await this.getConfig(context);
 
-    const res = (await queryPR<GithubGQL.PullRequest>(context.github, `
+    const status = (await queryPR<GithubGQL.PullRequest>(context.github, `
       commits(last: 1) {
         nodes {
           commit {
@@ -561,9 +561,12 @@ export class MergeTask extends Task {
           }
         }
       }
-    `, {owner, repo, number})).commits.nodes[0].commit.status.contexts;
+    `, {owner, repo, number})).commits.nodes[0].commit.status;
 
-    return res.filter((status: GithubGQL.StatusContext) => status.context !== config.status.context);
+    if(status) {
+      return status.contexts.filter((statusContext: GithubGQL.StatusContext) => statusContext.context !== config.status.context);
+    }
+    return [];
   }
 
   /**
