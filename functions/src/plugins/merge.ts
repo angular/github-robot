@@ -3,7 +3,7 @@ import {Application, Context} from "probot";
 import {AppConfig, appConfig, MergeConfig} from "../default";
 import {addComment, addLabels, getGhPRLabels, getLabelsNames, matchAny, matchAnyFile, queryPR} from "./common";
 import {Task} from "./task";
-import {default as GithubGQL, AUTHOR_ASSOCIATION, REVIEW_STATE, STATUS_STATE} from "../typings";
+import {default as GithubGQL, AUTHOR_ASSOCIATION, REVIEW_STATE, STATUS_STATE, CachedPullRequest} from "../typings";
 
 export const CONFIG_FILE = "angular-robot.yml";
 
@@ -22,12 +22,16 @@ export class MergeTask extends Task {
     this.dispatch([
       'status',
       'pull_request.synchronize',
+      'pull_request.edited' // Editing a PR can change the base branch (not just text content)
+    ], this.updateStatus.bind(this));
+
+    // PR review updated or received
+    this.dispatch([
       'pull_request.review_requested',
       'pull_request.review_request_removed',
       'pull_request_review.submitted',
       'pull_request_review.dismissed',
-      'pull_request.edited' // Editing a PR can change the base branch (not just text content)
-    ], this.updateStatus.bind(this));
+    ], this.updateReview.bind(this));
     // PR created or updated
     this.dispatch([
       'pull_request.synchronize',
@@ -46,10 +50,10 @@ export class MergeTask extends Task {
    */
   async onPRLabeled(context: Context): Promise<void> {
     const newLabel = context.payload.label.name;
-    const pr: Github.PullRequestsGetResponse = context.payload.pull_request;
+    let pr: Github.PullRequestsGetResponse = context.payload.pull_request;
     const config = await this.getConfig(context);
     const {owner, repo} = context.repo();
-    this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id, pr).catch(err => {
+    pr = await this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id, pr).catch(err => {
       throw err;
     });
 
@@ -99,10 +103,10 @@ export class MergeTask extends Task {
     const config = await this.getConfig(context);
     const {owner, repo} = context.repo();
     const removedLabel = context.payload.label.name;
-    const pr = context.payload.pull_request;
+    let pr = context.payload.pull_request;
     // we need the list of labels from Github because we might be adding multiple labels at once
     // and we could overwrite some labels because of a race condition
-    this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id, pr).catch(err => {
+    pr = await this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id, pr).catch(err => {
       throw err;
     });
 
@@ -148,7 +152,7 @@ export class MergeTask extends Task {
   /**
    * Based on the repository config, returns the list of checks that failed for this PR.
    */
-  private async getChecksStatus(context: Context, pr: Github.PullRequestsGetResponse, config: MergeConfig, labels: Github.PullRequestsGetResponseLabelsItem[] = [], statuses?: GithubGQL.StatusContext[]): Promise<ChecksStatus> {
+  private async getChecksStatus(context: Context, pr: CachedPullRequest, config: MergeConfig, labels: Github.PullRequestsGetResponseLabelsItem[] = [], statuses?: GithubGQL.StatusContext[]): Promise<ChecksStatus> {
     const checksStatus: ChecksStatus = {
       pending: [],
       failure: []
@@ -235,7 +239,18 @@ export class MergeTask extends Task {
 
     // Check if there is any review pending or that requested changes
     if(config.checks.requireReviews) {
-      const nbPendingReviews = await this.getPendingReviews(context, pr);
+      let nbPendingReviews = pr.pendingReviews;
+      // Because we're adding cache for this value progressively, ensure that we have the data available
+      // TODO(ocombe): remove this when all DB PRs have been updated
+      if(typeof nbPendingReviews !== 'number') {
+        nbPendingReviews = await this.getPendingReviews(context, pr);
+        pr.pendingReviews = nbPendingReviews;
+        const {owner, repo} = context.repo();
+        await this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id, pr).catch(err => {
+          throw err;
+        });
+      }
+
       if(nbPendingReviews > 0) {
         checksStatus.pending.push(`${nbPendingReviews} pending code review${nbPendingReviews > 1 ? 's' : ''}`);
       }
@@ -249,7 +264,7 @@ export class MergeTask extends Task {
    * We only take into account the final review for each user.
    * We ignore team reviews and reviews by individuals who are not members of the repository.
    */
-  async getPendingReviews(context: Context, pr: Github.PullRequestsGetResponse): Promise<number> {
+  async getPendingReviews(context: Context, pr: CachedPullRequest): Promise<number> {
     const {owner, repo} = context.repo();
     // We can have a lot of reviews on a PR, we need to paginate to get all of them
     const reviews = (await context.github.paginate(context.github.pullRequests.listReviews({
@@ -368,6 +383,20 @@ export class MergeTask extends Task {
     });
   }
 
+  private async updateReview(context: Context): Promise<void> {
+    const config = await this.getConfig(context);
+    if(config.status.disabled || !config.checks.requireReviews) {
+      return;
+    }
+    const pr: Github.PullRequestsGetResponse  = context.payload.pull_request;
+    // Get the number of pending reviews and update the context, it will be cached in `updateStatus`
+    context.payload.pull_request.pendingReviews = await this.getPendingReviews(context, pr);
+
+    this.updateStatus(context).catch(err => {
+      throw err;
+    });
+  }
+
   /**
    * Updates the status of a PR.
    */
@@ -390,7 +419,7 @@ export class MergeTask extends Task {
       case 'pull_request_review':
         sha = context.payload.pull_request.head.sha;
         pr = context.payload.pull_request;
-        this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id, pr).catch(err => {
+        pr = await this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id, pr).catch(err => {
           throw err;
         });
         if(!labels) {
