@@ -63,7 +63,7 @@ declare namespace GithubGQL {
   }
 
   export interface Commit {
-    status: Status;
+    status: Status|null;
   }
 
   export interface Status {
