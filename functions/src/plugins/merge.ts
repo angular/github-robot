@@ -13,7 +13,8 @@ export class MergeTask extends Task {
     super(robot, db);
 
     // Pushes to the repository to check for merge conflicts
-    this.dispatch('push', this.onPush.bind(this));
+    // TODO(ocombe): disabled for now because of API rate errors
+    // this.dispatch('push', this.onPush.bind(this));
     // PR receives a new label
     this.dispatch('pull_request.labeled', this.onPRLabeled.bind(this));
     // PR looses a label
