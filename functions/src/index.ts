@@ -131,3 +131,24 @@ exports.initRepoPRs = firestore.document('repositories/{id}').onCreate((snapshot
     console.error(err);
   });
 });
+
+/**
+ * Delete the cache for config files.
+ * This can be used to force a refresh if the cached config is wrong (if we missed the push event for example).
+ */
+exports.deleteCachedConfigs = https.onRequest(async (request: Request, response: Response) => {
+  try {
+    await tasks.commonTask.deleteCachedConfigs().catch(err => {
+      console.error(err);
+    });
+    response.send({
+      statusCode: 200,
+      body: JSON.stringify({
+        message: 'All cached configurations have been deleted'
+      })
+    });
+  } catch(err) {
+    console.error(err);
+    response.sendStatus(500);
+  }
+});

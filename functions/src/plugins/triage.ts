@@ -1,7 +1,6 @@
 import {Application, Context} from "probot";
 import {Task} from "./task";
-import {CONFIG_FILE} from "./merge";
-import {AdminConfig, AppConfig, appConfig, TriageConfig} from "../default";
+import {AdminConfig, TriageConfig} from "../default";
 import {getLabelsNames, matchAllOfAny} from "./common";
 import Github from '@octokit/rest';
 
@@ -120,7 +119,7 @@ export class TriageTask extends Task {
    * Gets the config for the merge plugin from Github or uses default if necessary
    */
   async getConfig(context: Context): Promise<TriageConfig> {
-    const repositoryConfig = await context.config<AppConfig>(CONFIG_FILE, appConfig);
+    const repositoryConfig = await this.getAppConfig(context);
     const config = repositoryConfig.triage;
     config.defaultMilestone = parseInt(<unknown>config.defaultMilestone as string, 10);
     config.needsTriageMilestone = parseInt(<unknown>config.needsTriageMilestone as string, 10);

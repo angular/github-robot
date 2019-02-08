@@ -1,16 +1,21 @@
 import {Application, Context} from "probot";
 import Github from "@octokit/rest";
 import {STATUS_STATE} from "../typings";
+import {appConfig, AppConfig} from "../default";
+
+export const CONFIG_FILE = "angular-robot.yml";
 
 export class Task {
   repositories: FirebaseFirestore.CollectionReference;
   pullRequests: FirebaseFirestore.CollectionReference;
   admin: FirebaseFirestore.CollectionReference;
+  config: FirebaseFirestore.CollectionReference;
 
   constructor(public robot: Application, public db: FirebaseFirestore.Firestore) {
     this.repositories = this.db.collection('repositories');
     this.pullRequests = this.db.collection('pullRequests');
     this.admin = this.db.collection('admin');
+    this.config = this.db.collection('config');
   }
 
   /**
@@ -107,5 +112,41 @@ export class Task {
   `;
 
     return context.github.query(getResource, {url: resource.html_url});
+  }
+
+  /**
+   * Returns the app config for a repository
+   */
+  async getAppConfig(context: Context): Promise<AppConfig> {
+    let repositoryConfig: AppConfig;
+    const repositoryId = context.payload.repository.id;
+
+    // Get the config from the database
+    const doc = this.config.doc(repositoryId.toString());
+    const docData = (await doc.get()).data();
+
+    if(docData) {
+      repositoryConfig = JSON.parse((docData).data) as AppConfig;
+    } else {
+      // If there is no config in the database, retrieve it from Github
+      repositoryConfig = await this.refreshConfig(context);
+    }
+
+    return repositoryConfig;
+  }
+
+  /**
+   * Retrieves the app config from Github, caches it in Firebase and returns it.
+   */
+  async refreshConfig(context: Context): Promise<AppConfig> {
+    const repositoryConfig = await context.config<AppConfig>(CONFIG_FILE, appConfig);
+    const repositoryId = context.payload.repository.id;
+    const doc = this.config.doc(repositoryId.toString());
+    // We need to stringify the config because Firebase throws on sub-keys with arrays
+    await doc.set({data: JSON.stringify(repositoryConfig)}).catch(err => {
+      this.robot.log.error(err);
+      throw err;
+    });
+    return repositoryConfig;
   }
 }

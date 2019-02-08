@@ -2,10 +2,10 @@ import {Application, Context} from "probot";
 import Github from '@octokit/rest';
 import minimatch from "minimatch";
 import {AdminConfig} from "../default";
-import {Task} from "./task";
+import {CONFIG_FILE, Task} from "./task";
 import {GitHubAPI} from "probot/lib/github";
 import {firestore} from "firebase-admin";
-import GithubGQL from "../typings";
+import GithubGQL, {Commit} from "../typings";
 
 export class CommonTask extends Task {
   constructor(robot: Application, db: FirebaseFirestore.Firestore) {
@@ -15,6 +15,8 @@ export class CommonTask extends Task {
       'installation.created',
       'installation_repositories.added'
     ], this.installInit.bind(this));
+
+    this.dispatch('push', this.onPush.bind(this));
   }
 
   /**
@@ -128,6 +130,40 @@ export class CommonTask extends Task {
       return Promise.all(ghPRs.map(pr => github.pullRequests.get({number: pr.number, owner, repo})
         .then(res => this.updateDbPR(github, owner, repo, pr.number, repository.id, res.data))));
     }));
+  }
+
+  async deleteCachedConfigs(): Promise<void> {
+    const query = await this.config.get();
+
+    // When there are no documents left, we are done
+    if (query.size === 0) {
+      return;
+    }
+
+    // Delete documents in a batch
+    const batch = this.db.batch();
+    query.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+
+    await batch.commit();
+    return;
+  }
+
+  /**
+   * Update the config file when there is a push to master that changes it
+   */
+  async onPush(context: Context): Promise<void> {
+    let ref = context.payload.ref.split('/');
+    ref = ref[ref.length - 1];
+    if(ref === 'master') {
+      const commits = context.payload.commits;
+      const updatedConfig = commits.some((commit: Commit) => commit.modified.includes(`.github/${CONFIG_FILE}`));
+      if(updatedConfig) {
+        await this.refreshConfig(context);
+      }
+    }
+    return;
   }
 }
 

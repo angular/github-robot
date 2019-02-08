@@ -1,11 +1,9 @@
 import Github from '@octokit/rest';
 import {Application, Context} from "probot";
-import {AppConfig, appConfig, MergeConfig} from "../default";
+import {MergeConfig} from "../default";
 import {addComment, addLabels, getGhPRLabels, getLabelsNames, matchAny, matchAnyFile, queryPR} from "./common";
 import {Task} from "./task";
 import {default as GithubGQL, AUTHOR_ASSOCIATION, REVIEW_STATE, STATUS_STATE, CachedPullRequest} from "../typings";
-
-export const CONFIG_FILE = "angular-robot.yml";
 
 // TODO(ocombe): create Typescript interfaces for each payload & DB data
 export class MergeTask extends Task {
@@ -574,7 +572,7 @@ export class MergeTask extends Task {
    * Gets the config for the merge plugin from Github or uses default if necessary
    */
   async getConfig(context: Context): Promise<MergeConfig> {
-    const repositoryConfig = await context.config<AppConfig>(CONFIG_FILE, appConfig);
+    const repositoryConfig = await this.getAppConfig(context);
     return repositoryConfig.merge;
   }
 }
