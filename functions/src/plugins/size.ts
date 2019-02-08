@@ -1,11 +1,9 @@
 import fetch from 'node-fetch';
 import {Application, Context} from "probot";
 import {Task} from "./task";
-import {SizeConfig, appConfig as defaultAppConfig, AppConfig} from "../default";
+import {SizeConfig, appConfig as defaultAppConfig} from "../default";
 import {STATUS_STATE} from "../typings";
 import Github from '@octokit/rest';
-
-export const CONFIG_FILE = "angular-robot.yml";
 
 export interface CircleCiArtifact {
   path: string;
@@ -50,7 +48,7 @@ export class SizeTask extends Task {
   }
 
   async checkSize(context: Context): Promise<void> {
-    const appConfig = await context.config<AppConfig>(CONFIG_FILE);
+    const appConfig = await this.getAppConfig(context);
 
     if(!appConfig.size || appConfig.size.disabled) {
       return;
