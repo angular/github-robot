@@ -113,7 +113,14 @@ If you can't get the PR to a green state due to flakes or broken master, please 
     l1TriageLabels: [["comp: *"]],
     // arrays of labels that determine if a PR has been fully triaged
     l2TriageLabels: [["type: *", "effort*", "risk*", "comp: *"]]
-  }
+  },
+
+  rerunCircleCI: {
+    // set to true to disable
+    disabled: true,
+    // the label which when added triggers a rerun of the default CircleCI workflow.
+    triggerRerunLabel: 'Trigger CircleCI Rerun';
+  },
 };
 
 export interface AppConfig {
@@ -121,6 +128,7 @@ export interface AppConfig {
   triage: TriageConfig;
   triagePR: TriagePRConfig;
   size: SizeConfig;
+  rerunCircleCI: RerunCircleCIConfig;
 }
 
 export interface MergeConfig {
@@ -186,4 +194,9 @@ export interface SizeConfig {
 
 export interface AdminConfig {
   allowInit: boolean;
+}
+
+export interface RerunCircleCIConfig {
+  disabled: boolean;
+  triggerRerunLabel: string;
 }

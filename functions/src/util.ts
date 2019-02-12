@@ -4,6 +4,8 @@ import {MergeTask} from "./plugins/merge";
 import {TriageTask} from "./plugins/triage";
 import {SizeTask} from "./plugins/size";
 import {TriagePRTask} from "./plugins/triagePR";
+import {RerunCircleCITask} from "./plugins/rerun-circleci";
+
 
 class Stream {
   constructor(private store: FirebaseFirestore.Firestore) {
@@ -96,6 +98,7 @@ export interface Tasks {
   triageTask: TriageTask;
   triagePRTask: TriagePRTask;
   sizeTask: SizeTask;
+  rerunCircleCiTask: RerunCircleCITask;
 }
 
 export function registerTasks(robot: Application, store: FirebaseFirestore.Firestore): Tasks {
@@ -106,6 +109,7 @@ export function registerTasks(robot: Application, store: FirebaseFirestore.Fires
     triageTask: new TriageTask(robot, store),
     triagePRTask: new TriagePRTask(robot, store),
     sizeTask: new SizeTask(robot, store),
+    rerunCircleCiTask: new RerunCircleCITask(robot, store),
   };
 }
 
