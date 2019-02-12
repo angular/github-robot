@@ -167,3 +167,10 @@ triagePR:
       - "effort*"
       - "risk*"
       - "comp: *"
+
+# options for the rerun circleCI plugin
+rerunCircleCI:
+  # set to true to disable
+  disabled: true
+  # the label which when added triggers a rerun of the default CircleCI workflow.
+  triggerRerunLabel: 'Trigger CircleCI Rerun'
