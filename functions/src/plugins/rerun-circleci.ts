@@ -1,11 +1,11 @@
-import {config} from 'firebase-functions';
+import {config as firebaseConfig} from 'firebase-functions';
 import {Application, Context} from "probot";
 import {Task} from "./task";
 import {RerunCircleCIConfig} from "../default";
 import Github from '@octokit/rest';
 import fetch from "node-fetch";
 
-let circleCIConfig = config().circleCI.token;
+let circleCIConfig = firebaseConfig().circleCI;
 
 // Check if we are in Firebase or in development
 if(!circleCIConfig) {
@@ -73,9 +73,10 @@ ${error.message}
         number: pullRequest.number,
         owner: owner,
         repo: repo,
-      }) 
-
-    } 
+      }).catch(err => {
+        throw err;
+      });
+    }
     await context.github.issues.removeLabel({
       name: config.triggerRerunLabel,
       number: pullRequest.number,
@@ -89,7 +90,6 @@ ${error.message}
    */
   async getConfig(context: Context): Promise<RerunCircleCIConfig> {
     const repositoryConfig = await this.getAppConfig(context);
-    const config = repositoryConfig.rerunCircleCI;
-    return config;
+    return repositoryConfig.rerunCircleCI;
   }
 }
