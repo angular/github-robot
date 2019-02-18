@@ -58,11 +58,13 @@ export class MergeTask extends Task {
 
     let updateStatus = false;
     let updateG3Status = false;
+    let statuses: GithubGQL.StatusContext[];
 
     if(newLabel === config.mergeLabel) {
       this.logDebug({context}, `Checking merge label`);
 
-      const checks = await this.getChecksStatus(context, pr, config, pr.labels);
+      statuses = await this.getStatuses(context, pr.number, config);
+      const checks = await this.getChecksStatus(context, pr, config, pr.labels, statuses);
 
       if(checks.failure.length > 0) {
         const failures = checks.failure.map(check => `&nbsp;&nbsp;&nbsp;&nbsp;![failure](https://raw.githubusercontent.com/angular/github-robot/master/assets/failing.png) ${check}`);
@@ -89,7 +91,7 @@ export class MergeTask extends Task {
       updateStatus = true;
     }
 
-    this.updateStatus(context, config, updateStatus, updateG3Status, pr.labels).catch(err => {
+    this.updateStatus(context, config, updateStatus, updateG3Status, pr.labels, statuses).catch(err => {
       throw err;
     });
   }
@@ -399,7 +401,7 @@ export class MergeTask extends Task {
   /**
    * Updates the status of a PR.
    */
-  private async updateStatus(context: Context, config?: MergeConfig, updateStatus = true, updateG3Status = false, labels?: Github.PullRequestsGetResponseLabelsItem[]): Promise<void> {
+  private async updateStatus(context: Context, config?: MergeConfig, updateStatus = true, updateG3Status = false, labels?: Github.PullRequestsGetResponseLabelsItem[], statuses?: GithubGQL.StatusContext[]): Promise<void> {
     if(context.payload.action === "synchronize") {
       updateG3Status = true;
     }
@@ -466,9 +468,12 @@ export class MergeTask extends Task {
         throw new Error(`Unhandled event ${context.name} in updateStatus`);
     }
 
-    const statuses = await this.getStatuses(context, pr.number, config);
+    statuses = statuses || await this.getStatuses(context, pr.number, config);
 
-    if(updateG3Status && config.g3Status && !config.g3Status.disabled) {
+    if(config.g3Status && !config.g3Status.disabled && (updateG3Status ||
+      // Check if the g3status is missing
+      !statuses.some(status => status.context === config.g3Status.context)
+    )) {
       // Checking if we need to add g3 status
       const files: Github.PullRequestsListFilesResponse = (await context.github.pullRequests.listFiles({owner, repo, number: pr.number})).data;
       if(matchAnyFile(files.map(file => file.filename), config.g3Status.include, config.g3Status.exclude)) {
