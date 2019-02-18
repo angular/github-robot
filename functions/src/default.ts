@@ -119,7 +119,7 @@ If you can't get the PR to a green state due to flakes or broken master, please 
     // set to true to disable
     disabled: true,
     // the label which when added triggers a rerun of the default CircleCI workflow.
-    triggerRerunLabel: 'Trigger CircleCI Rerun';
+    triggerRerunLabel: 'Trigger CircleCI Rerun'
   },
 };
 
