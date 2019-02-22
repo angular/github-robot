@@ -3,7 +3,7 @@ import {Application, Context} from "probot";
 import {MergeConfig} from "../default";
 import {addComment, addLabels, getGhPRLabels, getLabelsNames, matchAny, matchAnyFile, queryPR} from "./common";
 import {Task} from "./task";
-import {default as GithubGQL, AUTHOR_ASSOCIATION, REVIEW_STATE, STATUS_STATE, CachedPullRequest} from "../typings";
+import {default as GithubGQL, AUTHOR_ASSOCIATION, REVIEW_STATE, STATUS_STATE, CachedPullRequest, GQL_STATUS_STATE} from "../typings";
 
 // TODO(ocombe): create Typescript interfaces for each payload & DB data
 export class MergeTask extends Task {
@@ -221,9 +221,12 @@ export class MergeTask extends Task {
       switch(status.state) {
         case STATUS_STATE.Failure:
         case STATUS_STATE.Error:
+        case GQL_STATUS_STATE.Failure:
+        case GQL_STATUS_STATE.Error:
           checksStatus.failure.push(`status "${status.context}" is failing`);
           break;
         case STATUS_STATE.Pending:
+        case GQL_STATUS_STATE.Pending:
           checksStatus.pending.push(`status "${status.context}" is pending`);
           break;
       }
