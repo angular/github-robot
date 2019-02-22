@@ -13,6 +13,13 @@ export const enum STATUS_STATE {
   Error = 'error'
 }
 
+export const enum GQL_STATUS_STATE {
+  Pending = 'PENDING',
+  Success = 'SUCCESS',
+  Failure = 'FAILURE',
+  Error = 'ERROR'
+}
+
 export const enum REVIEW_STATE {
   Pending = 'PENDING',
   Approved = 'APPROVED',
@@ -73,7 +80,7 @@ declare namespace GithubGQL {
   interface StatusContext {
     // node id
     id: string;
-    state: STATUS_STATE;
+    state: GQL_STATUS_STATE | STATUS_STATE;
     description: string;
     // name of the status, e.g. "ci/angular: merge status"
     context: string;
