@@ -57,7 +57,6 @@ export class MergeTask extends Task {
     });
 
     let updateStatus = false;
-    let updateG3Status = false;
     let statuses: GithubGQL.StatusContext[];
 
     if(newLabel === config.mergeLabel) {
@@ -79,8 +78,6 @@ export class MergeTask extends Task {
           });
         }
       }
-
-      updateG3Status = true;
     } else if(config.mergeLinkedLabels && config.mergeLinkedLabels.includes(newLabel) && !getLabelsNames(pr.labels).includes(config.mergeLabel)) {
       // Add the merge label when we add a linked label
       addLabels(context.github, owner, repo, pr.number, [config.mergeLabel])
@@ -91,7 +88,7 @@ export class MergeTask extends Task {
       updateStatus = true;
     }
 
-    this.updateStatus(context, config, updateStatus, updateG3Status, pr.labels, statuses).catch(err => {
+    this.updateStatus(context, config, updateStatus, pr.labels, statuses).catch(err => {
       throw err;
     });
   }
@@ -112,7 +109,7 @@ export class MergeTask extends Task {
     });
 
     if(this.matchLabel(removedLabel, pr.labels, config)) {
-      this.updateStatus(context, config, true, false, pr.labels).catch(err => {
+      this.updateStatus(context, config, true, pr.labels).catch(err => {
         throw err;
       });
     }
@@ -404,7 +401,8 @@ export class MergeTask extends Task {
   /**
    * Updates the status of a PR.
    */
-  private async updateStatus(context: Context, config?: MergeConfig, updateStatus = true, updateG3Status = false, labels?: Github.PullRequestsGetResponseLabelsItem[], statuses?: GithubGQL.StatusContext[]): Promise<void> {
+  private async updateStatus(context: Context, config?: MergeConfig, updateStatus = true, labels?: Github.PullRequestsGetResponseLabelsItem[], statuses?: GithubGQL.StatusContext[]): Promise<void> {
+    let updateG3Status = false;
     if(context.payload.action === "synchronize") {
       updateG3Status = true;
     }
