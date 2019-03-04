@@ -5,7 +5,7 @@ import {RerunCircleCIConfig} from "../default";
 import Github from '@octokit/rest';
 import fetch from "node-fetch";
 
-let circleCIConfig = firebaseConfig().circleCI;
+let circleCIConfig = firebaseConfig().circleci;
 
 // Check if we are in Firebase or in development
 if(!circleCIConfig) {
