@@ -166,7 +166,11 @@ export class MergeTask extends Task {
       }
       // Check if there is a conflict with the base branch
       if(pr.mergeable === false) {
-        checksStatus.failure.push(`conflicts with base branch "${pr.base.ref}"`);
+        if(pr.draft || pr.mergeable_state === "draft") {
+          checksStatus.pending.push(`draft`);
+        } else {
+          checksStatus.failure.push(`conflicts with base branch "${pr.base.ref}"`);
+        }
       }
     }
 
@@ -361,7 +365,7 @@ export class MergeTask extends Task {
       // TODO(ocombe): we might need to setTimeout this until we get a mergeable value !== null (or use probot scheduler)
       pr = await this.updateDbPR(context.github, owner, repo, pr.number, repoId);
 
-      if(pr.mergeable === false) {
+      if(pr.mergeable === false && (!pr.draft && pr.mergeable_state !== "draft")) {
         // Get the comments since the last time the PR was synchronized
         if((pr.conflict_comment_at && pr.synchronized_at && pr.conflict_comment_at >= pr.synchronized_at) || (!pr.synchronized_at && pr.conflict_comment_at)) {
           this.logDebug({context}, `This PR already contains a merge conflict comment since the last synchronized date, skipping it`);
