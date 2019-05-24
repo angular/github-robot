@@ -456,7 +456,7 @@ export class MergeTask extends Task {
         // Either init has not finished yet and we don't have this PR in the DB, or it's a status update for a commit
         // made directly on a branch without a PR (e.g. travis runs for all commits and triggers a status update)
         if(!pr) {
-          this.logWarn({context}, `Update status for unknown PR, ignored. Head sha == ${sha}, repository == ${context.payload.repository.id}`);
+          this.logDebug({context}, `Update status for unknown PR, ignored. Head sha == ${sha}, repository == ${context.payload.repository.id}`);
           return;
         } else {
           // make sure that we have updated data
