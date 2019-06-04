@@ -372,29 +372,34 @@ export class SizeTask extends Task {
       artifacts = artifacts.filter(ca => !exclude.some(path => ca.path.startsWith(path)));
     }
 
-    return Promise.all(artifacts.map(async artifact => {
-      const contentResponse = await fetch(
-        artifact.url,
-        {
-          // NOTE: CircleCI doesn't provide the length with a HEAD so a GET is required.
-          //       This means that the full content is sent
-          // method: 'HEAD',
-          // compress: false,
-        },
-      );
+    const buildArtifacts = [];
 
-      const data = await contentResponse.arrayBuffer();
+    for (const artifact of artifacts) {
+      let response = await fetch(artifact.url);
+      if (response.status >= 500) {
+        response = await fetch(artifact.url);
+      }
+
+      if (!response.ok) {
+        throw new Error(`fetch for ${artifact.url} returned status [${response.status}]: ${response.statusText}`);
+      }
+
+      const data = await response.arrayBuffer();
       const size = data.byteLength;
       const pathParts = artifact.path.split('/');
 
-      return {
+      this.logDebug(`[size] Fetched artifact '${artifact.path}' with size ${size}`);
+
+      buildArtifacts.push({
         path: artifact.path,
         url: artifact.url,
         size,
         projectName: pathParts.length > 1 ? pathParts[0] : undefined,
         context: pathParts.length > 2 ? pathParts.slice(1, -1).join('/') : undefined,
         filename: pathParts[pathParts.length - 1],
-      };
-    }));
+      });
+    }
+
+    return buildArtifacts;
   }
 }
