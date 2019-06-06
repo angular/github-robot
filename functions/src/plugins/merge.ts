@@ -1,5 +1,5 @@
-import Github from '@octokit/rest';
 import minimatch from "minimatch";
+import Octokit from '@octokit/rest';
 import {Application, Context} from "probot";
 import {MergeConfig} from "../default";
 import {addComment, addLabels, getGhPRLabels, getLabelsNames, matchAny, queryPR} from "./common";
@@ -50,7 +50,7 @@ export class MergeTask extends Task {
    */
   async onPRLabeled(context: Context): Promise<void> {
     const newLabel = context.payload.label.name;
-    let pr: Github.PullRequestsGetResponse = context.payload.pull_request;
+    let pr: Octokit.PullsGetResponse = context.payload.pull_request;
     const config = await this.getConfig(context);
     const {owner, repo} = context.repo();
     pr = await this.updateDbPR(context.github, owner, repo, pr.number, context.payload.repository.id, pr).catch(err => {
@@ -125,7 +125,7 @@ export class MergeTask extends Task {
   /**
    * Gets the list of labels from a PR.
    */
-  private async getPRLabels(context: Context, pr?: Github.PullRequestsGetResponse): Promise<GithubGQL.Labels['nodes']> {
+  private async getPRLabels(context: Context, pr?: Octokit.PullsGetResponse): Promise<GithubGQL.Labels['nodes']> {
     const {owner, repo} = context.repo();
     pr = pr || context.payload.pull_request;
     const doc = this.pullRequests.doc(pr.id.toString());
@@ -151,7 +151,7 @@ export class MergeTask extends Task {
   /**
    * Based on the repository config, returns the list of checks that failed for this PR.
    */
-  private async getChecksStatus(context: Context, pr: CachedPullRequest, config: MergeConfig, labels: Github.PullRequestsGetResponseLabelsItem[] = [], statuses?: GithubGQL.StatusContext[]): Promise<ChecksStatus> {
+  private async getChecksStatus(context: Context, pr: CachedPullRequest, config: MergeConfig, labels: Octokit.PullsGetResponseLabelsItem[] = [], statuses?: GithubGQL.StatusContext[]): Promise<ChecksStatus> {
     const checksStatus: ChecksStatus = {
       pending: [],
       failure: []
@@ -269,15 +269,15 @@ export class MergeTask extends Task {
   async getPendingReviews(context: Context, pr: CachedPullRequest): Promise<number> {
     const {owner, repo} = context.repo();
     // We can have a lot of reviews on a PR, we need to paginate to get all of them
-    const reviews = (await context.github.paginate(context.github.pullRequests.listReviews({
+    const reviews = (await context.github.paginate(context.github.pulls.listReviews.endpoint.merge({
       owner,
       repo,
-      number: pr.number,
+      pull_number: pr.number,
       per_page: 100
-    }), pages => (pages as any).data) as Review[])
-      // We only want reviews with state: PENDING, APPROVED, CHANGES_REQUESTED, DISMISSED.
-      // We ignore comments because they can be done after a review was approved / refused, and also because
-      // anyone can add comments, it doesn't mean that it's someone who is actually reviewing the PR
+    }), pages => pages.data) as Review[])
+    // We only want reviews with state: PENDING, APPROVED, CHANGES_REQUESTED, DISMISSED.
+    // We ignore comments because they can be done after a review was approved / refused, and also because
+    // anyone can add comments, it doesn't mean that it's someone who is actually reviewing the PR
       .filter(review => review.state !== REVIEW_STATE.Commented)
       // We ignore reviews from individuals who aren't members of the repository
       .filter(review => review.author_association !== AUTHOR_ASSOCIATION.None)
@@ -288,7 +288,11 @@ export class MergeTask extends Task {
     // given the review yet. Once they do, they disappear from this list, and we need to check the reviews.
     // We only take the reviews from users and ignore team reviews so that we don't conflict with Github code owners
     // that automatically add team to the reviewers list
-    const reviewRequests =(await context.github.pullRequests.listReviewRequests({owner, repo, number: pr.number})).data.users;
+    const reviewRequests = (await context.github.pulls.listReviewRequests({
+      owner,
+      repo,
+      pull_number: pr.number
+    })).data.users;
 
     const usersReviews: number[] = [];
     const finalReviews: any[] = [];
@@ -373,7 +377,7 @@ export class MergeTask extends Task {
           await context.github.issues.createComment({
             owner,
             repo,
-            number: pr.number,
+            issue_number: pr.number,
             body: config.mergeConflictComment.replace("{{PRAuthor}}", pr.user.login)
           });
           this.pullRequests.doc(pr.id.toString()).set({conflict_comment_at: new Date()}, {merge: true}).catch(err => {
@@ -390,7 +394,7 @@ export class MergeTask extends Task {
     if(config.status.disabled || !config.checks.requireReviews) {
       return;
     }
-    const pr: Github.PullRequestsGetResponse = context.payload.pull_request;
+    const pr: Octokit.PullsGetResponse = context.payload.pull_request;
     // Get the number of pending reviews and update the context, it will be cached in `updateStatus`
     context.payload.pull_request.pendingReviews = await this.getPendingReviews(context, pr);
 
@@ -402,7 +406,7 @@ export class MergeTask extends Task {
   /**
    * Updates the status of a PR.
    */
-  private async updateStatus(context: Context, config?: MergeConfig, updateStatus = true, labels?: Github.PullRequestsGetResponseLabelsItem[], statuses?: GithubGQL.StatusContext[]): Promise<void> {
+  private async updateStatus(context: Context, config?: MergeConfig, updateStatus = true, labels?: Octokit.PullsGetResponseLabelsItem[], statuses?: GithubGQL.StatusContext[]): Promise<void> {
     let updateG3Status = false;
     if(context.payload.action === "synchronize") {
       updateG3Status = true;
@@ -477,7 +481,11 @@ export class MergeTask extends Task {
       !statuses.some(status => status.context === config.g3Status.context)
     )) {
       // Checking if we need to add g3 status
-      const files: Github.PullRequestsListFilesResponse = (await context.github.pullRequests.listFiles({owner, repo, number: pr.number})).data;
+      const files: Octokit.PullsListFilesResponse = (await context.github.pulls.listFiles({
+        owner,
+        repo,
+        pull_number: pr.number
+      })).data;
       if(this.matchAnyFile(files.map(file => file.filename), config.g3Status.include, config.g3Status.exclude)) {
         // Only update g3 status if a commit was just pushed, or there was no g3 status
         if(context.payload.action === "synchronize" || !statuses.some(status => status.context === config.g3Status.context)) {
@@ -508,7 +516,7 @@ export class MergeTask extends Task {
     }
 
     if(updateStatus) {
-      const statusParams: Github.ReposCreateStatusParams = {
+      const statusParams: Octokit.ReposCreateStatusParams = {
         owner,
         repo,
         sha: sha,
@@ -584,7 +592,7 @@ export class MergeTask extends Task {
   }
 
   /** 
-   * Temporary defintion of matchAnyFile, originally defined in common.ts, to allow for
+   * Temporary definition of matchAnyFile, originally defined in common.ts, to allow for
    * logging of match checking.
    */
   private matchAnyFile(names: string[], patterns: string[], negPatterns: string[] = []): boolean {
@@ -613,7 +621,7 @@ interface ChecksStatus {
 interface Review {
   id: number;
   node_id: string;
-  user: Github.PullRequestsListReviewsResponseItemUser;
+  user: Octokit.PullsListReviewsResponseItemUser;
   body: string;
   commit_id: string;
   state: REVIEW_STATE;

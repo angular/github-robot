@@ -1,9 +1,9 @@
 import fetch from 'node-fetch';
 import {Application, Context} from "probot";
 import {Task} from "./task";
-import {SizeConfig, appConfig as defaultAppConfig} from "../default";
+import {appConfig as defaultAppConfig, SizeConfig} from "../default";
 import {STATUS_STATE} from "../typings";
-import Github from '@octokit/rest';
+import Octokit from '@octokit/rest';
 
 export interface CircleCiArtifact {
   path: string;
@@ -57,7 +57,7 @@ export class SizeTask extends Task {
     const config: SizeConfig = {
       ...defaultAppConfig.size,
       ...appConfig.size,
-      status: { ...defaultAppConfig.size.status, ...appConfig.size.status },
+      status: {...defaultAppConfig.size.status, ...appConfig.size.status},
     };
 
     const statusEvent = context.payload;
@@ -160,10 +160,10 @@ export class SizeTask extends Task {
 
 
       // Add comment if enabled
-      if (config.comment) {
+      if(config.comment) {
         let body = '|| Artifact | Baseline | Current | Change |\n|-|-|-|-|-|\n';
 
-        for (const comparison of comparisons) {
+        for(const comparison of comparisons) {
           const emoji = comparison.delta <= 0 ? ':white_check_mark:' : ':grey_exclamation:';
           body += `| ${comparison.failed ? ':x:' : emoji}|${comparison.baseline.path}`;
           body += `|[${formatBytes(comparison.baseline.size)}](${comparison.baseline.url})`;
@@ -175,13 +175,13 @@ export class SizeTask extends Task {
           const prDoc = await this.pullRequests.doc(pr.id.toString()).get();
           let commentId = prDoc.exists ? prDoc.data().sizeCheckComment : undefined;
 
-          if (commentId !== undefined) {
+          if(commentId !== undefined) {
             try {
               await context.github.issues.updateComment({
                 owner,
                 repo,
                 comment_id: commentId,
-                body, 
+                body,
               });
             } catch {
               // Comment may have been deleted
@@ -189,17 +189,17 @@ export class SizeTask extends Task {
             }
           }
 
-          if (commentId === undefined) {
+          if(commentId === undefined) {
             const response = await context.github.issues.createComment({
               owner,
               repo,
-              number: pr.number,
+              issue_number: pr.number,
               body,
             });
 
-            await prDoc.ref.update({ sizeCheckComment: response.data.id });
+            await prDoc.ref.update({sizeCheckComment: response.data.id});
           }
-        } catch (e) {
+        } catch(e) {
           this.logError(`Unable to add size comment [${e.message}]`);
         }
       }
@@ -221,11 +221,11 @@ export class SizeTask extends Task {
    * @param artifacts
    */
   async upsertNewArtifacts(context: Context, artifacts: BuildArtifact[]): Promise<void> {
-    this.logDebug(`[size] Storing artifacts for: ${context.payload.sha}, on branches [${context.payload.branches.map((b: Github.ReposListBranchesResponseItem) => b.commit.url).join(', ')}]`);
+    this.logDebug(`[size] Storing artifacts for: ${context.payload.sha}, on branches [${context.payload.branches.map((b: Octokit.ReposListBranchesResponseItem) => b.commit.url).join(', ')}]`);
 
     const updatedAt = context.payload.updated_at;
     const branch = context.payload.branches
-      .find((b: Github.ReposListBranchesResponseItem) => b.commit.sha === context.payload.commit.sha);
+      .find((b: Octokit.ReposListBranchesResponseItem) => b.commit.sha === context.payload.commit.sha);
     const sizeArtifacts = this.repositories
       .doc(context.payload.repository.id.toString())
       .collection('sizeArtifacts');
@@ -277,17 +277,17 @@ export class SizeTask extends Task {
   }
 
   parseBytes(input: number | string): [number, boolean] {
-    if (typeof input === 'number') {
+    if(typeof input === 'number') {
       return [input, false];
     }
 
     const matches = input.match(/^\s*(\d+(?:\.\d+)?)\s*(%|(?:[mM]|[kK]|[gG])?[bB])?\s*$/);
-    if (!matches) {
+    if(!matches) {
       return [NaN, false];
     }
-  
+
     let value = Number(matches[1]);
-    switch (matches[2] && matches[2].toLowerCase()) {
+    switch(matches[2] && matches[2].toLowerCase()) {
       case '%':
         return [value / 100, true];
       case 'kb':
@@ -300,7 +300,7 @@ export class SizeTask extends Task {
         value *= 1024 ** 3;
         break;
     }
-  
+
     return [value, false];
   }
 
@@ -308,16 +308,16 @@ export class SizeTask extends Task {
     const baselines = new Map(oldArtifacts.map<[string, BuildArtifact]>(a => [a.path, a]));
     const [threshold, percentage] = this.parseBytes(config.maxSizeIncrease);
 
-    if (threshold === NaN) {
+    if(threshold === NaN) {
       this.logError('Invalid size configuration');
       return [];
     }
 
     const comparisons: BuildArtifactDiff[] = [];
-    for (const current of newArtifacts) {
+    for(const current of newArtifacts) {
       const baseline = baselines.get(current.path);
 
-      if (!baseline) {
+      if(!baseline) {
         continue;
       }
 
@@ -338,7 +338,7 @@ export class SizeTask extends Task {
   /**
    * Finds the target branch of a PR then retrieves the artifacts at the for the HEAD of that branch
    */
-  async getTargetBranchArtifacts(prPayload: Github.PullRequestsGetResponse): Promise<BuildArtifact[]> {
+  async getTargetBranchArtifacts(prPayload: Octokit.PullsGetResponse): Promise<BuildArtifact[]> {
     const targetBranch = prPayload.base;
     this.logDebug(`[size] Fetching target branch artifacts for ${targetBranch.ref}/${targetBranch.sha}`);
 
@@ -365,10 +365,10 @@ export class SizeTask extends Task {
     const artifactsResponse = await fetch(artifactUrl);
 
     let artifacts = (await artifactsResponse.json() as CircleCiArtifact[]);
-    if (include) {
+    if(include) {
       artifacts = artifacts.filter(ca => include.some(path => ca.path.startsWith(path)));
     }
-    if (exclude && exclude.length > 0) {
+    if(exclude && exclude.length > 0) {
       artifacts = artifacts.filter(ca => !exclude.some(path => ca.path.startsWith(path)));
     }
 

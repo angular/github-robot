@@ -1,4 +1,4 @@
-import Github from '@octokit/rest';
+import Octokit from '@octokit/rest';
 
 export const enum FILE_STATUS {
   Added = 'added',
@@ -45,7 +45,7 @@ export const enum AUTHOR_ASSOCIATION {
   Owner = 'OWNER'
 }
 
-export interface CachedPullRequest extends Github.PullRequestsGetResponse {
+export interface CachedPullRequest extends Octokit.PullsGetResponse {
   pendingReviews?: number;
 }
 
@@ -56,7 +56,7 @@ declare namespace GithubGQL {
   }
 
   export interface Labels {
-    nodes: Github.PullRequestsGetResponseLabelsItem[];
+    nodes: Octokit.PullsGetResponseLabelsItem[];
   }
 
   export interface Commits {

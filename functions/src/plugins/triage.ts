@@ -2,7 +2,8 @@ import {Application, Context} from "probot";
 import {Task} from "./task";
 import {AdminConfig, TriageConfig} from "../default";
 import {getLabelsNames, matchAllOfAny} from "./common";
-import Github from '@octokit/rest';
+import Octokit from '@octokit/rest';
+import {GitHubAPI} from "probot/lib/github";
 
 export class TriageTask extends Task {
   constructor(robot: Application, db: FirebaseFirestore.Firestore) {
@@ -22,34 +23,38 @@ export class TriageTask extends Task {
     const adminConfig = await this.admin.doc('config').get();
     if(adminConfig.exists && (<AdminConfig>adminConfig.data()).allowInit) {
       const github = await this.robot.auth();
-      const installations = await github.paginate(github.apps.listInstallations({}), pages => (pages as any as Github.AnyResponse).data);
+      const installations = await github.paginate(github.apps.listInstallations.endpoint.merge({}), pages => pages.data);
       await Promise.all(installations.map(async installation => {
         const authGithub = await this.robot.auth(installation.id);
         const repositories = await authGithub.apps.listRepos({});
-        await Promise.all(repositories.data.repositories.map(async (repository: Github.AppsListReposResponseRepositoriesItem) => {
-          const context = new Context({payload: {repository}}, authGithub, this.robot.log);
+        await Promise.all(repositories.data.repositories.map(async (repository: Octokit.AppsListReposResponseRepositoriesItem) => {
+          const context = new Context({
+            payload: {repository: <any>repository},
+            id: repository.id.toString(),
+            name: repository.name
+          }, authGithub, this.robot.log);
           const config = await this.getConfig(context);
           if(config.disabled) {
             return;
           }
           const {owner, repo} = context.repo();
-          const issues = await authGithub.paginate(authGithub.issues.listForRepo({
+          const issues = await authGithub.paginate(authGithub.issues.listForRepo.endpoint.merge({
             owner,
             repo,
             state: 'open',
             per_page: 100
-          }), pages => (pages as any as Github.AnyResponse).data);
+          }), pages => pages.data);
 
-          issues.forEach(async (issue: Github.IssuesListForRepoResponseItem) => {
+          issues.forEach(async (issue: Octokit.IssuesListForRepoResponseItem) => {
             // PRs are issues for github, but we don't want them here
             if(!issue.pull_request) {
-              const isL1Triaged = this.isTriaged(config.l1TriageLabels, issue.labels.map((label: Github.IssuesListForRepoResponseItemLabelsItem) => label.name));
+              const isL1Triaged = this.isTriaged(config.l1TriageLabels, issue.labels.map((label: Octokit.IssuesListForRepoResponseItemLabelsItem) => label.name));
               if(!isL1Triaged) {
                 if(issue.milestone) {
                   await this.setMilestone(null, context.github, owner, repo, issue);
                 }
               } else if(!issue.milestone || issue.milestone.number === config.defaultMilestone || issue.milestone.number === config.needsTriageMilestone) {
-                const isL2Triaged = this.isTriaged(config.l2TriageLabels || config.triagedLabels, issue.labels.map((label: Github.IssuesListForRepoResponseItemLabelsItem) => label.name));
+                const isL2Triaged = this.isTriaged(config.l2TriageLabels || config.triagedLabels, issue.labels.map((label: Octokit.IssuesListForRepoResponseItemLabelsItem) => label.name));
                 if(isL2Triaged) {
                   if(!issue.milestone || issue.milestone.number !== config.defaultMilestone) {
                     await this.setMilestone(config.defaultMilestone, context.github, owner, repo, issue);
@@ -72,7 +77,7 @@ export class TriageTask extends Task {
 
   async checkTriage(context: Context): Promise<void> {
     if(!context.payload.pull_request && !context.payload.issue.pull_request) {
-      const issue: Github.IssuesGetResponse = context.payload.issue;
+      const issue: Octokit.IssuesGetResponse = context.payload.issue;
       const config = await this.getConfig(context);
       if(config.disabled) {
         return;
@@ -100,13 +105,13 @@ export class TriageTask extends Task {
     }
   }
 
-  setMilestone(milestoneNumber: number | null, github: Github, owner: string, repo: string, issue: Github.IssuesListForRepoResponseItem): Promise<Github.Response<Github.IssuesUpdateResponse>> {
+  setMilestone(milestoneNumber: number | null, github: GitHubAPI, owner: string, repo: string, issue: Octokit.IssuesListForRepoResponseItem): Promise<Octokit.Response<Octokit.IssuesUpdateResponse>> {
     if(milestoneNumber) {
       this.log(`Adding milestone ${milestoneNumber} to issue ${issue.html_url}`);
     } else {
       this.log(`Removing milestone from issue ${issue.html_url}`);
     }
-    return github.issues.update({owner, repo, number: issue.number, milestone: milestoneNumber}).catch(err => {
+    return github.issues.update({owner, repo, issue_number: issue.number, milestone: milestoneNumber}).catch(err => {
       throw err;
     });
   }

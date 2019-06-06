@@ -1,5 +1,5 @@
 import {Context, Application} from "probot";
-import {GitHubAPI} from "probot/lib/github";
+import {GitHubAPI, ProbotOctokit} from "probot/lib/github";
 import {TriageTask} from "../functions/src/plugins/triage";
 import {appConfig} from "../functions/src/default";
 import {MockFirestore} from './mocks/firestore';
@@ -23,7 +23,8 @@ describe('triage', () => {
     // Mock out the GitHub API
     github = GitHubAPI({
       debug: true,
-      logger: robot.log
+      logger: robot.log,
+      Octokit: ProbotOctokit
     });
 
     // Mock out GitHub App authentication and return our mock client
