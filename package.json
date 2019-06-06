@@ -44,6 +44,7 @@
     "firebase-tools": "6.11.0",
     "jasmine": "3.4.0",
     "jest": "24.8.0",
+    "mock-cloud-firestore": "0.9.3",
     "nock": "10.0.6",
     "nodemon": "1.19.1",
     "rimraf": "2.6.3",

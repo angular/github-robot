@@ -1,10 +1,11 @@
 import {Context, Application} from "probot";
 import {MergeTask} from "../functions/src/plugins/merge";
 import {appConfig} from "../functions/src/default";
-import {MockFirestore} from './mocks/firestore';
 import {mockGithub} from "./mocks/github";
 import {CommonTask} from "../functions/src/plugins/common";
 import {GitHubAPI, ProbotOctokit} from "probot/lib/github";
+// @ts-ignore
+import MockFirestore from 'mock-cloud-firestore';
 
 describe('merge', () => {
   let robot: Application;
@@ -21,7 +22,8 @@ describe('merge', () => {
     mockGithub('repo-pull-request');
 
     // create the mock Firebase Firestore
-    store = new MockFirestore();
+    const firebase = new MockFirestore();
+    store = firebase.firestore();
 
     // Create a new Robot to run our plugin
     robot = new Application();

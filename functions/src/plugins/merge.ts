@@ -608,7 +608,7 @@ export class MergeTask extends Task {
       this.logDebug(`Matched: ${currentFileMatched} | File: ${name} | Pattern Matched: ${matchesPattern || 'No Match'} | NegPattern Matched: ${matchesNegPattern || 'No Match'}`);
       matches = matches || currentFileMatched;
     });
-    this.logDebug(`Overall Result of matchAnyFile: ${matches}`)
+    this.logDebug(`Overall Result of matchAnyFile: ${matches}`);
     return matches;
   }
 }
