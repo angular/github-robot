@@ -1,7 +1,8 @@
 import Github from '@octokit/rest';
+import minimatch from "minimatch";
 import {Application, Context} from "probot";
 import {MergeConfig} from "../default";
-import {addComment, addLabels, getGhPRLabels, getLabelsNames, matchAny, matchAnyFile, queryPR} from "./common";
+import {addComment, addLabels, getGhPRLabels, getLabelsNames, matchAny, queryPR} from "./common";
 import {Task} from "./task";
 import {default as GithubGQL, AUTHOR_ASSOCIATION, REVIEW_STATE, STATUS_STATE, CachedPullRequest, GQL_STATUS_STATE} from "../typings";
 
@@ -477,7 +478,7 @@ export class MergeTask extends Task {
     )) {
       // Checking if we need to add g3 status
       const files: Github.PullRequestsListFilesResponse = (await context.github.pullRequests.listFiles({owner, repo, number: pr.number})).data;
-      if(matchAnyFile(files.map(file => file.filename), config.g3Status.include, config.g3Status.exclude)) {
+      if(this.matchAnyFile(files.map(file => file.filename), config.g3Status.include, config.g3Status.exclude)) {
         // Only update g3 status if a commit was just pushed, or there was no g3 status
         if(context.payload.action === "synchronize" || !statuses.some(status => status.context === config.g3Status.context)) {
           const status = (await context.github.repos.createStatus({
@@ -580,6 +581,27 @@ export class MergeTask extends Task {
   async getConfig(context: Context): Promise<MergeConfig> {
     const repositoryConfig = await this.getAppConfig(context);
     return repositoryConfig.merge;
+  }
+
+  /** 
+   * Temporary defintion of matchAnyFile, originally defined in common.ts, to allow for
+   * logging of match checking.
+   */
+  private matchAnyFile(names: string[], patterns: string[], negPatterns: string[] = []): boolean {
+    this.logDebug('Checking for any file that matches a pattern and does not match any negPatterns');
+    let matches = false;
+    names.forEach(name => {
+      const matchesPattern = patterns.find((pattern: string) => minimatch(name, pattern));
+      let matchesNegPattern;
+      if (matchesPattern) {
+        matchesNegPattern = negPatterns.find((negPattern: string) => minimatch(name, negPattern));
+      }
+      const currentFileMatched = !!(matchesPattern && !matchesNegPattern);
+      this.logDebug(`Matched: ${currentFileMatched} | File: ${name} | Pattern Matched: ${matchesPattern || 'No Match'} | NegPattern Matched: ${matchesNegPattern || 'No Match'}`);
+      matches = matches || currentFileMatched;
+    });
+    this.logDebug(`Overall Result of matchAnyFile: ${matches}`)
+    return matches;
   }
 }
 
