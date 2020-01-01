@@ -1,7 +1,8 @@
 import {Application, Context} from "probot";
-import Github from "@octokit/rest";
+import Octokit from "@octokit/rest";
 import {STATUS_STATE} from "../typings";
 import {appConfig, AppConfig} from "../default";
+import {GitHubAPI, GraphQlQueryResponse} from "probot/lib/github";
 
 export const CONFIG_FILE = "angular-robot.yml";
 
@@ -21,8 +22,8 @@ export class Task {
   /**
    * Gets the PR data from Github (or parameter) and adds/updates it in Firebase
    */
-  async updateDbPR(github: Github, owner: string, repo: string, number: number, repositoryId: number, newData?: any): Promise<any> {
-    newData = newData || (await github.pullRequests.get({owner, repo, number})).data;
+  async updateDbPR(github: GitHubAPI, owner: string, repo: string, pull_number: number, repositoryId: number, newData?: any): Promise<any> {
+    newData = newData || (await github.pulls.get({owner, repo, pull_number})).data;
     const data = {...newData, repository: {owner, name: repo, id: repositoryId}};
     const doc = this.pullRequests.doc(data.id.toString());
     await doc.set(data, {merge: true}).catch(err => {
@@ -38,7 +39,7 @@ export class Task {
   async setStatus(state: STATUS_STATE, desc: string, statusContext: string, context: Context): Promise<void> {
     const {owner, repo} = context.repo();
 
-    const statusParams: Github.ReposCreateStatusParams = {
+    const statusParams: Octokit.ReposCreateStatusParams = {
       owner,
       repo,
       sha: context.payload.sha,
@@ -53,7 +54,7 @@ export class Task {
   /**
    * Finds a PR that's previously been processed by the bot
    */
-  async findPrBySha(sha: string, repositoryId: number): Promise<Github.PullRequestsGetResponse | undefined> {
+  async findPrBySha(sha: string, repositoryId: number): Promise<Octokit.PullsGetResponse | undefined> {
     const matches = await this.pullRequests
       .where('head.sha', '==', sha)
       .where('repository.id', '==', repositoryId)
@@ -63,7 +64,7 @@ export class Task {
       return undefined;
     }
 
-    return matches.docs[0].data() as Github.PullRequestsGetResponse;
+    return matches.docs[0].data() as Octokit.PullsGetResponse;
   }
 
   // wrapper for this.robot.on
@@ -99,7 +100,7 @@ export class Task {
    * @param resource the resource for which you want to get the node_id (eg: issue, or pull_request)
    * @returns {Promise<any>}
    */
-  async node(context: Context, resource: any) {
+  async node(context: Context, resource: any): Promise<GraphQlQueryResponse['data']> {
     // GraphQL query to get Node id for any resource, which is needed for mutations
     const getResource = `
     query getResource($url: URI!) {
@@ -111,7 +112,7 @@ export class Task {
     }
   `;
 
-    return context.github.query(getResource, {url: resource.html_url});
+    return context.github.graphql(getResource, {url: resource.html_url});
   }
 
   /**

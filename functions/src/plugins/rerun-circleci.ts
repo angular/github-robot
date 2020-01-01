@@ -2,7 +2,7 @@ import {config as firebaseConfig} from 'firebase-functions';
 import {Application, Context} from "probot";
 import {Task} from "./task";
 import {RerunCircleCIConfig} from "../default";
-import Github from '@octokit/rest';
+import Octokit from '@octokit/rest';
 import fetch from "node-fetch";
 
 let circleCIConfig = firebaseConfig().circleci;
@@ -28,13 +28,13 @@ export class RerunCircleCITask extends Task {
   /** Determines if a circle rerun should occur. */
   async checkRerunCircleCI(context: Context): Promise<void> {
     const config = await this.getConfig(context);
-    if (config.disabled) {
+    if(config.disabled) {
       return;
     }
 
-    if (context.payload.label) {
-      const label: Github.IssuesGetLabelResponse = context.payload.label;
-      if (label.name === config.triggerRerunLabel) {
+    if(context.payload.label) {
+      const label: Octokit.IssuesGetLabelResponse = context.payload.label;
+      if(label.name === config.triggerRerunLabel) {
         await this.triggerCircleCIRerun(context);
       }
     }
@@ -43,12 +43,12 @@ export class RerunCircleCITask extends Task {
   /** Triggers a rerun of the default CircleCI workflow and then removed the triggering label. */
   async triggerCircleCIRerun(context: Context) {
     const config = await this.getConfig(context);
-    if (config.disabled) {
+    if(config.disabled) {
       return;
     }
 
-    const pullRequest: Github.PullRequestsGetResponse = context.payload.pull_request;
-    const sender: Github.PullRequestsGetResponseUser = context.payload.sender;
+    const pullRequest: Octokit.PullsGetResponse = context.payload.pull_request;
+    const sender: Octokit.PullsGetResponseUser = context.payload.sender;
     const {owner, repo} = context.repo();
     const circleCiUrl = `https://circleci.com/api/v1.1/project/github/${owner}/${repo}/build?circle-token=${CIRCLE_CI_TOKEN}`;
     try {
@@ -62,7 +62,7 @@ export class RerunCircleCITask extends Task {
           branch: `pull/${pullRequest.number}`,
         })
       });
-    } catch (err) {
+    } catch(err) {
       const error: TypeError = err;
       context.github.issues.createComment({
         body: `@${sender.login} the CircleCI rerun you requested failed.  See details below:
@@ -70,7 +70,7 @@ export class RerunCircleCITask extends Task {
 \`\`\`
 ${error.message}
 \`\`\``,
-        number: pullRequest.number,
+        issue_number: pullRequest.number,
         owner: owner,
         repo: repo,
       }).catch(err => {
@@ -79,7 +79,7 @@ ${error.message}
     }
     await context.github.issues.removeLabel({
       name: config.triggerRerunLabel,
-      number: pullRequest.number,
+      issue_number: pullRequest.number,
       owner: owner,
       repo: repo
     });

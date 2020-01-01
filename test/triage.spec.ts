@@ -1,9 +1,10 @@
 import {Context, Application} from "probot";
-import {GitHubAPI} from "probot/lib/github";
+import {GitHubAPI, ProbotOctokit} from "probot/lib/github";
 import {TriageTask} from "../functions/src/plugins/triage";
 import {appConfig} from "../functions/src/default";
-import {MockFirestore} from './mocks/firestore';
 import {mockGithub} from "./mocks/github";
+// @ts-ignore
+import MockFirestore from 'mock-cloud-firestore';
 
 describe('triage', () => {
   let robot: Application;
@@ -15,7 +16,8 @@ describe('triage', () => {
     mockGithub('repos');
 
     // create the mock Firebase Firestore
-    store = new MockFirestore();
+    const firebase = new MockFirestore();
+    store = firebase.firestore();
 
     // Create a new Robot to run our plugin
     robot = new Application();
@@ -23,7 +25,8 @@ describe('triage', () => {
     // Mock out the GitHub API
     github = GitHubAPI({
       debug: true,
-      logger: robot.log
+      logger: robot.log,
+      Octokit: ProbotOctokit
     });
 
     // Mock out GitHub App authentication and return our mock client

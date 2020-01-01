@@ -1,9 +1,10 @@
 import {Application, Context} from "probot";
-import Github from '@octokit/rest';
+import Octokit from '@octokit/rest';
+// @ts-ignore
 import minimatch from "minimatch";
 import {AdminConfig} from "../default";
 import {CONFIG_FILE, Task} from "./task";
-import {GitHubAPI} from "probot/lib/github";
+import {GitHubAPI, GraphQlQueryResponse} from "probot/lib/github";
 import {firestore} from "firebase-admin";
 import GithubGQL, {Commit} from "../typings";
 
@@ -27,11 +28,11 @@ export class CommonTask extends Task {
     const adminConfig = await this.admin.doc('config').get();
     if(adminConfig.exists && (<AdminConfig>adminConfig.data()).allowInit) {
       const github = await this.robot.auth();
-      const installations = await github.paginate(github.apps.listInstallations({}), pages => (pages as any as Github.AnyResponse).data);
+      const installations = await github.paginate(github.apps.listInstallations.endpoint.merge({}), pages => pages.data);
       await Promise.all(installations.map(async installation => {
         const authGithub = await this.robot.auth(installation.id);
         const repositories = await authGithub.apps.listRepos({});
-        await Promise.all(repositories.data.repositories.map(async (repository: Github.AppsListReposResponseRepositoriesItem) => {
+        await Promise.all(repositories.data.repositories.map(async (repository: Octokit.AppsListReposResponseRepositoriesItem) => {
           await this.repositories.doc(repository.id.toString()).set({
             id: repository.id,
             name: repository.name,
@@ -100,12 +101,12 @@ export class CommonTask extends Task {
       // list of existing opened PRs in the db
       const dbPRs = dbPRSnapshots.docs.map(doc => doc.id);
 
-      const ghPRs = await github.paginate(github.pullRequests.list({
+      const ghPRs = await github.paginate(github.pulls.list.endpoint.merge({
         owner,
         repo,
         state: 'open',
         per_page: 100
-      }), pages => (pages as any as Github.AnyResponse).data) as Github.PullRequestsListResponse;
+      }), (pages: Octokit.AnyResponse) => pages.data) as Octokit.PullsListResponse;
 
       ghPRs.forEach(async pr => {
         const index = dbPRs.indexOf(pr.id.toString());
@@ -127,7 +128,7 @@ export class CommonTask extends Task {
       }
 
       // add/update opened PRs
-      return Promise.all(ghPRs.map(pr => github.pullRequests.get({number: pr.number, owner, repo})
+      return Promise.all(ghPRs.map(pr => github.pulls.get({pull_number: pr.number, owner, repo})
         .then(res => this.updateDbPR(github, owner, repo, pr.number, repository.id, res.data))));
     }));
   }
@@ -136,7 +137,7 @@ export class CommonTask extends Task {
     const query = await this.config.get();
 
     // When there are no documents left, we are done
-    if (query.size === 0) {
+    if(query.size === 0) {
       return;
     }
 
@@ -171,7 +172,7 @@ export class CommonTask extends Task {
  * Gets the PR labels from Github.
  * Uses GraphQL API.
  */
-export async function getGhPRLabels(github: GitHubAPI, owner: string, repo: string, number: number): Promise<Github.PullRequestsGetResponseLabelsItem[]> {
+export async function getGhPRLabels(github: GitHubAPI, owner: string, repo: string, number: number): Promise<Octokit.PullsGetResponseLabelsItem[]> {
   return (await queryPR<GithubGQL.PullRequest>(github, `
       labels(first: 50) {
         nodes {
@@ -183,16 +184,16 @@ export async function getGhPRLabels(github: GitHubAPI, owner: string, repo: stri
         }
       }
     `,
-  {
-    owner,
-    repo,
-    number
-  })).labels.nodes;
+    {
+      owner,
+      repo,
+      number
+    })).labels.nodes;
 }
 
-export function getLabelsNames(labels: Github.IssuesGetResponseLabelsItem[] | string[] | GithubGQL.Labels['nodes']): string[] {
+export function getLabelsNames(labels: Octokit.IssuesGetResponseLabelsItem[] | string[] | GithubGQL.Labels['nodes']): string[] {
   if(typeof labels[0] !== 'string') {
-    labels = (labels as Github.IssuesGetResponseLabelsItem[]).map(label => label.name);
+    labels = (labels as Octokit.IssuesGetResponseLabelsItem[]).map(label => label.name);
   }
   return labels as string[];
 }
@@ -200,20 +201,20 @@ export function getLabelsNames(labels: Github.IssuesGetResponseLabelsItem[] | st
 /**
  * Adds a comment on a PR
  */
-export async function addComment(github: Github, owner: string, repo: string, number: number, body: string): Promise<Github.AnyResponse> {
+export async function addComment(github: GitHubAPI, owner: string, repo: string, issue_number: number, body: string): Promise<Octokit.AnyResponse> {
   return github.issues.createComment({
     owner,
     repo,
-    number,
+    issue_number,
     body
   });
 }
 
-export async function addLabels(github: Github, owner: string, repo: string, number: number, labels: string[]): Promise<Github.AnyResponse> {
+export async function addLabels(github: GitHubAPI, owner: string, repo: string, issue_number: number, labels: string[]): Promise<Octokit.AnyResponse> {
   return github.issues.addLabels({
     owner,
     repo,
-    number,
+    issue_number,
     labels
   });
 }
@@ -273,30 +274,30 @@ export function matchAllOfAny(names: string[], patternsArray: string[][]): boole
 }
 
 export async function queryPR<T>(github: GitHubAPI, query: string, params: { [key: string]: any, owner: string, repo: string, number: number }): Promise<T> {
-  return (await github.query(`query($owner: String!, $repo: String!, $number: Int!) {
+  return (await github.graphql(`query($owner: String!, $repo: String!, $number: Int!) {
       repository(owner: $owner, name: $repo) {
         pullRequest(number: $number) {
           ${query}
         }
       }
-    }`, params)).repository.pullRequest;
+    }`, params) as GraphQlQueryResponse['data']).repository.pullRequest;
 }
 
 export async function queryIssue<T>(github: GitHubAPI, query: string, params: { [key: string]: any, owner: string, repo: string, number: number }): Promise<T> {
-  return (await github.query(`query($owner: String!, $repo: String!, $number: Int!) {
+  return (await github.graphql(`query($owner: String!, $repo: String!, $number: Int!) {
       repository(owner: $owner, name: $repo) {
         issue(number: $number) {
           ${query}
         }
       }
-    }`, params)).repository.issue;
+    }`, params) as GraphQlQueryResponse['data']).repository.issue;
 }
 
 
 export async function queryNode<T>(github: GitHubAPI, query: string, params: { [key: string]: any, owner: string, repo: string, number: number, nodeId: string }): Promise<T> {
-  return (await github.query(`query($owner: String!, $repo: String!, $number: Int!) {
+  return (await github.graphql(`query($owner: String!, $repo: String!, $number: Int!) {
       node(id: $nodeId) {
         ${query}
       }
-    }`, params)).node;
+    }`, params) as GraphQlQueryResponse['data']).node;
 }

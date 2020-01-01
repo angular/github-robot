@@ -1,10 +1,11 @@
 import {Context, Application} from "probot";
 import {MergeTask} from "../functions/src/plugins/merge";
 import {appConfig} from "../functions/src/default";
-import {MockFirestore} from './mocks/firestore';
-import {mockGithub, mockGraphQL} from "./mocks/github";
+import {mockGithub} from "./mocks/github";
 import {CommonTask} from "../functions/src/plugins/common";
-import {GitHubAPI} from "probot/lib/github";
+import {GitHubAPI, ProbotOctokit} from "probot/lib/github";
+// @ts-ignore
+import MockFirestore from 'mock-cloud-firestore';
 
 describe('merge', () => {
   let robot: Application;
@@ -21,7 +22,8 @@ describe('merge', () => {
     mockGithub('repo-pull-request');
 
     // create the mock Firebase Firestore
-    store = new MockFirestore();
+    const firebase = new MockFirestore();
+    store = firebase.firestore();
 
     // Create a new Robot to run our plugin
     robot = new Application();
@@ -29,7 +31,8 @@ describe('merge', () => {
     // Mock out the GitHub API
     github = GitHubAPI({
       debug: true,
-      logger: robot.log
+      logger: robot.log,
+      Octokit: ProbotOctokit
     });
 
     // Mock out GitHub App authentication and return our mock client
@@ -86,46 +89,6 @@ describe('merge', () => {
 
   describe('reviews', () => {
     it('should be able to get the accurate number of pending reviews', async () => {
-      mockGraphQL({
-        "repository": {
-          "pullRequest": {
-            "number": 19,
-            "state": "OPEN",
-            "reviews": {
-              "nodes": [
-                {
-                  "authorAssociation": "COLLABORATOR",
-                  "author": {
-                    "userId": "MDQ6VXNlcjM3MTc1ODEz"
-                  },
-                  "state": "APPROVED",
-                  "createdAt": "2018-03-20T16:12:02Z"
-                },
-                {
-                  "authorAssociation": "COLLABORATOR",
-                  "author": {
-                    "userId": "MDQ6VXNlcjM3MTc1ODEz"
-                  },
-                  "state": "APPROVED",
-                  "createdAt": "2018-03-26T12:42:49Z"
-                },
-                {
-                  "authorAssociation": "COLLABORATOR",
-                  "author": {
-                    "userId": "MDQ6VXNlcjM3MTc1ODEz"
-                  },
-                  "state": "APPROVED",
-                  "createdAt": "2018-03-26T14:02:37Z"
-                }
-              ]
-            },
-            "reviewRequests": {
-              "nodes": []
-            }
-          }
-        }
-      });
-      // const event = require('./fixtures/pr-comments.json');
       const event = require('./fixtures/pull_request_review.submitted.json');
       const context = new Context(event, github, robot.log) as any;
       const pendingReviews = await mergeTask.getPendingReviews(context, context.payload.pull_request);
