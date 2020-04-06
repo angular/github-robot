@@ -478,7 +478,9 @@ export class MergeTask extends Task {
     )) {
       // Checking if we need to add g3 status
       const files: Github.PullRequestsListFilesResponse = (await context.github.pullRequests.listFiles({owner, repo, number: pr.number})).data;
-      if(this.matchAnyFile(files.map(file => file.filename), config.g3Status.include, config.g3Status.exclude)) {
+      const pullRequest: Github.PullRequestsGetResponse = (await context.github.pullRequests.get({owner, repo, number: pr.number})).data;
+      if (pullRequest.base.ref == config.g3Status.syncedBranch &&
+        this.matchAnyFile(files.map(file => file.filename), config.g3Status.include, config.g3Status.exclude)) {
         // Only update g3 status if a commit was just pushed, or there was no g3 status
         if(context.payload.action === "synchronize" || !statuses.some(status => status.context === config.g3Status.context)) {
           const status = (await context.github.repos.createStatus({
