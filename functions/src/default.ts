@@ -46,7 +46,8 @@ export const appConfig: AppConfig = {
         "**/rollup.config.js",
         "**/BUILD.bazel",
         "packages/**/test/**",
-      ]
+      ],
+      syncedBranch: "master",
     },
 
     // comment that will be added to a PR when there is a conflict, leave empty or set to false to disable
@@ -146,6 +147,7 @@ export interface MergeConfig {
     url: string;
     include: string[];
     exclude: string[];
+    syncedBranch: string;
   };
   mergeConflictComment: string;
   mergeLabel: string;
