@@ -477,7 +477,10 @@ export class MergeTask extends Task {
       !statuses.some(status => status.context === config.g3Status.context)
     )) {
       // Checking if we need to add g3 status
-      const files: Github.PullRequestsListFilesResponse = (await context.github.pullRequests.listFiles({owner, repo, number: pr.number})).data;
+      const files: Github.PullRequestsListFilesResponse = await context.github.paginate(
+        context.github.pullRequests.listFiles({owner, repo, number: pr.number}),
+        pages => (pages as any).data) as Github.PullRequestsListFilesResponse;
+      (await context.github.pullRequests.listFiles({owner, repo, number: pr.number})).data;
       if(this.matchAnyFile(files.map(file => file.filename), config.g3Status.include, config.g3Status.exclude)) {
         // Only update g3 status if a commit was just pushed, or there was no g3 status
         if(context.payload.action === "synchronize" || !statuses.some(status => status.context === config.g3Status.context)) {
@@ -583,7 +586,7 @@ export class MergeTask extends Task {
     return repositoryConfig.merge;
   }
 
-  /** 
+  /**
    * Temporary defintion of matchAnyFile, originally defined in common.ts, to allow for
    * logging of match checking.
    */
@@ -600,7 +603,7 @@ export class MergeTask extends Task {
       this.logDebug(`Matched: ${currentFileMatched} | File: ${name} | Pattern Matched: ${matchesPattern || 'No Match'} | NegPattern Matched: ${matchesNegPattern || 'No Match'}`);
       matches = matches || currentFileMatched;
     });
-    this.logDebug(`Overall Result of matchAnyFile: ${matches}`)
+    this.logDebug(`Overall Result of matchAnyFile: ${matches}`);
     return matches;
   }
 }
