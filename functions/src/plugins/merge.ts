@@ -288,7 +288,7 @@ export class MergeTask extends Task {
     // given the review yet. Once they do, they disappear from this list, and we need to check the reviews.
     // We only take the reviews from users and ignore team reviews so that we don't conflict with Github code owners
     // that automatically add team to the reviewers list
-    const reviewRequests =(await context.github.pullRequests.listReviewRequests({owner, repo, number: pr.number})).data.users;
+    const reviewRequests =(await context.github.pullRequests.listReviewRequests({owner, repo, number: pr.number})).data.users || [];
 
     const usersReviews: number[] = [];
     const finalReviews: any[] = [];

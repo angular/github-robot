@@ -19,6 +19,8 @@ describe('merge', () => {
     mockGithub('get-installation-repositories');
     mockGithub('repo-pull-requests');
     mockGithub('repo-pull-request');
+    mockGithub('repo-pull-request-reviews');
+    mockGithub('repo-pull-request-requested-reviewers');
 
     // create the mock Firebase Firestore
     store = new MockFirestore();
