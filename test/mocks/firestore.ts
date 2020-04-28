@@ -84,7 +84,11 @@ class DocumentReference implements FirebaseFirestore.DocumentReference {
     throw new Error("Method not implemented.");
   }
 
-  isEqual(other: DocumentReference): boolean {
+  isEqual(other: FirebaseFirestore.DocumentReference): boolean {
+    throw new Error("Method not implemented.");
+  }
+
+  listCollections(): Promise<FirebaseFirestore.CollectionReference[]> {
     throw new Error("Method not implemented.");
   }
 }
@@ -116,7 +120,7 @@ class QueryDocumentSnapshot implements FirebaseFirestore.QueryDocumentSnapshot {
 
 class QuerySnapshot implements FirebaseFirestore.QuerySnapshot {
   query: FirebaseFirestore.Query;
-  docChanges: FirebaseFirestore.DocumentChange[];
+  docChanges: () => FirebaseFirestore.DocumentChange[];
   docs: QueryDocumentSnapshot[];
   size: number;
   empty: boolean;
@@ -282,6 +286,10 @@ class Collection implements FirebaseFirestore.CollectionReference {
   isEqual(other: FirebaseFirestore.CollectionReference): boolean {
     throw new Error("Method not implemented.");
   }
+
+  listDocuments(): Promise<FirebaseFirestore.DocumentReference[]> {
+    throw new Error("Method not implemented.");
+  }
 }
 
 export class MockFirestore implements FirebaseFirestore.Firestore {
@@ -317,6 +325,10 @@ export class MockFirestore implements FirebaseFirestore.Firestore {
   }
 
   batch(): FirebaseFirestore.WriteBatch {
+    throw new Error("Method not implemented.");
+  }
+
+  listCollections(): Promise<FirebaseFirestore.CollectionReference[]> {
     throw new Error("Method not implemented.");
   }
 }
