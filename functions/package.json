@@ -9,6 +9,9 @@
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log"
   },
+  "engines": {
+    "node": "10"
+  },
   "main": "lib/index.js",
   "dependencies": {
     "@firebase/app-types": "0.3.2",
