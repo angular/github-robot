@@ -50,18 +50,24 @@ export class RerunCircleCITask extends Task {
     const pullRequest: Github.PullRequestsGetResponse = context.payload.pull_request;
     const sender: Github.PullRequestsGetResponseUser = context.payload.sender;
     const {owner, repo} = context.repo();
-    const circleCiUrl = `https://circleci.com/api/v1.1/project/github/${owner}/${repo}/build?circle-token=${CIRCLE_CI_TOKEN}`;
+    const circleCiUrl = `https://circleci.com/api/v2/project/gh/${owner}/${repo}/pipeline?circle-token=${CIRCLE_CI_TOKEN}`;
     try {
-      await fetch(circleCiUrl, {
+      const response = await fetch(circleCiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          revision: pullRequest.head.sha,
-          branch: `pull/${pullRequest.number}`,
+          branch: `pull/${pullRequest.number}/head`,
         })
       });
+      // Properly handled failures in the CircleCI requests are returned with an HTTP response code
+      // of 200 and json response with a `:message` key mapping to the failure message.  If
+      // `:message` is not defined, the API request was successful.
+      const errMessage = (await response.json())[':message'];
+      if (errMessage) {
+        throw Error(errMessage);
+      }
     } catch (err) {
       const error: TypeError = err;
       context.github.issues.createComment({
