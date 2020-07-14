@@ -59,6 +59,12 @@ describe('triage', () => {
 
       isTriaged = triageTask.isTriaged(config.l2TriageLabels, ['comp: common/http', 'type: bug/fix', 'freq1: low', 'severity3: broken']);
       expect(isTriaged).toBeTruthy();
+
+      isTriaged = triageTask.isTriaged(config.l2TriageLabels, ['comp: router', 'type: use-case', 'freq1: low'])
+      expect(isTriaged).toBeTruthy();
+
+      isTriaged = triageTask.isTriaged(config.l2TriageLabels, ['comp: router', 'type: confusing', 'freq1: low'])
+      expect(isTriaged).toBeTruthy();
     });
   });
 });

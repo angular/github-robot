@@ -98,7 +98,14 @@ If you can't get the PR to a green state due to flakes or broken master, please 
     // arrays of labels that determine if an issue has been triaged by the caretaker
     l1TriageLabels: [["comp: *"]],
     // arrays of labels that determine if an issue has been fully triaged
-    l2TriageLabels: [["type: bug/fix", "severity*", "freq*", "comp: *"], ["type: feature", "comp: *"], ["type: refactor", "comp: *"], ["type: RFC / Discussion / question", "comp: *"]]
+    l2TriageLabels: [
+      ["type: bug/fix", "severity*", "freq*", "comp: *"],
+      ["type: use-case", "freq*", "comp: *"],
+      ["type: confusing", "freq*", "comp: *"],
+      ["type: feature", "comp: *"],
+      ["type: refactor", "comp: *"],
+      ["type: RFC / Discussion / question", "comp: *"]
+    ]
   },
 
   // triage for PRs
