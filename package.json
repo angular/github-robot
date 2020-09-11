@@ -27,7 +27,7 @@
   "dependencies": {
     "@firebase/app-types": "0.3.2",
     "minimatch": "^3.0.4",
-    "node-fetch": "2.2.0",
+    "node-fetch": "2.6.1",
     "probot": "7.4.0"
   },
   "devDependencies": {
