@@ -47,6 +47,8 @@ export const enum AUTHOR_ASSOCIATION {
 
 export interface CachedPullRequest extends Github.PullRequestsGetResponse {
   pendingReviews?: number;
+  mergeable_state?: string;
+  draft?: boolean;
 }
 
 declare namespace GithubGQL {
