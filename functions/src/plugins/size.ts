@@ -1,13 +1,13 @@
-import fetch from 'node-fetch';
+import fetch, {HeadersInit} from 'node-fetch';
 import {Application, Context} from "probot";
 import {Task} from "./task";
 import {SizeConfig, appConfig as defaultAppConfig} from "../default";
 import {STATUS_STATE} from "../typings";
 import Github from '@octokit/rest';
+import {config as firebaseFunctionConfig} from 'firebase-functions';
 
 export interface CircleCiArtifact {
   path: string;
-  pretty_path: string;
   node_index: number;
   url: string;
 }
@@ -359,12 +359,18 @@ export class SizeTask extends Task {
    * Retrieves the build artifacts from circleci
    */
   async getCircleCIArtifacts(username: string, project: string, buildNumber: number, exclude?: string[], include?: string[]): Promise<BuildArtifact[]> {
-    const artifactUrl = `https://circleci.com/api/v1.1/project/github/${username}/${project}/${buildNumber}/artifacts`;
+    const artifactUrl = `https://circleci.com/api/v2/project/gh/${username}/${project}/${buildNumber}/artifacts`;
     this.logDebug(`[size] Fetching artifacts for ${artifactUrl}`);
 
-    const artifactsResponse = await fetch(artifactUrl);
+    const headers: HeadersInit = {};
+    const token = firebaseFunctionConfig().circleci.token;
+    if (token !== undefined) {
+      headers['Circle-Token'] = token;
+    }
 
-    let artifacts = (await artifactsResponse.json() as CircleCiArtifact[]);
+    const artifactsResponse = await fetch(artifactUrl, {headers});
+
+    let {items: artifacts} = (await artifactsResponse.json() as {items: CircleCiArtifact[]});
     if (include) {
       artifacts = artifacts.filter(ca => include.some(path => ca.path.startsWith(path)));
     }
