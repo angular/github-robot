@@ -1,4 +1,5 @@
 import {Application, Context} from "probot";
+import {WebhookPayloadPush} from '@octokit/webhooks';
 import Github from '@octokit/rest';
 import minimatch from "minimatch";
 import {AdminConfig} from "../default";
@@ -154,9 +155,13 @@ export class CommonTask extends Task {
    * Update the config file when there is a push to master that changes it
    */
   async onPush(context: Context): Promise<void> {
-    let ref = context.payload.ref.split('/');
-    ref = ref[ref.length - 1];
-    if(ref === 'master') {
+    const payload = context.payload as WebhookPayloadPush;
+    const refParts = payload.ref.split('/');
+    const branchName = refParts[refParts.length - 1];
+    const defaultBranch = payload.repository.default_branch;
+    
+    // If a config update lands in the default branch, we refresh the stored configuration.
+    if (branchName === defaultBranch) {
       const commits = context.payload.commits;
       const updatedConfig = commits.some((commit: Commit) => commit.modified.includes(`.github/${CONFIG_FILE}`));
       if(updatedConfig) {
