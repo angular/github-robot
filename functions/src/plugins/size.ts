@@ -368,7 +368,7 @@ export class SizeTask extends Task {
       headers['Circle-Token'] = token;
     }
 
-    const artifactsResponse = await fetch(artifactUrl, {headers});
+    const artifactsResponse = await fetch(artifactUrl, {headers, follow: 100});
 
     let {items: artifacts} = (await artifactsResponse.json() as {items: CircleCiArtifact[]});
     if (include) {
