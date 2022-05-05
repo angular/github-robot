@@ -66,7 +66,7 @@ Please help to unblock it by resolving these conflicts. Thanks!`,
       noConflict: true,
       // whether the PR should have all reviews completed.
       requireReviews: true,
-      // list of labels that a PR needs to have, checked with a regexp (e.g. "PR target:" will work for the label "PR target: master")
+      // list of labels that a PR needs to have, checked with a regexp.
       requiredLabels: ["cla: yes"],
       // list of labels that a PR needs to have, checked only AFTER the merge label has been applied
       requiredLabelsWhenMergeReady: ["PR target: *"],
@@ -84,7 +84,7 @@ Please help to unblock it by resolving these conflicts. Thanks!`,
 
 **If you want your PR to be merged, it has to pass all the CI checks.**
 
-If you can't get the PR to a green state due to flakes or broken master, please try rebasing to master and/or restarting the CI job. If that fails and you believe that the issue is not due to your change, please contact the caretaker and ask for help.`
+If you can't get the PR to a green state due to flakes or broken \`main\`, please try rebasing to \`main\` and/or restarting the CI job. If that fails and you believe that the issue is not due to your change, please contact the caretaker and ask for help.`
   },
 
   // triage for issues

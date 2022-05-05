@@ -89,7 +89,7 @@ merge:
     noConflict: true
     # whether the PR should have all reviews completed.
     requireReviews: true
-    # list of labels that a PR needs to have, checked with a regexp (e.g. "PR target:" will work for the label "PR target: master")
+    # list of labels that a PR needs to have, checked with a regexp.
     requiredLabels:
       - "cla: yes"
     # list of labels that a PR needs to have, checked only AFTER the merge label has been applied
@@ -117,7 +117,7 @@ merge:
 \n
 \n**If you want your PR to be merged, it has to pass all the CI checks.**
 \n
-\nIf you can't get the PR to a green state due to flakes or broken master, please try rebasing to master and/or restarting the CI job. If that fails and you believe that the issue is not due to your change, please contact the caretaker and ask for help."
+\nIf you can't get the PR to a green state due to flakes or broken `main`, please try rebasing to `main` and/or restarting the CI job. If that fails and you believe that the issue is not due to your change, please contact the caretaker and ask for help."
 
 # options for the triage issues plugin
 triage:
