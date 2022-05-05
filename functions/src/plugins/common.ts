@@ -152,7 +152,7 @@ export class CommonTask extends Task {
   }
 
   /**
-   * Update the config file when there is a push to master that changes it
+   * Update the config file when there is a push to the default branch.
    */
   async onPush(context: Context): Promise<void> {
     const payload = context.payload as WebhookPayloadPush;
