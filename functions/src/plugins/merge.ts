@@ -60,7 +60,10 @@ export class MergeTask extends Task {
     let updateStatus = false;
     let statuses: GithubGQL.StatusContext[];
 
-    if(newLabel === config.mergeLabel) {
+    const labels = getLabelsNames(pr.labels)
+    const hasCaretakerNote = labels.includes('action: caretaker note')
+
+     if(newLabel === config.mergeLabel && !hasCaretakerNote) {
       this.logDebug({context}, `Checking merge label`);
 
       statuses = await this.getStatuses(context, pr.number, config);
@@ -79,7 +82,7 @@ export class MergeTask extends Task {
           });
         }
       }
-    } else if(config.mergeLinkedLabels && config.mergeLinkedLabels.includes(newLabel) && !getLabelsNames(pr.labels).includes(config.mergeLabel)) {
+    } else if(config.mergeLinkedLabels && config.mergeLinkedLabels.includes(newLabel) && !labels.includes(config.mergeLabel)) {
       // Add the merge label when we add a linked label
       addLabels(context.github, owner, repo, pr.number, [config.mergeLabel])
         .catch(); // If it fails it's because we're trying to add a label that already exists
