@@ -2,9 +2,10 @@ import {config, firestore, https} from 'firebase-functions';
 import {Request, Response} from "express";
 import {createProbot, Options} from "probot";
 import {consoleStream, registerTasks, Tasks} from "./util";
-import {firestore as firestoreAdmin, initializeApp} from "firebase-admin";
-import {DocumentSnapshot} from "firebase-functions/lib/providers/firestore";
-import {EventContext} from "firebase-functions/lib/cloud-functions";
+import {getFirestore} from "firebase-admin/firestore";
+import {initializeApp} from "firebase-admin/app";
+import {DocumentSnapshot} from "firebase-functions/lib/v1/providers/firestore";
+import {EventContext} from "firebase-functions/lib/v1/cloud-functions";
 
 let tasks: Tasks;
 let probotConfig: Options = config().probot;
@@ -18,7 +19,7 @@ if(!probotConfig) {
 // Init Firebase
 initializeApp();
 
-const store: FirebaseFirestore.Firestore = firestoreAdmin();
+const store: FirebaseFirestore.Firestore = getFirestore();
 // Create the bot using Firebase's probot config (see Readme.md)
 const bot = createProbot(probotConfig);
 // disable probot logging
