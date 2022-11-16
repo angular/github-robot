@@ -5,6 +5,7 @@ import {SizeConfig, appConfig as defaultAppConfig} from "../default";
 import {STATUS_STATE} from "../typings";
 import Github from '@octokit/rest';
 import {config as firebaseFunctionConfig} from 'firebase-functions';
+import {DocumentReference} from 'firebase-admin/firestore';
 
 export interface CircleCiArtifact {
   path: string;
@@ -236,7 +237,7 @@ export class SizeTask extends Task {
     ));
 
     return sizeArtifacts.firestore.runTransaction(async transaction => {
-      const results = await transaction.getAll(...artifactDocs as [any]);
+      const results = await transaction.getAll(...artifactDocs as DocumentReference<any>[]);
 
       for(let i = 0; i < results.length; ++i) {
         if(results[i].exists) {
@@ -308,7 +309,7 @@ export class SizeTask extends Task {
     const baselines = new Map(oldArtifacts.map<[string, BuildArtifact]>(a => [a.path, a]));
     const [threshold, percentage] = this.parseBytes(config.maxSizeIncrease);
 
-    if (threshold === NaN) {
+    if (isNaN(threshold)) {
       this.logError('Invalid size configuration');
       return [];
     }
